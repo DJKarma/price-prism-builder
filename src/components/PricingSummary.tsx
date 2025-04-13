@@ -78,7 +78,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
   useEffect(() => {
     if (highlightedTypes.length > 0) {
       setHighlightedValues(highlightedTypes);
-      // Clear highlighting after 5 seconds (increased from 4)
+      // Clear highlighting after 5 seconds (as requested)
       const timer = setTimeout(() => {
         setHighlightedValues([]);
       }, 5000);
@@ -139,19 +139,19 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           })
           .filter((size) => !isNaN(size) && isFinite(size) && size > 0);
         
-        // Calculate stats with safeguards against empty arrays
+        // Calculate stats with safeguards against empty arrays - ROUND all values
         const stats: BedroomTypeStats = {
           type,
           count: units.length,
-          minPsf: psfs.length ? Math.min(...psfs) : 0,
-          avgPsf: psfs.length ? psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length : 0,
-          maxPsf: psfs.length ? Math.max(...psfs) : 0,
-          minPrice: prices.length ? Math.min(...prices) : 0,
-          avgPrice: prices.length ? prices.reduce((sum, price) => sum + price, 0) / prices.length : 0,
-          maxPrice: prices.length ? Math.max(...prices) : 0,
-          minSize: sizes.length ? Math.min(...sizes) : 0,
-          avgSize: sizes.length ? sizes.reduce((sum, size) => sum + size, 0) / sizes.length : 0,
-          maxSize: sizes.length ? Math.max(...sizes) : 0,
+          minPsf: psfs.length ? Math.round(Math.min(...psfs)) : 0,
+          avgPsf: psfs.length ? Math.round(psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length) : 0,
+          maxPsf: psfs.length ? Math.round(Math.max(...psfs)) : 0,
+          minPrice: prices.length ? Math.round(Math.min(...prices)) : 0,
+          avgPrice: prices.length ? Math.round(prices.reduce((sum, price) => sum + price, 0) / prices.length) : 0,
+          maxPrice: prices.length ? Math.round(Math.max(...prices)) : 0,
+          minSize: sizes.length ? Math.round(Math.min(...sizes)) : 0,
+          avgSize: sizes.length ? Math.round(sizes.reduce((sum, size) => sum + size, 0) / sizes.length) : 0,
+          maxSize: sizes.length ? Math.round(Math.max(...sizes)) : 0,
         };
         
         return stats;
@@ -196,15 +196,15 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
 
     return {
       count: totalUnits,
-      minPsf: isFinite(minPsf) ? minPsf : 0,
-      avgPsf: isFinite(weightedPsf) ? weightedPsf : 0,
-      maxPsf: isFinite(maxPsf) ? maxPsf : 0,
-      minPrice: isFinite(minPrice) ? minPrice : 0,
-      avgPrice: isFinite(weightedPrice) ? weightedPrice : 0,
-      maxPrice: isFinite(maxPrice) ? maxPrice : 0,
-      minSize: isFinite(minSize) ? minSize : 0,
-      avgSize: isFinite(weightedSize) ? weightedSize : 0,
-      maxSize: isFinite(maxSize) ? maxSize : 0,
+      minPsf: isFinite(minPsf) ? Math.round(minPsf) : 0,
+      avgPsf: isFinite(weightedPsf) ? Math.round(weightedPsf) : 0,
+      maxPsf: isFinite(maxPsf) ? Math.round(maxPsf) : 0,
+      minPrice: isFinite(minPrice) ? Math.round(minPrice) : 0,
+      avgPrice: isFinite(weightedPrice) ? Math.round(weightedPrice) : 0,
+      maxPrice: isFinite(maxPrice) ? Math.round(maxPrice) : 0,
+      minSize: isFinite(minSize) ? Math.round(minSize) : 0,
+      avgSize: isFinite(weightedSize) ? Math.round(weightedSize) : 0,
+      maxSize: isFinite(maxSize) ? Math.round(maxSize) : 0,
     };
   }, [bedroomTypeStats]);
 
@@ -232,9 +232,10 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
             const randomFactor = 1 - progress;
             const range = Math.abs(value - displayValue);
             const randomDelta = range * randomFactor * (Math.random() - 0.5);
-            const intermediateValue = value + randomDelta;
+            // Round the intermediate value for consistent display
+            const intermediateValue = Math.round(value + randomDelta);
             
-            setDisplayValue(parseFloat(intermediateValue.toFixed(2)));
+            setDisplayValue(intermediateValue);
             iterations++;
           } else {
             clearInterval(interval);
@@ -251,7 +252,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     
     return (
       <span className={`transition-all duration-200 ${isAnimating ? 'text-indigo-800 scale-110' : ''}`}>
-        {prefix}{isFinite(displayValue) && displayValue > 0 ? displayValue.toFixed(2) : "0.00"}{suffix}
+        {prefix}{isFinite(displayValue) && displayValue > 0 ? Math.round(displayValue) : "0"}{suffix}
       </span>
     );
   };

@@ -43,7 +43,8 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      <div className="fixed bottom-0 right-0 z-[100] flex flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col-reverse md:max-w-[420px]">
+      {/* Changed to bottom-right positioning and flex-col */}
+      <div className="fixed bottom-0 right-0 z-[100] flex flex-col p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px] gap-2">
         {toasts.map(function ({ id, title, description, action, variant, className, ...props }, index) {
           // Determine icon based on variant
           let Icon = Info
@@ -60,15 +61,15 @@ export function Toaster() {
             iconClass = "text-amber-500"
           }
           
-          // Add staggered entry delay based on index
-          const entryDelay = index * 150;
+          // Add entry delay based on index (no stagger for better visibility)
+          const entryDelay = 0; // Removed staggered delay to prevent overlap feeling
           
           return (
             <SlotMachineToast key={id} style={{ transitionDelay: `${entryDelay}ms` }}>
               <Toast 
                 {...props} 
                 className={cn(
-                  "animate-enter flex items-start gap-3 border-l-4 my-2 shadow-lg", 
+                  "animate-enter flex items-start gap-3 border-l-4 shadow-lg", 
                   variant === "destructive" ? "border-l-red-500 bg-red-50" : 
                   className?.includes("success") ? "border-l-green-500 bg-green-50" : 
                   className?.includes("warning") ? "border-l-amber-500 bg-amber-50" : 
