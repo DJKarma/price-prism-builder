@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useMemo } from "react";
 import {
   CartesianGrid,
   Line,
@@ -42,45 +42,48 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
 
 const FloorPsfChart: React.FC<FloorPsfChartProps> = ({ floorRules, maxFloor = 50 }) => {
   // Process rules to ensure endFloor is properly set (default to 99 if null)
-  const processedRules = floorRules.map(rule => ({
-    ...rule,
-    endFloor: rule.endFloor === null ? 99 : rule.endFloor
-  }));
+  const processedRules = useMemo(() => {
+    return floorRules.map(rule => ({
+      ...rule,
+      endFloor: rule.endFloor === null ? 99 : rule.endFloor
+    }));
+  }, [floorRules]);
   
-  // Generate data using our own calculation instead of the utility
-  const data: FloorPsfPoint[] = Array.from({ length: maxFloor }, (_, i) => {
-    const floor = i + 1;
-    const psfValue = calculateFloorPremium(floor, processedRules);
-    
-    // Determine if this is a jump floor
-    let isJump = false;
-    
-    // Get sorted rules
-    const sortedRules = [...processedRules].sort(
-      (a, b) => a.startFloor - b.startFloor
-    );
-    
-    // Find the rule that applies to this floor
-    const rule = sortedRules.find(
-      r => floor >= r.startFloor && floor <= (r.endFloor === null ? 99 : r.endFloor)
-    );
-    
-    if (rule && rule.jumpEveryFloor && rule.jumpIncrement) {
-      // Check if this is a jump floor - a multiple of jumpEveryFloor from startFloor
-      const floorsAfterStart = floor - rule.startFloor;
-      isJump = floorsAfterStart > 0 && 
-               floorsAfterStart % rule.jumpEveryFloor === 0;
-    }
-    
-    return {
-      floor,
-      psf: psfValue,
-      isJump
-    };
-  });
+  // Generate data points for the chart
+  const data = useMemo(() => {
+    return Array.from({ length: maxFloor }, (_, i) => {
+      const floor = i + 1;
+      
+      // Calculate the PSF value for this floor
+      const psfValue = calculateFloorPremium(floor, processedRules);
+      
+      // Determine if this is a jump floor
+      let isJump = false;
+      
+      // Find the rule that applies to this floor
+      const applicableRule = processedRules.find(
+        r => floor >= r.startFloor && floor <= r.endFloor
+      );
+      
+      if (applicableRule && applicableRule.jumpEveryFloor && applicableRule.jumpIncrement) {
+        // Check if this is a jump floor based on the applicable rule
+        const floorsFromStart = floor - applicableRule.startFloor;
+        isJump = floorsFromStart > 0 && 
+                 floorsFromStart % applicableRule.jumpEveryFloor === 0;
+      }
+      
+      return {
+        floor,
+        psf: psfValue,
+        isJump
+      };
+    });
+  }, [processedRules, maxFloor]);
   
-  // Find jump floors for special rendering
-  const jumpPoints = data.filter(point => point.isJump);
+  // Extract jump points for special rendering
+  const jumpPoints = useMemo(() => {
+    return data.filter(point => point.isJump);
+  }, [data]);
   
   return (
     <Card>
@@ -121,7 +124,7 @@ const FloorPsfChart: React.FC<FloorPsfChartProps> = ({ floorRules, maxFloor = 50
                 activeDot={{ r: 6 }}
               />
               
-              {/* Mark jump floors with special dots */}
+              {/* Render jump floors with special dots */}
               {jumpPoints.length > 0 && (
                 <Line
                   type="monotone"

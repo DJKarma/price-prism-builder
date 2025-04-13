@@ -25,7 +25,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { PlusCircle, MinusCircle, ChevronDown, ChevronUp } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { calculateFloorPremium } from "@/utils/psfOptimizer";
 
 export interface PremiumEditorProps {
@@ -96,7 +96,7 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
     // Find the highest endFloor from existing rules
     let maxEndFloor = 0;
     localConfig.floorRiseRules.forEach((rule: any) => {
-      const endFloor = rule.endFloor === null ? 99 : rule.endFloor;
+      const endFloor = rule.endFloor === null ? (localConfig.maxFloor || 99) : rule.endFloor;
       if (endFloor > maxEndFloor) {
         maxEndFloor = endFloor;
       }
@@ -104,7 +104,7 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
     
     // New rule starts after the highest endFloor
     const newStartFloor = maxEndFloor + 1;
-    const newEndFloor = null; // Default to null (which will be treated as 99)
+    const newEndFloor = null; // Will be treated as maxFloor
     
     setLocalConfig({
       ...localConfig,
@@ -132,7 +132,16 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
   };
   
   const applyChanges = () => {
-    onPricingConfigChange(localConfig);
+    // Process the floor rules to ensure endFloor is set properly
+    const processedConfig = {
+      ...localConfig,
+      floorRiseRules: localConfig.floorRiseRules.map((rule: any) => ({
+        ...rule,
+        endFloor: rule.endFloor === null ? (localConfig.maxFloor || 99) : rule.endFloor
+      }))
+    };
+    
+    onPricingConfigChange(processedConfig);
     toast({
       title: "Changes Applied",
       description: "Premium values have been updated and prices recalculated.",
@@ -143,30 +152,28 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
     // Process rules to ensure endFloor is properly handled
     const processedRules = localConfig.floorRiseRules.map((rule: any) => ({
       ...rule,
-      endFloor: rule.endFloor === null ? 99 : rule.endFloor
+      endFloor: rule.endFloor === null ? (localConfig.maxFloor || 99) : rule.endFloor
     }));
     
     const psfValue = calculateFloorPremium(floor, processedRules);
     
+    // Determine if this is a jump floor
     let isJumpFloor = false;
     let appliedRule = null;
     
-    const sortedRules = [...processedRules].sort(
-      (a, b) => a.startFloor - b.startFloor
+    // Find the rule that applies to this floor
+    const applicableRule = processedRules.find(
+      (r: any) => floor >= r.startFloor && floor <= r.endFloor
     );
     
-    const rule = sortedRules.find(
-      (r: any) => floor >= r.startFloor && floor <= (r.endFloor === null ? 99 : r.endFloor)
-    );
-    
-    if (rule && rule.jumpEveryFloor && rule.jumpIncrement) {
-      // Check if this is a jump floor - a multiple of jumpEveryFloor from startFloor
-      const floorsAfterStart = floor - rule.startFloor;
-      isJumpFloor = floorsAfterStart > 0 && 
-                    floorsAfterStart % rule.jumpEveryFloor === 0;
+    if (applicableRule && applicableRule.jumpEveryFloor && applicableRule.jumpIncrement) {
+      // Check if this is a jump floor based on the rule
+      const floorsFromStart = floor - applicableRule.startFloor;
+      isJumpFloor = floorsFromStart > 0 && 
+                   floorsFromStart % applicableRule.jumpEveryFloor === 0;
       
       if (isJumpFloor) {
-        appliedRule = rule;
+        appliedRule = applicableRule;
       }
     }
     
@@ -176,6 +183,9 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
       appliedRule
     };
   };
+  
+  // Determine max floor to display in preview
+  const previewMaxFloor = localConfig.maxFloor || 50;
   
   return (
     <Collapsible
@@ -365,7 +375,7 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
                         type="number"
                         min={rule.startFloor}
                         value={rule.endFloor === null ? '' : rule.endFloor}
-                        placeholder="99 (Default)"
+                        placeholder={`${localConfig.maxFloor || 99} (Default)`}
                         onChange={(e) => {
                           const value = e.target.value.trim() === '' ? null : parseInt(e.target.value) || rule.startFloor;
                           handleFloorRuleChange(
@@ -445,7 +455,7 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {Array.from({ length: 50 }, (_, i) => i + 1).map((floor) => {
+                    {Array.from({ length: previewMaxFloor }, (_, i) => i + 1).map((floor) => {
                       const { psfValue, isJumpFloor, appliedRule } = calculateCumulativePsfForFloor(floor);
                       
                       return (

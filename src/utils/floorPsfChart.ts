@@ -7,57 +7,72 @@ export interface FloorPsfPoint {
 
 /**
  * Generates a dataset of floor PSF values for visualization
+ * This has been completely rewritten to use the same logic as calculateFloorPremium
  */
 export const generateFloorPsfData = (
   floorRules: Array<{
     startFloor: number;
-    endFloor: number;
+    endFloor: number | null;
     psfIncrement: number;
     jumpEveryFloor?: number;
     jumpIncrement?: number;
   }>,
   maxFloor: number = 50
 ): FloorPsfPoint[] => {
-  // Sort rules by startFloor
-  const sortedRules = [...floorRules].sort((a, b) => a.startFloor - b.startFloor);
+  // Process rules to ensure endFloor is properly handled
+  const processedRules = floorRules.map(rule => ({
+    ...rule,
+    endFloor: rule.endFloor === null ? maxFloor : rule.endFloor
+  }));
   
-  // Calculate PSF for each floor
+  // Sort rules by startFloor
+  const sortedRules = [...processedRules].sort((a, b) => a.startFloor - b.startFloor);
+  
+  // Generate data points for each floor
   const floorPsfData: FloorPsfPoint[] = [];
   
   for (let floor = 1; floor <= maxFloor; floor++) {
-    let cumulativePsf = 0;
-    let isJump = false;
+    // Find the rule that applies to this floor
+    const applicableRule = sortedRules.find(
+      r => floor >= r.startFloor && floor <= r.endFloor
+    );
+    
+    if (!applicableRule) {
+      // No rule applies, use 0 PSF
+      floorPsfData.push({
+        floor,
+        psf: 0,
+        isJump: false
+      });
+      continue;
+    }
     
     // Calculate cumulative PSF for this floor
-    for (let currentFloor = 1; currentFloor <= floor; currentFloor++) {
-      // Find applicable rule for this floor
-      const rule = sortedRules.find(
-        r => currentFloor >= r.startFloor && currentFloor <= r.endFloor
-      );
-      
-      if (rule) {
-        // Check if this is a jump floor
-        const jumpFloor = rule.jumpEveryFloor && rule.jumpIncrement && 
-                         ((currentFloor - rule.startFloor) % rule.jumpEveryFloor === 0) && 
-                         currentFloor > rule.startFloor;
-                         
-        // Add regular increment
-        cumulativePsf += rule.psfIncrement;
+    const floorOffset = floor - applicableRule.startFloor;
+    let psf = (floorOffset + 1) * applicableRule.psfIncrement;
+    
+    // Check if this is a jump floor
+    let isJump = false;
+    
+    if (applicableRule.jumpEveryFloor && applicableRule.jumpIncrement) {
+      // Only floors after the start floor can be jump floors
+      if (floorOffset > 0) {
+        // Calculate jumps
+        const jumps = Math.floor(floorOffset / applicableRule.jumpEveryFloor);
         
-        // Add jump increment if applicable
-        if (jumpFloor) {
-          cumulativePsf += rule.jumpIncrement || 0;
+        if (jumps > 0) {
+          // Add jump increments
+          psf += jumps * applicableRule.jumpIncrement;
           
-          if (currentFloor === floor) {
-            isJump = true;
-          }
+          // Check if this specific floor is a jump floor
+          isJump = floorOffset % applicableRule.jumpEveryFloor === 0;
         }
       }
     }
     
     floorPsfData.push({
       floor,
-      psf: cumulativePsf,
+      psf,
       isJump
     });
   }

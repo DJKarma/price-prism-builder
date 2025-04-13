@@ -47,41 +47,38 @@ const calculateFloorPremium = (
   floorLevel: number,
   floorRules: FloorRiseRule[]
 ): number => {
-  // Sort floor rules by startFloor to process them in order
-  const sortedFloorRules = [...floorRules].sort(
+  // Sort rules by start floor to ensure proper processing
+  const sortedRules = [...floorRules].sort(
     (a, b) => a.startFloor - b.startFloor
   );
   
-  // Calculate cumulative adjustment for the current floor
-  let cumulativeAdjustment = 0;
-  const thisFloor = floorLevel;
-  
   // Find the rule that applies to this floor
-  const applicableRule = sortedFloorRules.find(
-    r => thisFloor >= r.startFloor && thisFloor <= (r.endFloor === null ? 99 : r.endFloor)
+  const applicableRule = sortedRules.find(
+    r => floorLevel >= r.startFloor && floorLevel <= (r.endFloor === null ? 99 : r.endFloor)
   );
   
-  if (applicableRule) {
-    // Apply regular increment for each floor up to the current floor
-    cumulativeAdjustment = applicableRule.psfIncrement * thisFloor;
-    
-    // Check if this is a jump floor
-    if (applicableRule.jumpEveryFloor && applicableRule.jumpIncrement) {
-      // Calculate how many jump floors there are up to this floor
-      const firstJumpFloor = applicableRule.startFloor + applicableRule.jumpEveryFloor;
-      
-      if (thisFloor >= firstJumpFloor) {
-        // Calculate how many jumps have occurred
-        const floorsAfterStart = thisFloor - applicableRule.startFloor;
-        const completedJumps = Math.floor(floorsAfterStart / applicableRule.jumpEveryFloor);
-        
-        // Add the jump increments
-        cumulativeAdjustment += completedJumps * applicableRule.jumpIncrement;
+  if (!applicableRule) {
+    return 0; // No rule applies to this floor
+  }
+  
+  // Calculate the cumulative PSF from the rule's base increment
+  // For each floor from start to current, add the increment
+  const floorOffset = floorLevel - applicableRule.startFloor;
+  let basePsfAdjustment = (floorOffset + 1) * applicableRule.psfIncrement;
+  
+  // Calculate jump floor additions
+  if (applicableRule.jumpEveryFloor && applicableRule.jumpIncrement) {
+    // Jump floors start after the start floor
+    // Calculate how many complete jumps have occurred
+    if (floorOffset > 0) {
+      const jumps = Math.floor(floorOffset / applicableRule.jumpEveryFloor);
+      if (jumps > 0) {
+        basePsfAdjustment += jumps * applicableRule.jumpIncrement;
       }
     }
   }
   
-  return cumulativeAdjustment;
+  return basePsfAdjustment;
 };
 
 /**

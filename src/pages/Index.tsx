@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVUploader from "@/components/CSVUploader";
 import ColumnMapper from "@/components/ColumnMapper";
@@ -14,6 +14,20 @@ const Index = () => {
   const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null);
   // Force re-render state for component refresh
   const [forceUpdate, setForceUpdate] = useState<number>(0);
+
+  // Find max floor in the data for floor calculations
+  const maxFloor = useMemo(() => {
+    if (!mappedData.length) return 50; // Default
+    
+    let highest = 0;
+    mappedData.forEach(unit => {
+      const floorNum = parseInt(unit.floor as string) || 0;
+      if (floorNum > highest) highest = floorNum;
+    });
+    
+    // Add a buffer to ensure we have room for future floors
+    return Math.max(highest + 5, 50);
+  }, [mappedData]);
 
   const handleDataParsed = (data: any[], headers: string[]) => {
     setCsvData(data);
@@ -33,15 +47,20 @@ const Index = () => {
       0
     ) / config.bedroomTypePricing.length;
     
-    setPricingConfig({
+    // Update floor rules to use max floor from data
+    const updatedConfig = {
       ...config,
-      targetOverallPsf
-    });
+      targetOverallPsf,
+      // Add maxFloor to configuration for use in calculations
+      maxFloor: maxFloor
+    };
+    
+    setPricingConfig(updatedConfig);
     
     // Force a re-render to ensure all UI elements reflect changes
     setForceUpdate(prev => prev + 1);
     setActiveTab("simulate");
-  }, []);
+  }, [maxFloor]);
 
   // Handler for config updates during simulation
   const handleConfigUpdate = useCallback((updatedConfig: PricingConfig) => {
@@ -106,6 +125,7 @@ const Index = () => {
               <PricingConfiguration
                 data={mappedData}
                 onConfigurationComplete={handleConfigurationComplete}
+                maxFloor={maxFloor}
               />
             )}
           </TabsContent>

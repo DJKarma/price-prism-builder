@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -25,6 +24,7 @@ import { toast } from "sonner";
 interface PricingConfigurationProps {
   data: any[];
   onConfigurationComplete: (config: PricingConfig) => void;
+  maxFloor?: number;
 }
 
 export interface FloorRiseRule {
@@ -68,18 +68,30 @@ export interface PricingConfig {
   }>;
   targetOverallPsf?: number;
   isOptimized?: boolean;
+  maxFloor?: number;
 }
 
 const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   data,
   onConfigurationComplete,
+  maxFloor = 50,
 }) => {
   const [basePsf, setBasePsf] = useState<number>(1000);
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
-    { startFloor: 1, endFloor: 10, psfIncrement: 10, jumpEveryFloor: 10, jumpIncrement: 20 },
+    { startFloor: 1, endFloor: maxFloor, psfIncrement: 10, jumpEveryFloor: 10, jumpIncrement: 20 },
   ]);
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
+
+  useEffect(() => {
+    if (floorRiseRules.length > 0) {
+      const updatedRules = [...floorRiseRules];
+      if (updatedRules[updatedRules.length - 1].endFloor === null) {
+        updatedRules[updatedRules.length - 1].endFloor = maxFloor;
+        setFloorRiseRules(updatedRules);
+      }
+    }
+  }, [maxFloor]);
 
   useEffect(() => {
     if (!data.length) return;
@@ -133,13 +145,13 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   const handleAddFloorRiseRule = () => {
     const lastRule = floorRiseRules[floorRiseRules.length - 1];
     const newStartFloor = lastRule ? 
-      (lastRule.endFloor === null ? 99 : lastRule.endFloor) + 1 : 1;
+      (lastRule.endFloor === null ? maxFloor : lastRule.endFloor) + 1 : 1;
     
     setFloorRiseRules([
       ...floorRiseRules,
       {
         startFloor: newStartFloor,
-        endFloor: null, // Default to null (which will be treated as 99)
+        endFloor: maxFloor,
         psfIncrement: 10,
         jumpEveryFloor: 10,
         jumpIncrement: 20,
@@ -189,8 +201,8 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       
       for (let j = i + 1; j < floorRiseRules.length; j++) {
         const otherRule = floorRiseRules[j];
-        const ruleEnd = rule.endFloor === null ? 99 : rule.endFloor;
-        const otherRuleEnd = otherRule.endFloor === null ? 99 : otherRule.endFloor;
+        const ruleEnd = rule.endFloor === null ? maxFloor : rule.endFloor;
+        const otherRuleEnd = otherRule.endFloor === null ? maxFloor : otherRule.endFloor;
         
         if (
           (rule.startFloor <= otherRuleEnd && ruleEnd >= otherRule.startFloor) ||
@@ -202,11 +214,17 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       }
     }
 
+    const processedRules = floorRiseRules.map(rule => ({
+      ...rule,
+      endFloor: rule.endFloor === null ? maxFloor : rule.endFloor
+    }));
+
     onConfigurationComplete({
       basePsf,
-      floorRiseRules,
+      floorRiseRules: processedRules,
       bedroomTypePricing: bedroomTypes,
       viewPricing: viewTypes,
+      maxFloor,
     });
   };
 
@@ -283,7 +301,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                       type="number"
                       min={rule.startFloor}
                       value={rule.endFloor === null ? '' : rule.endFloor}
-                      placeholder="99 (Default)"
+                      placeholder={`${maxFloor} (Default)`}
                       onChange={(e) => {
                         const value = e.target.value.trim() === '' ? null : parseInt(e.target.value);
                         updateFloorRiseRule(
