@@ -34,6 +34,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     pricingConfig.bedroomTypePricing.map((type: any) => type.type)
   );
   const [processedData, setProcessedData] = useState<any[]>([]);
+  const [highlightedTypes, setHighlightedTypes] = useState<string[]>([]);
 
   const {
     isOptimizing,
@@ -152,6 +153,11 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     toast.promise(
       new Promise(resolve => {
         runMegaOptimization(selectedTypes);
+        // Highlight the selected types for 2 seconds
+        setHighlightedTypes([...selectedTypes]);
+        setTimeout(() => {
+          setHighlightedTypes([]);
+        }, 2000);
         // Simulate promise for toast
         setTimeout(resolve, 1000);
       }),
@@ -171,6 +177,12 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   
   // Get available bedroom types from pricing config
   const bedroomTypes = pricingConfig.bedroomTypePricing.map((type: any) => type.type);
+  
+  // Get target PSF by bedroom type
+  const getTargetPsfByType = (type: string) => {
+    const bedroomConfig = pricingConfig.bedroomTypePricing.find((t: any) => t.type === type);
+    return bedroomConfig?.targetAvgPsf || 0;
+  };
   
   return (
     <Card className="mb-6 border-2 border-indigo-100 w-full">
@@ -219,6 +231,34 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left column: Optimization controls */}
           <div className="lg:col-span-4 space-y-6">
+            {/* Current Overall PSF Display */}
+            <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg p-4 text-center mb-4 transform transition-transform hover:scale-105 shadow-md">
+              <h3 className="text-lg font-medium text-indigo-700">Current Overall PSF</h3>
+              <p className="text-3xl font-bold text-indigo-900 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-yellow-500 mr-2 animate-pulse" />
+                {currentOverallPsf.toFixed(2)}
+                <Sparkles className="h-5 w-5 text-yellow-500 ml-2 animate-pulse" />
+              </p>
+            </div>
+            
+            {/* Target PSF by Bedroom Type */}
+            <div className="bg-white rounded-lg border border-indigo-100 p-4">
+              <h3 className="text-sm font-medium mb-3 text-indigo-700">Target PSF by Bedroom Type</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {bedroomTypes.map(type => (
+                  <div 
+                    key={type} 
+                    className={`p-2 rounded-md flex justify-between items-center ${
+                      selectedTypes.includes(type) ? 'bg-indigo-50 border border-indigo-200' : 'bg-gray-50 border border-gray-200'
+                    }`}
+                  >
+                    <span className="font-medium text-sm">{type}</span>
+                    <span className="font-bold text-sm">{getTargetPsfByType(type).toFixed(2) || "0.00"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
             {/* Bedroom Type Selector */}
             <BedroomTypeSelector 
               bedroomTypes={bedroomTypes}
@@ -256,7 +296,11 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               </div>
             </div>
             {/* Use the processed data for PricingSummary instead of raw data */}
-            <PricingSummary data={processedData.length > 0 ? processedData : data} showDollarSign={false} />
+            <PricingSummary 
+              data={processedData.length > 0 ? processedData : data} 
+              showDollarSign={false} 
+              highlightedTypes={highlightedTypes}
+            />
           </div>
         </div>
       </CardContent>

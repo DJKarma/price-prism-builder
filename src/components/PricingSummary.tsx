@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -48,11 +48,13 @@ interface BedroomTypeStats {
 interface PricingSummaryProps {
   data: any[];
   showDollarSign?: boolean;
+  highlightedTypes?: string[];
 }
 
 const PricingSummary: React.FC<PricingSummaryProps> = ({ 
   data,
-  showDollarSign = true
+  showDollarSign = true,
+  highlightedTypes = []
 }) => {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -255,54 +257,73 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                   </TableHeader>
                   <TableBody>
                     {bedroomTypeStats.length > 0 ? (
-                      bedroomTypeStats.map((stat, index) => (
-                        <TableRow 
-                          key={index} 
-                          className={index % 2 === 0 ? "bg-white" : "bg-purple-50/30"}
-                        >
-                          <TableCell className="font-medium text-purple-800">{stat.type}</TableCell>
-                          <TableCell className="font-medium">{stat.count}</TableCell>
-                          <TableCell>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                {isFinite(stat.minPsf) && stat.minPsf > 0 ? stat.minPsf.toFixed(2) : "0.00"}
+                      bedroomTypeStats.map((stat, index) => {
+                        const isHighlighted = highlightedTypes.includes(stat.type);
+                        return (
+                          <TableRow 
+                            key={index} 
+                            className={
+                              isHighlighted 
+                                ? "bg-yellow-50 transition-colors duration-500" 
+                                : index % 2 === 0 ? "bg-white" : "bg-purple-50/30"
+                            }
+                          >
+                            <TableCell className="font-medium text-purple-800">{stat.type}</TableCell>
+                            <TableCell className="font-medium">{stat.count}</TableCell>
+                            <TableCell>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
+                                  {isFinite(stat.minPsf) && stat.minPsf > 0 ? stat.minPsf.toFixed(2) : "0.00"}
+                                </div>
+                                <div className={`text-center px-2 py-1 rounded-md font-medium transition-all duration-500 ${
+                                  isHighlighted 
+                                    ? "bg-yellow-100 text-yellow-800 animate-pulse transform scale-110" 
+                                    : "bg-purple-50 text-purple-600"
+                                }`}>
+                                  {isFinite(stat.avgPsf) && stat.avgPsf > 0 ? stat.avgPsf.toFixed(2) : "0.00"}
+                                </div>
+                                <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
+                                  {isFinite(stat.maxPsf) && stat.maxPsf > 0 ? stat.maxPsf.toFixed(2) : "0.00"}
+                                </div>
                               </div>
-                              <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                                {isFinite(stat.avgPsf) && stat.avgPsf > 0 ? stat.avgPsf.toFixed(2) : "0.00"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
+                                  {isFinite(stat.minPrice) && stat.minPrice > 0 ? `${showDollarSign ? "$" : ""}${stat.minPrice.toLocaleString()}` : "0"}
+                                </div>
+                                <div className={`text-center px-2 py-1 rounded-md font-medium transition-all duration-500 ${
+                                  isHighlighted 
+                                    ? "bg-yellow-100 text-yellow-800" 
+                                    : "bg-purple-50 text-purple-600"
+                                }`}>
+                                  {isFinite(stat.avgPrice) && stat.avgPrice > 0 ? `${showDollarSign ? "$" : ""}${Math.round(stat.avgPrice).toLocaleString()}` : "0"}
+                                </div>
+                                <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
+                                  {isFinite(stat.maxPrice) && stat.maxPrice > 0 ? `${showDollarSign ? "$" : ""}${stat.maxPrice.toLocaleString()}` : "0"}
+                                </div>
                               </div>
-                              <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                {isFinite(stat.maxPsf) && stat.maxPsf > 0 ? stat.maxPsf.toFixed(2) : "0.00"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
+                                  {isFinite(stat.minSize) && stat.minSize > 0 ? stat.minSize.toFixed(0) : "0"}
+                                </div>
+                                <div className={`text-center px-2 py-1 rounded-md font-medium ${
+                                  isHighlighted 
+                                    ? "bg-yellow-100 text-yellow-800" 
+                                    : "bg-purple-50 text-purple-600"
+                                }`}>
+                                  {isFinite(stat.avgSize) && stat.avgSize > 0 ? stat.avgSize.toFixed(0) : "0"}
+                                </div>
+                                <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
+                                  {isFinite(stat.maxSize) && stat.maxSize > 0 ? stat.maxSize.toFixed(0) : "0"}
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                {isFinite(stat.minPrice) && stat.minPrice > 0 ? `${showDollarSign ? "$" : ""}${stat.minPrice.toLocaleString()}` : "0"}
-                              </div>
-                              <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                                {isFinite(stat.avgPrice) && stat.avgPrice > 0 ? `${showDollarSign ? "$" : ""}${Math.round(stat.avgPrice).toLocaleString()}` : "0"}
-                              </div>
-                              <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                {isFinite(stat.maxPrice) && stat.maxPrice > 0 ? `${showDollarSign ? "$" : ""}${stat.maxPrice.toLocaleString()}` : "0"}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                {isFinite(stat.minSize) && stat.minSize > 0 ? stat.minSize.toFixed(0) : "0"}
-                              </div>
-                              <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                                {isFinite(stat.avgSize) && stat.avgSize > 0 ? stat.avgSize.toFixed(0) : "0"}
-                              </div>
-                              <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                {isFinite(stat.maxSize) && stat.maxSize > 0 ? stat.maxSize.toFixed(0) : "0"}
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
                     ) : (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-4">
@@ -312,7 +333,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                     )}
                   </TableBody>
                   {totals && bedroomTypeStats.length > 0 && (
-                    <TableFooter className="bg-indigo-100/50 sticky bottom-0">
+                    <TableFooter className="bg-indigo-100/50 sticky bottom-0 z-10">
                       <TableRow>
                         <TableCell className="font-bold text-indigo-800">TOTAL</TableCell>
                         <TableCell className="font-bold text-indigo-800">{totals.count}</TableCell>
