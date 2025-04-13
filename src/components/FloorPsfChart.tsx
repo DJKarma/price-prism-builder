@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateFloorPsfData, FloorPsfPoint } from "@/utils/floorPsfChart";
+import { calculateFloorPremium } from "@/utils/psfOptimizer";
 
 interface FloorPsfChartProps {
   floorRules: Array<{
@@ -40,7 +41,36 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
 };
 
 const FloorPsfChart: React.FC<FloorPsfChartProps> = ({ floorRules, maxFloor = 50 }) => {
-  const data = generateFloorPsfData(floorRules, maxFloor);
+  // Generate data using our own calculation instead of the utility
+  const data: FloorPsfPoint[] = Array.from({ length: maxFloor }, (_, i) => {
+    const floor = i + 1;
+    const psfValue = calculateFloorPremium(floor, floorRules);
+    
+    // Determine if this is a jump floor
+    let isJump = false;
+    
+    // Get sorted rules
+    const sortedRules = [...floorRules].sort(
+      (a, b) => a.startFloor - b.startFloor
+    );
+    
+    // Find the rule that applies to this floor
+    const rule = sortedRules.find(
+      r => floor >= r.startFloor && floor <= r.endFloor
+    );
+    
+    if (rule && rule.jumpEveryFloor && rule.jumpIncrement) {
+      // Check if this is a jump floor
+      isJump = (floor - rule.startFloor) % rule.jumpEveryFloor === 0 && 
+               floor >= rule.startFloor + rule.jumpEveryFloor;
+    }
+    
+    return {
+      floor,
+      psf: psfValue,
+      isJump
+    };
+  });
   
   // Find jump floors for special rendering
   const jumpPoints = data.filter(point => point.isJump);

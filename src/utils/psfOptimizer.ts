@@ -1,3 +1,4 @@
+
 /**
  * Gradient Descent PSF Optimizer
  * 
@@ -41,6 +42,58 @@ interface PricingConfig {
 }
 
 /**
+ * Calculate floor premium at a specific floor level
+ */
+const calculateFloorPremium = (
+  floorLevel: number,
+  floorRules: FloorRiseRule[]
+): number => {
+  // Sort floor rules by startFloor to process them in order
+  const sortedFloorRules = [...floorRules].sort(
+    (a, b) => a.startFloor - b.startFloor
+  );
+  
+  // Calculate cumulative floor adjustment
+  let cumulativeAdjustment = 0;
+  
+  // Track jump floors
+  const jumpFloors: number[] = [];
+  
+  // Identify all jump floors first
+  sortedFloorRules.forEach(rule => {
+    if (rule.jumpEveryFloor && rule.jumpIncrement) {
+      // Calculate jump floors within this rule's range
+      for (let floor = rule.startFloor; floor <= rule.endFloor; floor++) {
+        if ((floor - rule.startFloor) % rule.jumpEveryFloor === 0 && floor >= rule.startFloor + rule.jumpEveryFloor) {
+          jumpFloors.push(floor);
+        }
+      }
+    }
+  });
+  
+  // Process each floor up to the requested floor
+  for (let floor = 1; floor <= floorLevel; floor++) {
+    // Find applicable rule for this floor
+    const rule = sortedFloorRules.find(
+      r => floor >= r.startFloor && floor <= r.endFloor
+    );
+    
+    if (rule) {
+      // Add the regular increment for each floor
+      cumulativeAdjustment += rule.psfIncrement;
+      
+      // Check if this is a jump floor
+      if (jumpFloors.includes(floor)) {
+        // Add jump increment if applicable
+        cumulativeAdjustment += rule.jumpIncrement || 0;
+      }
+    }
+  }
+  
+  return cumulativeAdjustment;
+};
+
+/**
  * Calculate the PSF for a given unit with the provided base PSF for its type
  */
 const calculateUnitPsf = (
@@ -75,45 +128,10 @@ const calculateUnitPsf = (
     viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
   }
   
-  // Calculate floor adjustment
-  let floorAdjustment = 0;
+  // Calculate floor adjustment using the dedicated function
   const floorLevel = parseInt(unit.floor as string) || 1;
-  
-  // Use provided floor rules or default from config
   const floorRules = overrideParams?.floorRules || pricingConfig.floorRiseRules;
-  
-  // Sort floor rules by startFloor to process them in order
-  const sortedFloorRules = [...floorRules].sort(
-    (a, b) => a.startFloor - b.startFloor
-  );
-  
-  // Calculate cumulative floor adjustment
-  let cumulativeAdjustment = 0;
-  
-  // Process floor rules
-  for (let floor = 1; floor <= floorLevel; floor++) {
-    // Find applicable rule for this floor
-    const rule = sortedFloorRules.find(
-      r => floor >= r.startFloor && floor <= r.endFloor
-    );
-    
-    if (rule) {
-      // Add the regular increment for each floor
-      cumulativeAdjustment += rule.psfIncrement;
-      
-      // Check if this is a jump floor
-      const isJumpFloor = rule.jumpEveryFloor && rule.jumpIncrement && 
-                          floor > rule.startFloor && 
-                          (floor - rule.startFloor) % rule.jumpEveryFloor === 0;
-      
-      // Add jump increment if applicable
-      if (isJumpFloor) {
-        cumulativeAdjustment += rule.jumpIncrement;
-      }
-    }
-  }
-  
-  floorAdjustment = cumulativeAdjustment;
+  const floorAdjustment = calculateFloorPremium(floorLevel, floorRules);
   
   // Return final PSF
   return basePsf + floorAdjustment + viewPsfAdjustment;
@@ -518,5 +536,6 @@ export const megaOptimizePsf = (
 export {
   calculateUnitPsf,
   calculateAveragePsf,
-  calculateOverallAveragePsf
+  calculateOverallAveragePsf,
+  calculateFloorPremium
 };

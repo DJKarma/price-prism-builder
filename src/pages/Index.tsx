@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVUploader from "@/components/CSVUploader";
 import ColumnMapper from "@/components/ColumnMapper";
@@ -12,6 +12,8 @@ const Index = () => {
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [mappedData, setMappedData] = useState<any[]>([]);
   const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null);
+  // Force re-render state for component refresh
+  const [forceUpdate, setForceUpdate] = useState<number>(0);
 
   const handleDataParsed = (data: any[], headers: string[]) => {
     setCsvData(data);
@@ -24,7 +26,7 @@ const Index = () => {
     setActiveTab("configure");
   };
 
-  const handleConfigurationComplete = (config: PricingConfig) => {
+  const handleConfigurationComplete = useCallback((config: PricingConfig) => {
     // Calculate the targetOverallPsf as average of all bedroom type target PSFs
     const targetOverallPsf = config.bedroomTypePricing.reduce(
       (sum, type) => sum + type.targetAvgPsf, 
@@ -35,8 +37,18 @@ const Index = () => {
       ...config,
       targetOverallPsf
     });
+    
+    // Force a re-render to ensure all UI elements reflect changes
+    setForceUpdate(prev => prev + 1);
     setActiveTab("simulate");
-  };
+  }, []);
+
+  // Handler for config updates during simulation
+  const handleConfigUpdate = useCallback((updatedConfig: PricingConfig) => {
+    setPricingConfig(updatedConfig);
+    // Force a re-render to ensure all UI elements reflect changes
+    setForceUpdate(prev => prev + 1);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -100,7 +112,12 @@ const Index = () => {
 
           <TabsContent value="simulate" className="mt-0">
             {pricingConfig && (
-              <PricingSimulator data={mappedData} pricingConfig={pricingConfig} />
+              <PricingSimulator 
+                data={mappedData} 
+                pricingConfig={pricingConfig} 
+                onConfigUpdate={handleConfigUpdate}
+                key={`simulator-${forceUpdate}`} // Force re-render when config changes
+              />
             )}
           </TabsContent>
         </Tabs>

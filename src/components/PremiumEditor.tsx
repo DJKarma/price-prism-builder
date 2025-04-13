@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   Card, 
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/collapsible";
 import { PlusCircle, MinusCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { calculateFloorPremium } from "@/utils/psfOptimizer";
 
 export interface PremiumEditorProps {
   pricingConfig: any;
@@ -129,48 +129,31 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
     });
   };
   
-  // Calculate cumulative PSF for a specific floor
   const calculateCumulativePsfForFloor = (floor: number) => {
-    let cumulativePsf = 0;
+    const psfValue = calculateFloorPremium(floor, localConfig.floorRiseRules);
+    
     let isJumpFloor = false;
     let appliedRule = null;
     
-    // Sort rules by startFloor
     const sortedRules = [...localConfig.floorRiseRules].sort(
       (a, b) => a.startFloor - b.startFloor
     );
     
-    // Process each floor up to the requested floor
-    for (let currentFloor = 1; currentFloor <= floor; currentFloor++) {
-      // Find applicable rule for this floor
-      const rule = sortedRules.find(
-        r => currentFloor >= r.startFloor && currentFloor <= r.endFloor
-      );
+    const rule = sortedRules.find(
+      r => floor >= r.startFloor && floor <= r.endFloor
+    );
+    
+    if (rule && rule.jumpEveryFloor && rule.jumpIncrement) {
+      isJumpFloor = (floor - rule.startFloor) % rule.jumpEveryFloor === 0 && 
+                    floor >= rule.startFloor + rule.jumpEveryFloor;
       
-      if (rule) {
-        // Add regular increment
-        cumulativePsf += rule.psfIncrement;
-        
-        // Check if this is a jump floor
-        const isCurrentJumpFloor = rule.jumpEveryFloor && rule.jumpIncrement && 
-                       currentFloor > rule.startFloor &&
-                       (currentFloor - rule.startFloor) % rule.jumpEveryFloor === 0;
-        
-        // Add jump increment if applicable
-        if (isCurrentJumpFloor) {
-          cumulativePsf += rule.jumpIncrement || 0;
-          
-          // Record if this is the requested floor
-          if (currentFloor === floor) {
-            isJumpFloor = true;
-            appliedRule = rule;
-          }
-        }
+      if (isJumpFloor) {
+        appliedRule = rule;
       }
     }
     
     return {
-      psfValue: cumulativePsf,
+      psfValue,
       isJumpFloor,
       appliedRule
     };
@@ -443,7 +426,6 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
                   </TableHeader>
                   <TableBody>
                     {Array.from({ length: 50 }, (_, i) => i + 1).map((floor) => {
-                      // Calculate PSF for this floor using the updated method
                       const { psfValue, isJumpFloor, appliedRule } = calculateCumulativePsfForFloor(floor);
                       
                       return (
