@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
@@ -44,6 +43,19 @@ const sortBedroomTypes = (a: any, b: any) => {
   return aType.localeCompare(bType);
 };
 
+// Format numbers for display (K/M for thousands/millions)
+const formatNumber = (num: number, decimals = 2): string => {
+  if (!isFinite(num) || num === 0) return "0";
+  
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(decimals) + "M";
+  } else if (num >= 1000) {
+    return (num / 1000).toFixed(0) + "K";
+  }
+  
+  return num.toFixed(decimals);
+};
+
 // Slot machine number component
 const SlotMachineNumber = ({ 
   value, 
@@ -59,7 +71,7 @@ const SlotMachineNumber = ({
   useEffect(() => {
     if (isAnimating && Math.abs(value - displayValue) > 0.01) {
       let iterations = 0;
-      const maxIterations = 8;
+      const maxIterations = 5; // Reduced for shorter animation
       const interval = setInterval(() => {
         if (iterations < maxIterations) {
           // Create a slowing down animation effect
@@ -85,9 +97,12 @@ const SlotMachineNumber = ({
     }
   }, [value, isAnimating]);
   
+  // Format the value for display (K/M for thousands/millions)
+  const formattedValue = formatNumber(displayValue, decimals);
+  
   return (
     <span className={`transition-all duration-200 ${isAnimating ? 'scale-105' : ''}`}>
-      {isFinite(displayValue) ? displayValue.toFixed(decimals) : "0.00"}
+      {formattedValue}
     </span>
   );
 };
@@ -214,12 +229,12 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     toast.promise(
       new Promise(resolve => {
         runMegaOptimization(selectedTypes);
-        // Highlight the selected types for 5 seconds (increased from 4)
+        // Highlight the selected types for 3 seconds only (reduced from 5)
         setHighlightedTypes([...selectedTypes]);
         setTimeout(() => {
           setHighlightedTypes([]);
           setIsAnimating(false);
-        }, 5000);
+        }, 3000);
         // Simulate promise for toast
         setTimeout(resolve, 1000);
       }),

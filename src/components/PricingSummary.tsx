@@ -51,6 +51,19 @@ interface PricingSummaryProps {
   highlightedTypes?: string[];
 }
 
+// Helper function to format numbers for display
+const formatNumber = (num: number): string => {
+  if (!isFinite(num) || num === 0) return "0";
+  
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(2) + "M";
+  } else if (num >= 1000) {
+    return (num / 1000).toFixed(0) + "K";
+  }
+  
+  return num.toString();
+};
+
 // Helper function to sort bedroom types naturally
 const sortBedroomTypes = (a: string, b: string) => {
   // Extract numeric parts (if any) from bedroom type strings
@@ -78,10 +91,10 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
   useEffect(() => {
     if (highlightedTypes.length > 0) {
       setHighlightedValues(highlightedTypes);
-      // Clear highlighting after 5 seconds (as requested)
+      // Clear highlighting after 3 seconds (reduced from 5)
       const timer = setTimeout(() => {
         setHighlightedValues([]);
-      }, 5000);
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [highlightedTypes]);
@@ -224,7 +237,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         
         // Generate random intermediate values
         let iterations = 0;
-        const maxIterations = 10;
+        const maxIterations = 5; // Reduced iterations for faster animation
         const interval = setInterval(() => {
           if (iterations < maxIterations) {
             // Random value between original and target with decreasing randomness
@@ -250,9 +263,12 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
       }
     }, [value, isHighlighted]);
     
+    // Format the value for display (K/M for thousands/millions)
+    const formattedValue = formatNumber(displayValue);
+    
     return (
       <span className={`transition-all duration-200 ${isAnimating ? 'text-indigo-800 scale-110' : ''}`}>
-        {prefix}{isFinite(displayValue) && displayValue > 0 ? Math.round(displayValue) : "0"}{suffix}
+        {prefix}{formattedValue}{suffix}
       </span>
     );
   };
@@ -336,9 +352,9 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                 <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
                                   <SlotMachineNumber value={stat.minPsf} isHighlighted={isHighlighted} />
                                 </div>
-                                <div className={`text-center px-2 py-1 rounded-md font-medium transition-all duration-500 ${
+                                <div className={`text-center px-2 py-1 rounded-md font-medium transition-all duration-300 ${
                                   isHighlighted 
-                                    ? "bg-yellow-300 text-yellow-900 animate-pulse transform scale-110 shadow-lg" 
+                                    ? "bg-yellow-300 text-yellow-900 animate-pulse" 
                                     : "bg-purple-50 text-purple-600"
                                 }`}>
                                   <SlotMachineNumber value={stat.avgPsf} isHighlighted={isHighlighted} />
@@ -357,11 +373,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                     prefix={showDollarSign ? '$' : ''}
                                   />
                                 </div>
-                                <div className={`text-center px-2 py-1 rounded-md font-medium transition-all duration-500 ${
-                                  isHighlighted 
-                                    ? "bg-yellow-100 text-yellow-900" 
-                                    : "bg-purple-50 text-purple-600"
-                                }`}>
+                                <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
                                   <SlotMachineNumber 
                                     value={stat.avgPrice} 
                                     isHighlighted={isHighlighted} 
@@ -382,11 +394,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                 <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
                                   <SlotMachineNumber value={stat.minSize} isHighlighted={isHighlighted} />
                                 </div>
-                                <div className={`text-center px-2 py-1 rounded-md font-medium ${
-                                  isHighlighted 
-                                    ? "bg-yellow-100 text-yellow-900" 
-                                    : "bg-purple-50 text-purple-600"
-                                }`}>
+                                <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
                                   <SlotMachineNumber value={stat.avgSize} isHighlighted={isHighlighted} />
                                 </div>
                                 <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
