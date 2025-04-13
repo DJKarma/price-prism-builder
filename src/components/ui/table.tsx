@@ -23,7 +23,7 @@ const TableHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <thead 
     ref={ref} 
-    className={cn("bg-muted/50 sticky top-0 z-10", className)} 
+    className={cn("bg-muted/50 sticky top-0 z-20", className)} 
     {...props} 
   />
 ))
@@ -48,7 +48,7 @@ const TableFooter = React.forwardRef<
   <tfoot
     ref={ref}
     className={cn(
-      "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0 sticky bottom-0",
+      "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0 sticky bottom-0 z-10",
       className
     )}
     {...props}
@@ -122,8 +122,6 @@ const FixedHeaderTable = React.forwardRef<
       maxHeight, 
       overflowY: "auto",
       overflowX: "auto", 
-      scrollbarWidth: "thin",
-      scrollbarColor: "var(--scrollbar-thumb) var(--scrollbar-track)"
     }}
     {...props}
   />

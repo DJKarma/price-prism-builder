@@ -73,24 +73,32 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     
     // Calculate statistics for each bedroom type
     return Object.entries(typeMap).map(([type, units]) => {
-      // Extract values for calculations
-      const psfs = units.map((unit) => unit.finalPsf || 0).filter(Boolean);
-      const prices = units.map((unit) => unit.finalTotalPrice || 0).filter(Boolean);
-      const sizes = units.map((unit) => parseFloat(unit.sellArea) || 0).filter(Boolean);
+      // Extract values for calculations, ensuring we have valid numbers
+      const psfs = units
+        .map((unit) => parseFloat(unit.finalPsf) || 0)
+        .filter((psf) => !isNaN(psf) && isFinite(psf));
       
-      // Calculate stats
+      const prices = units
+        .map((unit) => parseFloat(unit.finalTotalPrice) || 0)
+        .filter((price) => !isNaN(price) && isFinite(price));
+      
+      const sizes = units
+        .map((unit) => parseFloat(unit.sellArea) || 0)
+        .filter((size) => !isNaN(size) && isFinite(size) && size > 0);
+      
+      // Calculate stats with safeguards against empty arrays
       const stats: BedroomTypeStats = {
         type,
         count: units.length,
-        minPsf: Math.min(...psfs),
-        avgPsf: psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length || 0,
-        maxPsf: Math.max(...psfs),
-        minPrice: Math.min(...prices),
-        avgPrice: prices.reduce((sum, price) => sum + price, 0) / prices.length || 0,
-        maxPrice: Math.max(...prices),
-        minSize: Math.min(...sizes),
-        avgSize: sizes.reduce((sum, size) => sum + size, 0) / sizes.length || 0,
-        maxSize: Math.max(...sizes),
+        minPsf: psfs.length ? Math.min(...psfs) : 0,
+        avgPsf: psfs.length ? psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length : 0,
+        maxPsf: psfs.length ? Math.max(...psfs) : 0,
+        minPrice: prices.length ? Math.min(...prices) : 0,
+        avgPrice: prices.length ? prices.reduce((sum, price) => sum + price, 0) / prices.length : 0,
+        maxPrice: prices.length ? Math.max(...prices) : 0,
+        minSize: sizes.length ? Math.min(...sizes) : 0,
+        avgSize: sizes.length ? sizes.reduce((sum, size) => sum + size, 0) / sizes.length : 0,
+        maxSize: sizes.length ? Math.max(...sizes) : 0,
       };
       
       return stats;
@@ -101,29 +109,47 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
   const totals = useMemo(() => {
     if (!bedroomTypeStats.length) return null;
 
+    // Filter out invalid entries first
+    const validStats = bedroomTypeStats.filter(stat => 
+      stat.count > 0 && 
+      isFinite(stat.avgPsf) && 
+      isFinite(stat.avgPrice) && 
+      isFinite(stat.avgSize)
+    );
+    
+    if (validStats.length === 0) return null;
+    
     // Extract all values for PSF, price, and size from all bedroom types
-    const allPsfs = bedroomTypeStats.flatMap(stat => 
+    const allPsfs = validStats.flatMap(stat => 
       Array(stat.count).fill(stat.avgPsf));
     
-    const allPrices = bedroomTypeStats.flatMap(stat => 
+    const allPrices = validStats.flatMap(stat => 
       Array(stat.count).fill(stat.avgPrice));
     
-    const allSizes = bedroomTypeStats.flatMap(stat => 
+    const allSizes = validStats.flatMap(stat => 
       Array(stat.count).fill(stat.avgSize));
     
-    const totalCount = bedroomTypeStats.reduce((sum, stat) => sum + stat.count, 0);
+    const totalCount = validStats.reduce((sum, stat) => sum + stat.count, 0);
+
+    // Get min/max values safely
+    const minPsf = Math.min(...validStats.map(stat => stat.minPsf).filter(v => isFinite(v)));
+    const maxPsf = Math.max(...validStats.map(stat => stat.maxPsf).filter(v => isFinite(v)));
+    const minPrice = Math.min(...validStats.map(stat => stat.minPrice).filter(v => isFinite(v)));
+    const maxPrice = Math.max(...validStats.map(stat => stat.maxPrice).filter(v => isFinite(v)));
+    const minSize = Math.min(...validStats.map(stat => stat.minSize).filter(v => isFinite(v) && v > 0));
+    const maxSize = Math.max(...validStats.map(stat => stat.maxSize).filter(v => isFinite(v) && v > 0));
 
     return {
       count: totalCount,
-      minPsf: Math.min(...bedroomTypeStats.map(stat => stat.minPsf)),
-      avgPsf: allPsfs.reduce((sum, psf) => sum + psf, 0) / allPsfs.length || 0,
-      maxPsf: Math.max(...bedroomTypeStats.map(stat => stat.maxPsf)),
-      minPrice: Math.min(...bedroomTypeStats.map(stat => stat.minPrice)),
-      avgPrice: allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length || 0,
-      maxPrice: Math.max(...bedroomTypeStats.map(stat => stat.maxPrice)),
-      minSize: Math.min(...bedroomTypeStats.map(stat => stat.minSize)),
-      avgSize: allSizes.reduce((sum, size) => sum + size, 0) / allSizes.length || 0,
-      maxSize: Math.max(...bedroomTypeStats.map(stat => stat.maxSize)),
+      minPsf: isFinite(minPsf) ? minPsf : 0,
+      avgPsf: allPsfs.length ? allPsfs.reduce((sum, psf) => sum + psf, 0) / allPsfs.length : 0,
+      maxPsf: isFinite(maxPsf) ? maxPsf : 0,
+      minPrice: isFinite(minPrice) ? minPrice : 0,
+      avgPrice: allPrices.length ? allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length : 0,
+      maxPrice: isFinite(maxPrice) ? maxPrice : 0,
+      minSize: isFinite(minSize) ? minSize : 0,
+      avgSize: allSizes.length ? allSizes.reduce((sum, size) => sum + size, 0) / allSizes.length : 0,
+      maxSize: isFinite(maxSize) ? maxSize : 0,
     };
   }, [bedroomTypeStats]);
 
@@ -155,7 +181,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-purple-50">
+                <TableHeader className="bg-purple-50 sticky top-0 z-10">
                   <TableRow>
                     <TableHead className="font-semibold text-purple-700">Bedroom Type</TableHead>
                     <TableHead className="font-semibold text-purple-700">Unit Count</TableHead>
@@ -197,39 +223,39 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                         <TableCell>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                              {stat.minPsf.toFixed(2)}
+                              {isFinite(stat.minPsf) ? stat.minPsf.toFixed(2) : "0.00"}
                             </div>
                             <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                              {stat.avgPsf.toFixed(2)}
+                              {isFinite(stat.avgPsf) ? stat.avgPsf.toFixed(2) : "0.00"}
                             </div>
                             <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                              {stat.maxPsf.toFixed(2)}
+                              {isFinite(stat.maxPsf) ? stat.maxPsf.toFixed(2) : "0.00"}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                              {showDollarSign ? "$" : ""}{stat.minPrice.toLocaleString()}
+                              {isFinite(stat.minPrice) ? `${showDollarSign ? "$" : ""}${stat.minPrice.toLocaleString()}` : "0"}
                             </div>
                             <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                              {showDollarSign ? "$" : ""}{Math.round(stat.avgPrice).toLocaleString()}
+                              {isFinite(stat.avgPrice) ? `${showDollarSign ? "$" : ""}${Math.round(stat.avgPrice).toLocaleString()}` : "0"}
                             </div>
                             <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                              {showDollarSign ? "$" : ""}{stat.maxPrice.toLocaleString()}
+                              {isFinite(stat.maxPrice) ? `${showDollarSign ? "$" : ""}${stat.maxPrice.toLocaleString()}` : "0"}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                              {stat.minSize.toFixed(0)}
+                              {isFinite(stat.minSize) && stat.minSize > 0 ? stat.minSize.toFixed(0) : "0"}
                             </div>
                             <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                              {stat.avgSize.toFixed(0)}
+                              {isFinite(stat.avgSize) && stat.avgSize > 0 ? stat.avgSize.toFixed(0) : "0"}
                             </div>
                             <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                              {stat.maxSize.toFixed(0)}
+                              {isFinite(stat.maxSize) && stat.maxSize > 0 ? stat.maxSize.toFixed(0) : "0"}
                             </div>
                           </div>
                         </TableCell>
@@ -244,46 +270,46 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                   )}
                 </TableBody>
                 {totals && bedroomTypeStats.length > 0 && (
-                  <TableFooter className="bg-indigo-100/50">
+                  <TableFooter className="bg-indigo-100/50 sticky bottom-0">
                     <TableRow>
                       <TableCell className="font-bold text-indigo-800">TOTAL</TableCell>
                       <TableCell className="font-bold text-indigo-800">{totals.count}</TableCell>
                       <TableCell>
                         <div className="grid grid-cols-3 gap-2">
                           <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
-                            {totals.minPsf.toFixed(2)}
+                            {isFinite(totals.minPsf) ? totals.minPsf.toFixed(2) : "0.00"}
                           </div>
                           <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
-                            {totals.avgPsf.toFixed(2)}
+                            {isFinite(totals.avgPsf) ? totals.avgPsf.toFixed(2) : "0.00"}
                           </div>
                           <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
-                            {totals.maxPsf.toFixed(2)}
+                            {isFinite(totals.maxPsf) ? totals.maxPsf.toFixed(2) : "0.00"}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="grid grid-cols-3 gap-2">
                           <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
-                            {showDollarSign ? "$" : ""}{totals.minPrice.toLocaleString()}
+                            {isFinite(totals.minPrice) ? `${showDollarSign ? "$" : ""}${totals.minPrice.toLocaleString()}` : "0"}
                           </div>
                           <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
-                            {showDollarSign ? "$" : ""}{Math.round(totals.avgPrice).toLocaleString()}
+                            {isFinite(totals.avgPrice) ? `${showDollarSign ? "$" : ""}${Math.round(totals.avgPrice).toLocaleString()}` : "0"}
                           </div>
                           <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
-                            {showDollarSign ? "$" : ""}{totals.maxPrice.toLocaleString()}
+                            {isFinite(totals.maxPrice) ? `${showDollarSign ? "$" : ""}${totals.maxPrice.toLocaleString()}` : "0"}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="grid grid-cols-3 gap-2">
                           <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
-                            {totals.minSize.toFixed(0)}
+                            {isFinite(totals.minSize) && totals.minSize > 0 ? totals.minSize.toFixed(0) : "0"}
                           </div>
                           <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
-                            {totals.avgSize.toFixed(0)}
+                            {isFinite(totals.avgSize) && totals.avgSize > 0 ? totals.avgSize.toFixed(0) : "0"}
                           </div>
                           <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
-                            {totals.maxSize.toFixed(0)}
+                            {isFinite(totals.maxSize) && totals.maxSize > 0 ? totals.maxSize.toFixed(0) : "0"}
                           </div>
                         </div>
                       </TableCell>

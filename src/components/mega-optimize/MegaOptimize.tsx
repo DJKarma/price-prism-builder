@@ -23,6 +23,7 @@ import { useOptimizer } from "./useOptimizer";
 import OptimizationControls from "./OptimizationControls";
 import OptimizationModeSelector from "./OptimizationModeSelector";
 import PricingSummary from "@/components/PricingSummary";
+import BedroomTypeSelector from "./BedroomTypeSelector";
 
 const MegaOptimize: React.FC<MegaOptimizeProps> = ({ 
   data, 
@@ -47,6 +48,11 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   
   // Run optimization with selected types and update pricingConfig with optimizedTypes
   const handleRunOptimization = () => {
+    if (selectedTypes.length === 0) {
+      toast.error("Please select at least one bedroom type to optimize");
+      return;
+    }
+    
     toast.promise(
       new Promise(resolve => {
         runMegaOptimization(selectedTypes);
@@ -66,6 +72,9 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     revertOptimization();
     toast.success("Optimization reverted successfully");
   };
+  
+  // Get available bedroom types from pricing config
+  const bedroomTypes = pricingConfig.bedroomTypePricing.map((type: any) => type.type);
   
   return (
     <Card className="mb-6 border-2 border-indigo-100 w-full">
@@ -114,6 +123,13 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left column: Optimization controls */}
           <div className="lg:col-span-4 space-y-6">
+            {/* Bedroom Type Selector */}
+            <BedroomTypeSelector 
+              bedroomTypes={bedroomTypes}
+              selectedTypes={selectedTypes}
+              setSelectedTypes={setSelectedTypes}
+            />
+            
             <OptimizationControls
               currentOverallPsf={currentOverallPsf}
               targetPsf={targetPsf}
@@ -130,7 +146,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
             />
           </div>
           
-          {/* Right column: Pricing Summary (replacing BedroomTypeSummary) */}
+          {/* Right column: Pricing Summary */}
           <div className="lg:col-span-8">
             <div className="mb-4">
               <div className="bg-purple-50 rounded-lg p-4 text-center mb-4">
