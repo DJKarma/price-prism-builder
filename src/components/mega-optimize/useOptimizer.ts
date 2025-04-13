@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { megaOptimizePsf, calculateOverallAveragePsf, fullOptimizePsf } from "@/utils/psfOptimizer";
 import { toast } from "sonner";
@@ -21,7 +22,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
     setIsOptimized(!!pricingConfig.isOptimized);
   }, [data, pricingConfig]);
   
-  // Calculate average PSF per bedroom type - using EXACTLY same method as PricingSummary
+  // Calculate average PSF per bedroom type - using same method as PricingSummary
   const calculateBedroomTypesAvgPsf = (config: any) => {
     // Group data by bedroom type
     const typeGroups: Record<string, any[]> = {};
@@ -50,55 +51,48 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       const psfs: number[] = [];
       let totalArea = 0;
       
-      // Calculate final PSF for each unit using EXACTLY same method as PricingSummary
+      // Calculate final PSF for each unit using same method as PricingSummary
       unitsOfType.forEach((unit: any) => {
-        // Get size from sellArea property
         const area = parseFloat(unit.sellArea) || 0;
         totalArea += area;
         
-        // If the unit already has a finalPsf property (from previous calculations), use it
-        if (unit.finalPsf) {
-          psfs.push(unit.finalPsf);
-        } else {
-          // Otherwise calculate it using the same method as PricingSummary
-          const floorNum = parseInt(unit.floor) || 0;
-          const viewPremium = config.viewPricing.find((v: any) => v.view === unit.view)?.psfAdjustment || 0;
-          
-          // Calculate floor premium
-          let floorPremium = 0;
-          config.floorRiseRules.forEach((rule: any) => {
-            const ruleEndFloor = rule.endFloor === null ? 999 : rule.endFloor;
-            if (floorNum >= rule.startFloor && floorNum <= ruleEndFloor) {
-              const floorsFromStart = floorNum - rule.startFloor;
-              const baseFloorPremium = floorsFromStart * rule.psfIncrement;
-              
-              // Add jump premium if applicable
-              let jumpPremium = 0;
-              if (rule.jumpEveryFloor && rule.jumpIncrement) {
-                const numJumps = Math.floor(floorsFromStart / rule.jumpEveryFloor);
-                jumpPremium = numJumps * rule.jumpIncrement;
-              }
-              
-              floorPremium = baseFloorPremium + jumpPremium;
+        const floorNum = parseInt(unit.floor) || 0;
+        const viewPremium = config.viewPricing.find((v: any) => v.view === unit.view)?.psfAdjustment || 0;
+        
+        // Calculate floor premium
+        let floorPremium = 0;
+        config.floorRiseRules.forEach((rule: any) => {
+          const ruleEndFloor = rule.endFloor === null ? 999 : rule.endFloor;
+          if (floorNum >= rule.startFloor && floorNum <= ruleEndFloor) {
+            const floorsFromStart = floorNum - rule.startFloor;
+            const baseFloorPremium = floorsFromStart * rule.psfIncrement;
+            
+            // Add jump premium if applicable
+            let jumpPremium = 0;
+            if (rule.jumpEveryFloor && rule.jumpIncrement) {
+              const numJumps = Math.floor(floorsFromStart / rule.jumpEveryFloor);
+              jumpPremium = numJumps * rule.jumpIncrement;
             }
-          });
-          
-          // Calculate the base PSF with all premiums
-          const unitBasePsf = typeConfig.basePsf + floorPremium + viewPremium;
-          
-          // Calculate total price and ceiling it to match PricingSummary
-          const totalPrice = unitBasePsf * area;
-          const finalPrice = Math.ceil(totalPrice / 1000) * 1000;
-          
-          // Calculate final PSF based on ceiled price (EXACTLY like PricingSummary)
-          const finalPsf = area > 0 ? finalPrice / area : 0;
-          psfs.push(finalPsf);
-        }
+            
+            floorPremium = baseFloorPremium + jumpPremium;
+          }
+        });
+        
+        // Calculate the final PSF with all premiums
+        const unitBasePsf = typeConfig.basePsf + floorPremium + viewPremium;
+        
+        // Calculate total price and apply ceiling to match PricingSummary
+        const totalPrice = unitBasePsf * area;
+        const finalPrice = Math.ceil(totalPrice / 1000) * 1000;
+        
+        // Calculate final PSF based on ceiled price (same as PricingSummary)
+        const finalPsf = area > 0 ? finalPrice / area : 0;
+        psfs.push(finalPsf);
       });
       
       // Calculate average PSF - exactly like PricingSummary does
-      const avgPsf = psfs.length > 0 ? psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length : 0;
-      const avgSize = unitsOfType.length > 0 ? totalArea / unitsOfType.length : 0;
+      const avgPsf = psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length;
+      const avgSize = totalArea / unitsOfType.length;
       
       bedroomAvgData[typeConfig.type] = { 
         avgPsf,
@@ -151,7 +145,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
                 ...type,
                 basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
                 originalBasePsf: type.originalBasePsf || type.basePsf, // Store original value if not already stored
-                targetAvgPsf: targetPsf, // Set target PSF from the optimization target for selected types
+                targetAvgPsf: targetPsf, // Set target PSF from the optimization target
                 isOptimized: true
               };
             }
@@ -182,7 +176,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
                 ...type,
                 basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
                 originalBasePsf: type.originalBasePsf || type.basePsf, // Store original value if not already stored
-                targetAvgPsf: targetPsf, // Set target PSF from the optimization target for selected types
+                targetAvgPsf: targetPsf, // Set target PSF from the optimization target
                 isOptimized: true
               };
             }
@@ -218,7 +212,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       }
       
       // Calculate average PSF and size values for each bedroom type after optimization
-      // Using the consistent calculation method that matches PricingSummary
+      // Using the consistent calculation method
       const avgDataByType = calculateBedroomTypesAvgPsf(optimizedConfig);
       
       // Add avgPsf and avgSize to bedroom types in the optimized config
@@ -274,7 +268,6 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
     };
     
     // Calculate average PSF and size values for each bedroom type after reversion
-    // Using the consistent calculation method
     const avgDataByType = calculateBedroomTypesAvgPsf(revertedConfig);
     
     // Add avgPsf and avgSize to bedroom types in the reverted config
