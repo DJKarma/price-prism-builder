@@ -206,27 +206,39 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       );
       
       // Calculate cumulative floor adjustment
-      let currentFloor = 1;
       let cumulativeAdjustment = 0;
-      
-      for (const rule of sortedFloorRules) {
-        // If we already passed this rule's range, apply full adjustment
-        if (floorLevel > rule.endFloor) {
-          // Apply adjustment for all floors in this range
-          const floorsInRange = rule.endFloor - Math.max(currentFloor, rule.startFloor) + 1;
-          cumulativeAdjustment += floorsInRange * rule.psfIncrement;
-          currentFloor = rule.endFloor + 1;
-        } 
-        // If we're within this rule's range
-        else if (floorLevel >= rule.startFloor) {
-          // Apply adjustment for floors up to the unit's floor
-          const floorsInRange = floorLevel - Math.max(currentFloor, rule.startFloor) + 1;
-          cumulativeAdjustment += floorsInRange * rule.psfIncrement;
-          break;
+
+// Process each rule and iterate floor-by-floor for the applicable range
+for (const rule of sortedFloorRules) {
+  const ruleEnd = rule.endFloor; // Ensure this is already set (or defaulted to 99)
+  
+  if (floorLevel > ruleEnd) {
+    // Process full range for this rule
+    for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
+      cumulativeAdjustment += rule.psfIncrement;
+      if (rule.jumpEveryFloor && rule.jumpIncrement) {
+        // Check if this floor qualifies as a jump floor
+        if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+          cumulativeAdjustment += rule.jumpIncrement;
         }
       }
-      
-      floorAdjustment = cumulativeAdjustment;
+    }
+  } else if (floorLevel >= rule.startFloor) {
+    // Process only up to the unit's floor in this rule
+    for (let floor = Math.max(rule.startFloor, 1); floor <= floorLevel; floor++) {
+      cumulativeAdjustment += rule.psfIncrement;
+      if (rule.jumpEveryFloor && rule.jumpIncrement) {
+        if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+          cumulativeAdjustment += rule.jumpIncrement;
+        }
+      }
+    }
+    break;
+  }
+}
+
+floorAdjustment = cumulativeAdjustment;
+
       
       // Calculate view adjustment
       const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
