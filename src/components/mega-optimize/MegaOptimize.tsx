@@ -45,41 +45,76 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     revertOptimization
   } = useOptimizer(data, pricingConfig, onOptimized);
 
-  // Get bedroom types with PSF data from PricingSummary calculation
+  // Calculate bedroom type average PSF values for display
   const bedroomTypeData = React.useMemo(() => {
-    // Group data by bedroom type and calculate PSF values exactly like PricingSummary does
-    const typeMap: Record<string, any[]> = {};
+    console.log("Calculating bedroomTypeData in MegaOptimize");
     
-    // Group by bedroom type
-    data.forEach((unit) => {
-      if (!unit.type) return;
-      
-      if (!typeMap[unit.type]) {
-        typeMap[unit.type] = [];
+    // Group data by bedroom type
+    const typeGroups: Record<string, any[]> = {};
+    data.forEach(unit => {
+      if (!typeGroups[unit.type]) {
+        typeGroups[unit.type] = [];
       }
-      
-      typeMap[unit.type].push(unit);
+      typeGroups[unit.type].push(unit);
     });
     
-    // Calculate statistics for each bedroom type - using same method as PricingSummary
+    // Calculate metrics for each bedroom type
     return pricingConfig.bedroomTypePricing.map((type: any) => {
-      const unitsOfType = typeMap[type.type] || [];
+      const unitsOfType = typeGroups[type.type] || [];
       const unitCount = unitsOfType.length;
       
-      // Extract values for calculations - use only finalPsf for PSF calculations
-      const psfs = unitsOfType.map((unit) => unit.finalPsf || 0).filter(Boolean);
-      const sizes = unitsOfType.map((unit) => parseFloat(unit.sellArea) || 0).filter(Boolean);
+      // Calculate average size using the correct property
+      const totalArea = unitsOfType.reduce((sum: number, unit: any) => {
+        const area = parseFloat(unit.sellArea) || 0;
+        console.log(`Unit ${unit.name} type ${unit.type} has sellArea: ${area}`);
+        return sum + area;
+      }, 0);
       
-      // Calculate avg PSF using finalPsf (same as PricingSummary)
-      const avgPsf = psfs.length > 0 ? psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length : 0;
-      const avgSize = sizes.length > 0 ? sizes.reduce((sum, size) => sum + size, 0) / sizes.length : 0;
+      const avgSize = unitCount > 0 ? totalArea / unitCount : 0;
+      console.log(`Bedroom type ${type.type}: unitCount=${unitCount}, totalArea=${totalArea}, avgSize=${avgSize}`);
       
-      return {
+      // Calculate current average PSF
+      let totalPsf = 0;
+      unitsOfType.forEach((unit: any) => {
+        const floorNum = parseInt(unit.floor) || 0;
+        const viewPremium = pricingConfig.viewPricing.find((v: any) => v.view === unit.view)?.psfAdjustment || 0;
+        
+        // Calculate floor premium
+        let floorPremium = 0;
+        pricingConfig.floorRiseRules.forEach((rule: any) => {
+          const ruleEndFloor = rule.endFloor === null ? 999 : rule.endFloor;
+          if (floorNum >= rule.startFloor && floorNum <= ruleEndFloor) {
+            const floorsFromStart = floorNum - rule.startFloor;
+            const baseFloorPremium = floorsFromStart * rule.psfIncrement;
+            
+            // Add jump premium if applicable
+            let jumpPremium = 0;
+            if (rule.jumpEveryFloor && rule.jumpIncrement) {
+              const numJumps = Math.floor(floorsFromStart / rule.jumpEveryFloor);
+              jumpPremium = numJumps * rule.jumpIncrement;
+            }
+            
+            floorPremium = baseFloorPremium + jumpPremium;
+          }
+        });
+        
+        // Calculate total PSF for this unit
+        const unitPsf = type.basePsf + floorPremium + viewPremium;
+        totalPsf += unitPsf;
+      });
+      
+      const avgPsf = unitCount > 0 ? totalPsf / unitCount : 0;
+      
+      // Return the result with explicit values to aid debugging
+      const result = {
         ...type,
         unitCount,
         avgSize,
-        avgPsf // This is the key value we need to pass to BedroomTypeSummary
+        avgPsf
       };
+      
+      console.log(`Final bedroom type data for ${type.type}:`, result);
+      return result;
     });
   }, [data, pricingConfig]);
 
@@ -89,7 +124,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     toast.info(`Selected ${types.length} bedroom types for optimization`);
   };
   
-  // Run optimization with selected types
+  // Run optimization with selected types and update pricingConfig with optimizedTypes
   const handleRunOptimization = () => {
     toast.promise(
       new Promise(resolve => {

@@ -38,6 +38,9 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
   isOptimized,
   onSelectedTypesChange
 }) => {
+  // Console log the bedroom types to debug
+  console.log('BedroomTypeSummary received types:', bedroomTypes);
+
   const [selectedTypes, setSelectedTypes] = useState<string[]>(
     bedroomTypes.map(type => type.type)
   );
@@ -99,17 +102,20 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
         {bedroomTypes
           .filter(type => selectedTypes.includes(type.type))
           .map(type => {
+            // Debug log for each type
+            console.log(`Rendering bedroom type ${type.type}:`, type);
+            
             const hasChanged = isOptimized && type.originalBasePsf !== undefined;
             const changePercent = hasChanged 
               ? ((type.basePsf - (type.originalBasePsf || 0)) / (type.originalBasePsf || 1)) * 100 
               : 0;
             const isIncrease = changePercent > 0;
             
-            // Use provided values with proper fallbacks
+            // Use provided values with proper fallbacks, ensuring we don't override with 0
             const unitCount = type.unitCount !== undefined ? type.unitCount : 0;
             const avgSize = type.avgSize !== undefined && type.avgSize > 0 ? type.avgSize : 0;
             
-            // Use avgPsf directly from the property, which will be set from PricingSummary
+            // Use the correct avgPsf value from PricingSummary's calculation
             const avgPsf = type.avgPsf !== undefined ? type.avgPsf : 0;
             
             // Display targetAvgPsf as 0 initially, but show the actual value when optimized
