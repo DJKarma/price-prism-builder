@@ -115,8 +115,7 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
             const unitCount = type.unitCount !== undefined ? type.unitCount : 0;
             const avgSize = type.avgSize !== undefined && type.avgSize > 0 ? type.avgSize : 0;
             
-            // Use the correct avgPsf value that matches PricingSummary's calculation
-            // This ensures consistency between the two components
+            // Use the correct avgPsf value from PricingSummary's calculation
             const avgPsf = type.avgPsf !== undefined ? type.avgPsf : 0;
             
             // Display targetAvgPsf as 0 initially, but show the actual value when optimized

@@ -73,9 +73,9 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
       typeMap[unit.type].push(unit);
     });
     
-    // Calculate statistics for each bedroom type
+    // Calculate statistics for each bedroom type using finalPsf values only
     return Object.entries(typeMap).map(([type, units]) => {
-      // Extract values for calculations
+      // Extract values for calculations - use only finalPsf for PSF calculations
       const psfs = units.map((unit) => unit.finalPsf || 0).filter(Boolean);
       const prices = units.map((unit) => unit.finalTotalPrice || 0).filter(Boolean);
       const sizes = units.map((unit) => parseFloat(unit.sellArea) || 0).filter(Boolean);
@@ -244,10 +244,10 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
                         ) : (
                           <>
                             <TableCell>
-                              <div className="text-center px-2 py-1 rounded-md font-medium
+                              <div className={`text-center px-2 py-1 rounded-md font-medium
                                 ${displayMode === 'min' ? 'bg-red-50 text-red-600' : 
                                 displayMode === 'avg' ? 'bg-purple-50 text-purple-600' : 
-                                'bg-green-50 text-green-600'}">
+                                'bg-green-50 text-green-600'}`}>
                                 {displayMode === "min" 
                                   ? stat.minPsf.toFixed(2)
                                   : displayMode === "avg" 
@@ -256,10 +256,10 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="text-center px-2 py-1 rounded-md font-medium
+                              <div className={`text-center px-2 py-1 rounded-md font-medium
                                 ${displayMode === 'min' ? 'bg-red-50 text-red-600' : 
                                 displayMode === 'avg' ? 'bg-purple-50 text-purple-600' : 
-                                'bg-green-50 text-green-600'}">
+                                'bg-green-50 text-green-600'}`}>
                                 {displayMode === "min" 
                                   ? stat.minPrice.toLocaleString()
                                   : displayMode === "avg" 
@@ -268,10 +268,10 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="text-center px-2 py-1 rounded-md font-medium
+                              <div className={`text-center px-2 py-1 rounded-md font-medium
                                 ${displayMode === 'min' ? 'bg-red-50 text-red-600' : 
                                 displayMode === 'avg' ? 'bg-purple-50 text-purple-600' : 
-                                'bg-green-50 text-green-600'}">
+                                'bg-green-50 text-green-600'}`}>
                                 {displayMode === "min" 
                                   ? stat.minSize.toFixed(0)
                                   : displayMode === "avg" 

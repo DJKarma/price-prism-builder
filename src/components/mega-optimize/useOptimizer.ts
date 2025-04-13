@@ -32,7 +32,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       typeGroups[unit.type].push(unit);
     });
     
-    // For each bedroom type, calculate statistics including min/avg/max PSF
+    // For each bedroom type, calculate statistics using finalPsf values
     const bedroomAvgData: Record<string, { 
       avgPsf: number, 
       avgSize: number, 
@@ -46,21 +46,21 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         return;
       }
       
-      // Initialize arrays to collect values for min/max/avg calculations
+      // Initialize arrays to collect final PSF values for average calculations
       const psfs: number[] = [];
       let totalArea = 0;
       
-      // Calculate final PSF for each unit using EXACTLY same method as PricingSummary
+      // Use finalPsf values directly instead of recalculating
       unitsOfType.forEach((unit: any) => {
         // Get size from sellArea property
         const area = parseFloat(unit.sellArea) || 0;
         totalArea += area;
         
-        // If the unit already has a finalPsf property (from previous calculations), use it
-        if (unit.finalPsf) {
+        // Use unit.finalPsf directly if available
+        if (unit.finalPsf !== undefined) {
           psfs.push(unit.finalPsf);
         } else {
-          // Otherwise calculate it using the same method as PricingSummary
+          // For any unit without finalPsf, calculate it the same way as PricingSummary
           const floorNum = parseInt(unit.floor) || 0;
           const viewPremium = config.viewPricing.find((v: any) => v.view === unit.view)?.psfAdjustment || 0;
           
