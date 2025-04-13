@@ -12,6 +12,7 @@ import {
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -55,24 +56,26 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
           </div>
           
           <div className="flex items-center gap-2 mt-2 md:mt-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="rounded-full h-8 w-8"
-                >
-                  <Info className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[300px]">
-                <p>
-                  Mega Optimize uses advanced constrained gradient descent to adjust 
-                  premium values to achieve your target PSF 
-                  while minimizing changes from the original values.
-                </p>
-              </TooltipContent>
-            </Tooltip>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="rounded-full h-8 w-8"
+                  >
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[300px]">
+                  <p>
+                    Mega Optimize uses advanced constrained gradient descent to adjust 
+                    premium values to achieve your target PSF 
+                    while minimizing changes from the original values.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
             {isOptimized && (
               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
