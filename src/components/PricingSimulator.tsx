@@ -44,16 +44,47 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import PremiumEditor from "./PremiumEditor";
 import MegaOptimize from "./MegaOptimize";
-import { calculateUnitPrice, calculateFloorPremium, calculateOverallAveragePsf } from "@/utils/psfOptimizer";
+import { calculateUnitPsf, calculateFloorPremium, calculateOverallAveragePsf } from "@/utils/psfOptimizer";
 
-const PricingSimulator = ({ 
+// Define types for our component
+interface PricingSimulatorProps {
+  data: any[];
+  pricingConfig: any;
+  onConfigUpdate: (config: any) => void;
+}
+
+// Define type for unit with pricing data
+interface PricedUnit {
+  [key: string]: any;
+  unit: string;
+  bedrooms: string;
+  floor: string | number;
+  view: string;
+  area: string | number;
+  psf: number;
+  totalPrice: number;
+}
+
+// Define type for bedroom summary
+interface BedroomSummary {
+  type: string;
+  count: number;
+  totalArea: number;
+  totalPrice: number;
+  minPsf: number;
+  maxPsf: number;
+  avgPsf: number;
+  avgPrice: number;
+}
+
+const PricingSimulator: React.FC<PricingSimulatorProps> = ({ 
   data, 
   pricingConfig, 
   onConfigUpdate 
 }) => {
   // State for unit data with pricing
-  const [pricedUnits, setPricedUnits] = useState([]);
-  const [filteredUnits, setFilteredUnits] = useState([]);
+  const [pricedUnits, setPricedUnits] = useState<PricedUnit[]>([]);
+  const [filteredUnits, setFilteredUnits] = useState<PricedUnit[]>([]);
   const [bedroomFilterValue, setBedroomFilterValue] = useState("all");
   const [viewFilterValue, setViewFilterValue] = useState("all");
   const [floorFilterValue, setFloorFilterValue] = useState("all");
@@ -63,7 +94,7 @@ const PricingSimulator = ({
   const [psfRange, setPsfRange] = useState({ min: 0, max: 0 });
   
   // Bedroom summary stats
-  const [bedroomSummary, setBedroomSummary] = useState([]);
+  const [bedroomSummary, setBedroomSummary] = useState<BedroomSummary[]>([]);
   const [overallAvgPsf, setOverallAvgPsf] = useState(0);
   const [isLiveUpdateEnabled, setIsLiveUpdateEnabled] = useState(true);
   
@@ -71,13 +102,27 @@ const PricingSimulator = ({
   const bedroomOptions = ["all", ...new Set(data.map(unit => unit.bedrooms))].sort();
   const viewOptions = ["all", ...new Set(data.map(unit => unit.view))].sort();
   
+  // Calculate unit price
+  const calculateUnitPrice = (unit: any) => {
+    const psf = calculateUnitPsf(unit, pricingConfig);
+    const area = parseFloat(unit.area as string) || 0;
+    const totalPrice = psf * area;
+    // Ceiling to nearest 1000
+    const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+    
+    return { 
+      psf, 
+      totalPrice: finalTotalPrice 
+    };
+  };
+  
   // Calculate prices for all units based on the pricing config
   const calculatePrices = useCallback(() => {
     if (!data.length || !pricingConfig) return;
     
     // Process the pricing data
     const pricedData = data.map(unit => {
-      const calculatedPrice = calculateUnitPrice(unit, pricingConfig);
+      const calculatedPrice = calculateUnitPrice(unit);
       return {
         ...unit,
         ...calculatedPrice
@@ -88,7 +133,7 @@ const PricingSimulator = ({
     setPricedUnits(pricedData);
     
     // Calculate bedroom summary
-    const bedroomGroups = {};
+    const bedroomGroups: Record<string, BedroomSummary> = {};
     pricedData.forEach(unit => {
       const type = unit.bedrooms;
       if (!bedroomGroups[type]) {
@@ -99,12 +144,13 @@ const PricingSimulator = ({
           totalPrice: 0,
           minPsf: Infinity,
           maxPsf: -Infinity,
-          avgPsf: 0
+          avgPsf: 0,
+          avgPrice: 0
         };
       }
       
       bedroomGroups[type].count += 1;
-      bedroomGroups[type].totalArea += parseFloat(unit.area);
+      bedroomGroups[type].totalArea += parseFloat(unit.area as string);
       bedroomGroups[type].totalPrice += unit.totalPrice;
       bedroomGroups[type].minPsf = Math.min(bedroomGroups[type].minPsf, unit.psf);
       bedroomGroups[type].maxPsf = Math.max(bedroomGroups[type].maxPsf, unit.psf);
@@ -178,7 +224,7 @@ const PricingSimulator = ({
     // Apply floor filter
     if (floorFilterValue !== "all") {
       const floorNumber = parseInt(floorFilterValue);
-      filtered = filtered.filter(unit => parseInt(unit.floor) === floorNumber);
+      filtered = filtered.filter(unit => parseInt(unit.floor as string) === floorNumber);
     }
     
     // Apply search
@@ -217,7 +263,7 @@ const PricingSimulator = ({
   }, [pricedUnits, bedroomFilterValue, viewFilterValue, floorFilterValue, searchValue, sortConfig]);
   
   // Function to handle sorting
-  const requestSort = (key) => {
+  const requestSort = (key: string) => {
     let direction = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
       direction = 'descending';
@@ -226,7 +272,7 @@ const PricingSimulator = ({
   };
   
   // Handle config updates
-  const handleConfigUpdate = (updatedConfig) => {
+  const handleConfigUpdate = (updatedConfig: any) => {
     onConfigUpdate(updatedConfig);
     
     // If live update is enabled, recalculate immediately
@@ -243,11 +289,11 @@ const PricingSimulator = ({
   const floorOptions = ["all", ...new Set(data.map(unit => unit.floor))].sort((a, b) => {
     if (a === "all") return -1;
     if (b === "all") return 1;
-    return parseInt(a) - parseInt(b);
+    return parseInt(a as string) - parseInt(b as string);
   });
   
   // Format price for display
-  const formatPrice = (price) => {
+  const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -257,7 +303,7 @@ const PricingSimulator = ({
   };
   
   // Format PSF for display
-  const formatPsf = (psf) => {
+  const formatPsf = (psf: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -267,9 +313,9 @@ const PricingSimulator = ({
   };
   
   // Calculate target PSF percent difference
-  const calculateTargetDiff = (type, currentPsf) => {
+  const calculateTargetDiff = (type: string, currentPsf: number) => {
     const bedroomConfig = pricingConfig.bedroomTypePricing.find(
-      config => config.type === type
+      (config: any) => config.type === type
     );
     
     if (bedroomConfig) {
@@ -282,12 +328,20 @@ const PricingSimulator = ({
   };
   
   // Determine badge color based on PSF diff
-  const getBadgeColor = (diff) => {
+  const getBadgeColor = (diff: number) => {
     const absDiff = Math.abs(diff);
     
     if (absDiff <= 1) return "green";
     if (absDiff <= 3) return "yellow";
     return diff > 0 ? "orange" : "red";
+  };
+  
+  // Get badge variant based on color
+  const getBadgeVariant = (color: string) => {
+    if (color === "green") return "outline";
+    if (color === "yellow") return "outline";
+    if (color === "orange") return "outline";
+    return "destructive"; // red
   };
   
   // Toggle live update
@@ -411,11 +465,7 @@ const PricingSimulator = ({
                   <CardHeader className="py-4 px-5">
                     <CardTitle className="text-lg flex justify-between items-center">
                       <span>{summary.type}</span>
-                      <Badge variant={
-                        badgeColor === "green" ? "success" : 
-                        badgeColor === "yellow" ? "warning" : 
-                        badgeColor === "orange" ? "warning" : "destructive"
-                      }>
+                      <Badge variant={getBadgeVariant(badgeColor)}>
                         {targetDiff > 0 ? "+" : ""}{targetDiff.toFixed(1)}%
                       </Badge>
                     </CardTitle>
@@ -436,7 +486,7 @@ const PricingSimulator = ({
                       </div>
                       <div className="flex flex-col">
                         <span className="text-muted-foreground">Target PSF</span>
-                        <span className="font-medium">{formatPsf(pricingConfig.bedroomTypePricing.find(b => b.type === summary.type)?.targetAvgPsf || 0)}</span>
+                        <span className="font-medium">{formatPsf(pricingConfig.bedroomTypePricing.find((b: any) => b.type === summary.type)?.targetAvgPsf || 0)}</span>
                       </div>
                       <div className="flex flex-col col-span-2">
                         <span className="text-muted-foreground">PSF Range</span>
@@ -593,7 +643,7 @@ const PricingSimulator = ({
                         <TableCell>{unit.bedrooms}</TableCell>
                         <TableCell>{unit.floor}</TableCell>
                         <TableCell>{unit.view}</TableCell>
-                        <TableCell className="text-right">{parseFloat(unit.area).toFixed(0)}</TableCell>
+                        <TableCell className="text-right">{parseFloat(unit.area as string).toFixed(0)}</TableCell>
                         <TableCell className="text-right">{formatPsf(unit.psf)}</TableCell>
                         <TableCell className="text-right">{formatPrice(unit.totalPrice)}</TableCell>
                       </TableRow>
@@ -621,3 +671,4 @@ const PricingSimulator = ({
 };
 
 export default PricingSimulator;
+
