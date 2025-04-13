@@ -14,6 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import {
   Collapsible,
@@ -91,6 +92,36 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
       return stats;
     });
   }, [data]);
+
+  // Calculate totals across all bedroom types
+  const totals = useMemo(() => {
+    if (!bedroomTypeStats.length) return null;
+
+    // Extract all values for PSF, price, and size from all bedroom types
+    const allPsfs = bedroomTypeStats.flatMap(stat => 
+      Array(stat.count).fill(stat.avgPsf));
+    
+    const allPrices = bedroomTypeStats.flatMap(stat => 
+      Array(stat.count).fill(stat.avgPrice));
+    
+    const allSizes = bedroomTypeStats.flatMap(stat => 
+      Array(stat.count).fill(stat.avgSize));
+    
+    const totalCount = bedroomTypeStats.reduce((sum, stat) => sum + stat.count, 0);
+
+    return {
+      count: totalCount,
+      minPsf: Math.min(...bedroomTypeStats.map(stat => stat.minPsf)),
+      avgPsf: allPsfs.reduce((sum, psf) => sum + psf, 0) / allPsfs.length || 0,
+      maxPsf: Math.max(...bedroomTypeStats.map(stat => stat.maxPsf)),
+      minPrice: Math.min(...bedroomTypeStats.map(stat => stat.minPrice)),
+      avgPrice: allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length || 0,
+      maxPrice: Math.max(...bedroomTypeStats.map(stat => stat.maxPrice)),
+      minSize: Math.min(...bedroomTypeStats.map(stat => stat.minSize)),
+      avgSize: allSizes.reduce((sum, size) => sum + size, 0) / allSizes.length || 0,
+      maxSize: Math.max(...bedroomTypeStats.map(stat => stat.maxSize)),
+    };
+  }, [bedroomTypeStats]);
 
   return (
     <Card className="w-full mb-6 border-2 border-purple-100 shadow-md">
@@ -208,6 +239,53 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
                     </TableRow>
                   )}
                 </TableBody>
+                {totals && bedroomTypeStats.length > 0 && (
+                  <TableFooter className="bg-indigo-100/50">
+                    <TableRow>
+                      <TableCell className="font-bold text-indigo-800">TOTAL</TableCell>
+                      <TableCell className="font-bold text-indigo-800">{totals.count}</TableCell>
+                      <TableCell>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
+                            {totals.minPsf.toFixed(2)}
+                          </div>
+                          <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
+                            {totals.avgPsf.toFixed(2)}
+                          </div>
+                          <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
+                            {totals.maxPsf.toFixed(2)}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
+                            {totals.minPrice.toLocaleString()}
+                          </div>
+                          <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
+                            {Math.round(totals.avgPrice).toLocaleString()}
+                          </div>
+                          <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
+                            {totals.maxPrice.toLocaleString()}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
+                            {totals.minSize.toFixed(0)}
+                          </div>
+                          <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
+                            {totals.avgSize.toFixed(0)}
+                          </div>
+                          <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
+                            {totals.maxSize.toFixed(0)}
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
+                )}
               </Table>
             </div>
           </CardContent>
