@@ -25,16 +25,90 @@ import OptimizationModeSelector from "./OptimizationModeSelector";
 import PricingSummary from "@/components/PricingSummary";
 import BedroomTypeSelector from "./BedroomTypeSelector";
 
+// Helper function to sort bedroom types naturally
+const sortBedroomTypes = (a: any, b: any) => {
+  // Extract the 'type' property
+  const aType = a.type || '';
+  const bType = b.type || '';
+  
+  // Extract numeric parts (if any) from bedroom type strings
+  const aMatch = aType.match(/(\d+)/);
+  const bMatch = bType.match(/(\d+)/);
+  
+  // If both have numbers, sort numerically
+  if (aMatch && bMatch) {
+    return parseInt(aMatch[0], 10) - parseInt(bMatch[0], 10);
+  }
+  
+  // If only one has a number or neither has numbers, sort alphabetically
+  return aType.localeCompare(bType);
+};
+
+// Slot machine number component
+const SlotMachineNumber = ({ 
+  value, 
+  decimals = 2, 
+  isAnimating = false 
+}: { 
+  value: number, 
+  decimals?: number,
+  isAnimating?: boolean
+}) => {
+  const [displayValue, setDisplayValue] = useState(value);
+  
+  useEffect(() => {
+    if (isAnimating && Math.abs(value - displayValue) > 0.01) {
+      let iterations = 0;
+      const maxIterations = 8;
+      const interval = setInterval(() => {
+        if (iterations < maxIterations) {
+          // Create a slowing down animation effect
+          const progress = iterations / maxIterations;
+          const easingFactor = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
+          const intermediateValue = displayValue + (value - displayValue) * easingFactor;
+          
+          // Add some randomness for slot machine feel
+          const randomness = (1 - progress) * Math.abs(value - displayValue) * 0.15;
+          const randomAdjustment = (Math.random() - 0.5) * randomness;
+          
+          setDisplayValue(parseFloat((intermediateValue + randomAdjustment).toFixed(decimals + 1)));
+          iterations++;
+        } else {
+          clearInterval(interval);
+          setDisplayValue(value);
+        }
+      }, 80);
+      
+      return () => clearInterval(interval);
+    } else {
+      setDisplayValue(value);
+    }
+  }, [value, isAnimating]);
+  
+  return (
+    <span className={`transition-all duration-200 ${isAnimating ? 'scale-105' : ''}`}>
+      {isFinite(displayValue) ? displayValue.toFixed(decimals) : "0.00"}
+    </span>
+  );
+};
+
 const MegaOptimize: React.FC<MegaOptimizeProps> = ({ 
   data, 
   pricingConfig, 
   onOptimized 
 }) => {
+  // Sort bedroom types for consistency
+  const sortedBedroomTypes = React.useMemo(() => {
+    if (!pricingConfig?.bedroomTypePricing) return [];
+    return [...pricingConfig.bedroomTypePricing].sort(sortBedroomTypes);
+  }, [pricingConfig]);
+  
   const [selectedTypes, setSelectedTypes] = useState<string[]>(
-    pricingConfig.bedroomTypePricing.map((type: any) => type.type)
+    sortedBedroomTypes.map((type: any) => type.type)
   );
   const [processedData, setProcessedData] = useState<any[]>([]);
   const [highlightedTypes, setHighlightedTypes] = useState<string[]>([]);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const {
     isOptimizing,
@@ -125,21 +199,6 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       return processedUnit;
     });
     
-    // Log a sample of processed data for debugging
-    if (processed.length > 0) {
-      console.log("Sample processed unit data:", {
-        name: processed[0].name,
-        type: processed[0].type,
-        sellArea: processed[0].sellArea,
-        basePsf: processed[0].basePsf,
-        floorAdjustment: processed[0].floorAdjustment,
-        viewPsfAdjustment: processed[0].viewPsfAdjustment,
-        totalPrice: processed[0].totalPrice,
-        finalTotalPrice: processed[0].finalTotalPrice,
-        finalPsf: processed[0].finalPsf
-      });
-    }
-    
     setProcessedData(processed);
   }, [data, pricingConfig]);
 
@@ -150,14 +209,17 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       return;
     }
     
+    setIsAnimating(true); // Start animation for slot machine effect
+    
     toast.promise(
       new Promise(resolve => {
         runMegaOptimization(selectedTypes);
-        // Highlight the selected types for 4 seconds (increased from 2)
+        // Highlight the selected types for 5 seconds (increased from 4)
         setHighlightedTypes([...selectedTypes]);
         setTimeout(() => {
           setHighlightedTypes([]);
-        }, 4000); // Changed from 2000 to 4000 for 4 seconds
+          setIsAnimating(false);
+        }, 5000);
         // Simulate promise for toast
         setTimeout(resolve, 1000);
       }),
@@ -175,8 +237,13 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     toast.success("Optimization reverted successfully");
   };
   
-  // Get available bedroom types from pricing config
-  const bedroomTypes = pricingConfig.bedroomTypePricing.map((type: any) => type.type);
+  // Get available bedroom types from pricing config (sorted)
+  const bedroomTypes = React.useMemo(() => {
+    if (!pricingConfig?.bedroomTypePricing) return [];
+    return [...pricingConfig.bedroomTypePricing]
+      .sort(sortBedroomTypes)
+      .map((type: any) => type.type);
+  }, [pricingConfig]);
   
   // Get target PSF by bedroom type
   const getTargetPsfByType = (type: string) => {
@@ -236,7 +303,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               <h3 className="text-lg font-medium text-indigo-700">Current Overall PSF</h3>
               <p className="text-3xl font-bold text-indigo-900 flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-yellow-500 mr-2 animate-pulse" />
-                {currentOverallPsf.toFixed(2)}
+                <SlotMachineNumber value={currentOverallPsf} isAnimating={isAnimating} />
                 <Sparkles className="h-5 w-5 text-yellow-500 ml-2 animate-pulse" />
               </p>
               {isOptimized && (
@@ -260,7 +327,12 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                     }`}
                   >
                     <span className="font-medium text-sm">{type}</span>
-                    <span className="font-bold text-sm">{getTargetPsfByType(type).toFixed(2) || "0.00"}</span>
+                    <span className="font-bold text-sm">
+                      <SlotMachineNumber 
+                        value={getTargetPsfByType(type)} 
+                        isAnimating={isAnimating && selectedTypes.includes(type)} 
+                      />
+                    </span>
                   </div>
                 ))}
               </div>

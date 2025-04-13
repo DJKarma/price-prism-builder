@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from "react";
 import {
   Card,
@@ -50,12 +51,40 @@ interface PricingSummaryProps {
   highlightedTypes?: string[];
 }
 
+// Helper function to sort bedroom types naturally
+const sortBedroomTypes = (a: string, b: string) => {
+  // Extract numeric parts (if any) from bedroom type strings
+  const aMatch = a.match(/(\d+)/);
+  const bMatch = b.match(/(\d+)/);
+  
+  // If both have numbers, sort numerically
+  if (aMatch && bMatch) {
+    return parseInt(aMatch[0], 10) - parseInt(bMatch[0], 10);
+  }
+  
+  // If only one has a number or neither has numbers, sort alphabetically
+  return a.localeCompare(b);
+};
+
 const PricingSummary: React.FC<PricingSummaryProps> = ({ 
   data,
   showDollarSign = true,
   highlightedTypes = []
 }) => {
   const [isOpen, setIsOpen] = useState(true);
+  const [highlightedValues, setHighlightedValues] = useState<string[]>([]);
+  
+  // Slot machine effect for numbers
+  useEffect(() => {
+    if (highlightedTypes.length > 0) {
+      setHighlightedValues(highlightedTypes);
+      // Clear highlighting after 5 seconds (increased from 4)
+      const timer = setTimeout(() => {
+        setHighlightedValues([]);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedTypes]);
 
   // Log incoming data for debugging
   React.useEffect(() => {
@@ -85,58 +114,49 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
       typeMap[unit.type].push(unit);
     });
     
-    // Calculate statistics for each bedroom type
-    return Object.entries(typeMap).map(([type, units]) => {
-      // Extract values for calculations, ensuring we have valid numbers
-      const psfs = units
-        .map((unit) => {
-          const psf = typeof unit.finalPsf === 'number' ? unit.finalPsf : parseFloat(unit.finalPsf) || 0;
-          return psf;
-        })
-        .filter((psf) => !isNaN(psf) && isFinite(psf) && psf > 0);
-      
-      const prices = units
-        .map((unit) => {
-          const price = typeof unit.finalTotalPrice === 'number' ? unit.finalTotalPrice : parseFloat(unit.finalTotalPrice) || 0;
-          return price;
-        })
-        .filter((price) => !isNaN(price) && isFinite(price) && price > 0);
-      
-      const sizes = units
-        .map((unit) => {
-          const size = typeof unit.sellArea === 'number' ? unit.sellArea : parseFloat(unit.sellArea) || 0;
-          return size;
-        })
-        .filter((size) => !isNaN(size) && isFinite(size) && size > 0);
-      
-      // Calculate stats with safeguards against empty arrays
-      const stats: BedroomTypeStats = {
-        type,
-        count: units.length,
-        minPsf: psfs.length ? Math.min(...psfs) : 0,
-        avgPsf: psfs.length ? psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length : 0,
-        maxPsf: psfs.length ? Math.max(...psfs) : 0,
-        minPrice: prices.length ? Math.min(...prices) : 0,
-        avgPrice: prices.length ? prices.reduce((sum, price) => sum + price, 0) / prices.length : 0,
-        maxPrice: prices.length ? Math.max(...prices) : 0,
-        minSize: sizes.length ? Math.min(...sizes) : 0,
-        avgSize: sizes.length ? sizes.reduce((sum, size) => sum + size, 0) / sizes.length : 0,
-        maxSize: sizes.length ? Math.max(...sizes) : 0,
-      };
-      
-      // Log calculated stats for debugging
-      if (type === Object.keys(typeMap)[0]) {
-        console.log(`Stats for ${type}:`, {
-          psfs: psfs.length > 0 ? `${psfs.length} valid values` : "No valid values",
-          prices: prices.length > 0 ? `${prices.length} valid values` : "No valid values",
-          minPsf: stats.minPsf,
-          avgPsf: stats.avgPsf,
-          maxPsf: stats.maxPsf
-        });
-      }
-      
-      return stats;
-    });
+    // Calculate statistics for each bedroom type and sort by type
+    return Object.entries(typeMap)
+      .map(([type, units]) => {
+        // Extract values for calculations, ensuring we have valid numbers
+        const psfs = units
+          .map((unit) => {
+            const psf = typeof unit.finalPsf === 'number' ? unit.finalPsf : parseFloat(unit.finalPsf) || 0;
+            return psf;
+          })
+          .filter((psf) => !isNaN(psf) && isFinite(psf) && psf > 0);
+        
+        const prices = units
+          .map((unit) => {
+            const price = typeof unit.finalTotalPrice === 'number' ? unit.finalTotalPrice : parseFloat(unit.finalTotalPrice) || 0;
+            return price;
+          })
+          .filter((price) => !isNaN(price) && isFinite(price) && price > 0);
+        
+        const sizes = units
+          .map((unit) => {
+            const size = typeof unit.sellArea === 'number' ? unit.sellArea : parseFloat(unit.sellArea) || 0;
+            return size;
+          })
+          .filter((size) => !isNaN(size) && isFinite(size) && size > 0);
+        
+        // Calculate stats with safeguards against empty arrays
+        const stats: BedroomTypeStats = {
+          type,
+          count: units.length,
+          minPsf: psfs.length ? Math.min(...psfs) : 0,
+          avgPsf: psfs.length ? psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length : 0,
+          maxPsf: psfs.length ? Math.max(...psfs) : 0,
+          minPrice: prices.length ? Math.min(...prices) : 0,
+          avgPrice: prices.length ? prices.reduce((sum, price) => sum + price, 0) / prices.length : 0,
+          maxPrice: prices.length ? Math.max(...prices) : 0,
+          minSize: sizes.length ? Math.min(...sizes) : 0,
+          avgSize: sizes.length ? sizes.reduce((sum, size) => sum + size, 0) / sizes.length : 0,
+          maxSize: sizes.length ? Math.max(...sizes) : 0,
+        };
+        
+        return stats;
+      })
+      .sort((a, b) => sortBedroomTypes(a.type, b.type));
   }, [data]);
 
   // Calculate totals across all bedroom types
@@ -174,13 +194,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     const minSize = Math.min(...validStats.map(stat => stat.minSize).filter(v => isFinite(v) && v > 0));
     const maxSize = Math.max(...validStats.map(stat => stat.maxSize).filter(v => isFinite(v) && v > 0));
 
-    console.log("Calculated totals:", {
-      weightedPsf,
-      weightedPrice,
-      minPsf,
-      maxPsf
-    });
-
     return {
       count: totalUnits,
       minPsf: isFinite(minPsf) ? minPsf : 0,
@@ -194,6 +207,54 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
       maxSize: isFinite(maxSize) ? maxSize : 0,
     };
   }, [bedroomTypeStats]);
+
+  // Function to render slot-machine-like effect for numbers
+  const SlotMachineNumber = ({ value, isHighlighted = false, prefix = '', suffix = '' }: { 
+    value: number, 
+    isHighlighted?: boolean,
+    prefix?: string,
+    suffix?: string
+  }) => {
+    const [displayValue, setDisplayValue] = useState(value);
+    const [isAnimating, setIsAnimating] = useState(false);
+    
+    useEffect(() => {
+      if (isHighlighted && value !== displayValue) {
+        setIsAnimating(true);
+        
+        // Generate random intermediate values
+        let iterations = 0;
+        const maxIterations = 10;
+        const interval = setInterval(() => {
+          if (iterations < maxIterations) {
+            // Random value between original and target with decreasing randomness
+            const progress = iterations / maxIterations;
+            const randomFactor = 1 - progress;
+            const range = Math.abs(value - displayValue);
+            const randomDelta = range * randomFactor * (Math.random() - 0.5);
+            const intermediateValue = value + randomDelta;
+            
+            setDisplayValue(parseFloat(intermediateValue.toFixed(2)));
+            iterations++;
+          } else {
+            clearInterval(interval);
+            setDisplayValue(value);
+            setIsAnimating(false);
+          }
+        }, 80);
+        
+        return () => clearInterval(interval);
+      } else {
+        setDisplayValue(value);
+      }
+    }, [value, isHighlighted]);
+    
+    return (
+      <span className={`transition-all duration-200 ${isAnimating ? 'text-indigo-800 scale-110' : ''}`}>
+        {prefix}{isFinite(displayValue) && displayValue > 0 ? displayValue.toFixed(2) : "0.00"}{suffix}
+      </span>
+    );
+  };
 
   return (
     <Card className="w-full mb-6 border-2 border-purple-100 shadow-md">
@@ -257,13 +318,13 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                   <TableBody>
                     {bedroomTypeStats.length > 0 ? (
                       bedroomTypeStats.map((stat, index) => {
-                        const isHighlighted = highlightedTypes.includes(stat.type);
+                        const isHighlighted = highlightedValues.includes(stat.type);
                         return (
                           <TableRow 
                             key={index} 
                             className={
                               isHighlighted 
-                                ? "bg-yellow-100 transition-colors duration-500" 
+                                ? "bg-yellow-50 transition-colors duration-500" 
                                 : index % 2 === 0 ? "bg-white" : "bg-purple-50/30"
                             }
                           >
@@ -272,51 +333,63 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                             <TableCell>
                               <div className="grid grid-cols-3 gap-2">
                                 <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                  {isFinite(stat.minPsf) && stat.minPsf > 0 ? stat.minPsf.toFixed(2) : "0.00"}
+                                  <SlotMachineNumber value={stat.minPsf} isHighlighted={isHighlighted} />
                                 </div>
                                 <div className={`text-center px-2 py-1 rounded-md font-medium transition-all duration-500 ${
                                   isHighlighted 
                                     ? "bg-yellow-300 text-yellow-900 animate-pulse transform scale-110 shadow-lg" 
                                     : "bg-purple-50 text-purple-600"
                                 }`}>
-                                  {isFinite(stat.avgPsf) && stat.avgPsf > 0 ? stat.avgPsf.toFixed(2) : "0.00"}
+                                  <SlotMachineNumber value={stat.avgPsf} isHighlighted={isHighlighted} />
                                 </div>
                                 <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                  {isFinite(stat.maxPsf) && stat.maxPsf > 0 ? stat.maxPsf.toFixed(2) : "0.00"}
+                                  <SlotMachineNumber value={stat.maxPsf} isHighlighted={isHighlighted} />
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell>
                               <div className="grid grid-cols-3 gap-2">
                                 <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                  {isFinite(stat.minPrice) && stat.minPrice > 0 ? `${showDollarSign ? "$" : ""}${stat.minPrice.toLocaleString()}` : "0"}
+                                  <SlotMachineNumber 
+                                    value={stat.minPrice} 
+                                    isHighlighted={isHighlighted} 
+                                    prefix={showDollarSign ? '$' : ''}
+                                  />
                                 </div>
                                 <div className={`text-center px-2 py-1 rounded-md font-medium transition-all duration-500 ${
                                   isHighlighted 
-                                    ? "bg-yellow-300 text-yellow-900" 
+                                    ? "bg-yellow-100 text-yellow-900" 
                                     : "bg-purple-50 text-purple-600"
                                 }`}>
-                                  {isFinite(stat.avgPrice) && stat.avgPrice > 0 ? `${showDollarSign ? "$" : ""}${Math.round(stat.avgPrice).toLocaleString()}` : "0"}
+                                  <SlotMachineNumber 
+                                    value={stat.avgPrice} 
+                                    isHighlighted={isHighlighted} 
+                                    prefix={showDollarSign ? '$' : ''}
+                                  />
                                 </div>
                                 <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                  {isFinite(stat.maxPrice) && stat.maxPrice > 0 ? `${showDollarSign ? "$" : ""}${stat.maxPrice.toLocaleString()}` : "0"}
+                                  <SlotMachineNumber 
+                                    value={stat.maxPrice} 
+                                    isHighlighted={isHighlighted} 
+                                    prefix={showDollarSign ? '$' : ''}
+                                  />
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell>
                               <div className="grid grid-cols-3 gap-2">
                                 <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                  {isFinite(stat.minSize) && stat.minSize > 0 ? stat.minSize.toFixed(0) : "0"}
+                                  <SlotMachineNumber value={stat.minSize} isHighlighted={isHighlighted} />
                                 </div>
                                 <div className={`text-center px-2 py-1 rounded-md font-medium ${
                                   isHighlighted 
-                                    ? "bg-yellow-300 text-yellow-900" 
+                                    ? "bg-yellow-100 text-yellow-900" 
                                     : "bg-purple-50 text-purple-600"
                                 }`}>
-                                  {isFinite(stat.avgSize) && stat.avgSize > 0 ? stat.avgSize.toFixed(0) : "0"}
+                                  <SlotMachineNumber value={stat.avgSize} isHighlighted={isHighlighted} />
                                 </div>
                                 <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                  {isFinite(stat.maxSize) && stat.maxSize > 0 ? stat.maxSize.toFixed(0) : "0"}
+                                  <SlotMachineNumber value={stat.maxSize} isHighlighted={isHighlighted} />
                                 </div>
                               </div>
                             </TableCell>
@@ -339,39 +412,51 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                         <TableCell>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
-                              {isFinite(totals.minPsf) && totals.minPsf > 0 ? totals.minPsf.toFixed(2) : "0.00"}
+                              <SlotMachineNumber value={totals.minPsf} isHighlighted={highlightedValues.length > 0} />
                             </div>
                             <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
-                              {isFinite(totals.avgPsf) && totals.avgPsf > 0 ? totals.avgPsf.toFixed(2) : "0.00"}
+                              <SlotMachineNumber value={totals.avgPsf} isHighlighted={highlightedValues.length > 0} />
                             </div>
                             <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
-                              {isFinite(totals.maxPsf) && totals.maxPsf > 0 ? totals.maxPsf.toFixed(2) : "0.00"}
+                              <SlotMachineNumber value={totals.maxPsf} isHighlighted={highlightedValues.length > 0} />
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
-                              {isFinite(totals.minPrice) && totals.minPrice > 0 ? `${showDollarSign ? "$" : ""}${totals.minPrice.toLocaleString()}` : "0"}
+                              <SlotMachineNumber 
+                                value={totals.minPrice} 
+                                isHighlighted={highlightedValues.length > 0} 
+                                prefix={showDollarSign ? '$' : ''}
+                              />
                             </div>
                             <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
-                              {isFinite(totals.avgPrice) && totals.avgPrice > 0 ? `${showDollarSign ? "$" : ""}${Math.round(totals.avgPrice).toLocaleString()}` : "0"}
+                              <SlotMachineNumber 
+                                value={totals.avgPrice} 
+                                isHighlighted={highlightedValues.length > 0} 
+                                prefix={showDollarSign ? '$' : ''}
+                              />
                             </div>
                             <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
-                              {isFinite(totals.maxPrice) && totals.maxPrice > 0 ? `${showDollarSign ? "$" : ""}${totals.maxPrice.toLocaleString()}` : "0"}
+                              <SlotMachineNumber 
+                                value={totals.maxPrice} 
+                                isHighlighted={highlightedValues.length > 0} 
+                                prefix={showDollarSign ? '$' : ''}
+                              />
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
-                              {isFinite(totals.minSize) && totals.minSize > 0 ? totals.minSize.toFixed(0) : "0"}
+                              <SlotMachineNumber value={totals.minSize} isHighlighted={highlightedValues.length > 0} />
                             </div>
                             <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
-                              {isFinite(totals.avgSize) && totals.avgSize > 0 ? totals.avgSize.toFixed(0) : "0"}
+                              <SlotMachineNumber value={totals.avgSize} isHighlighted={highlightedValues.length > 0} />
                             </div>
                             <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
-                              {isFinite(totals.maxSize) && totals.maxSize > 0 ? totals.maxSize.toFixed(0) : "0"}
+                              <SlotMachineNumber value={totals.maxSize} isHighlighted={highlightedValues.length > 0} />
                             </div>
                           </div>
                         </TableCell>

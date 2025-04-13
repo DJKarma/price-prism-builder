@@ -19,6 +19,21 @@ interface BedroomTypeSelectorProps {
   setSelectedTypes: (types: string[]) => void;
 }
 
+// Helper function to sort bedroom types naturally
+const sortBedroomTypes = (a: string, b: string) => {
+  // Extract numeric parts (if any) from bedroom type strings
+  const aMatch = a.match(/(\d+)/);
+  const bMatch = b.match(/(\d+)/);
+  
+  // If both have numbers, sort numerically
+  if (aMatch && bMatch) {
+    return parseInt(aMatch[0], 10) - parseInt(bMatch[0], 10);
+  }
+  
+  // If only one has a number or neither has numbers, sort alphabetically
+  return a.localeCompare(b);
+};
+
 const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
   bedroomTypes,
   selectedTypes,
@@ -26,8 +41,11 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
 
-  // Ensure bedroomTypes is always an array, even if it's undefined
-  const safeBedroomTypes = Array.isArray(bedroomTypes) ? bedroomTypes : [];
+  // Ensure bedroomTypes is always an array, even if it's undefined, and sort it
+  const safeBedroomTypes = Array.isArray(bedroomTypes) 
+    ? [...bedroomTypes].sort(sortBedroomTypes) 
+    : [];
+    
   // Ensure selectedTypes is always an array
   const safeSelectedTypes = Array.isArray(selectedTypes) ? selectedTypes : [];
 
@@ -38,6 +56,9 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
       setSelectedTypes([...safeSelectedTypes, type]);
     }
   };
+
+  // Sort the selected types for display
+  const sortedSelectedTypes = [...safeSelectedTypes].sort(sortBedroomTypes);
 
   return (
     <div className="space-y-2">
@@ -74,7 +95,7 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
 
       {safeSelectedTypes.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
-          {safeSelectedTypes.map((type) => (
+          {sortedSelectedTypes.map((type) => (
             <Badge
               key={type || "empty-key"}
               variant="secondary"
