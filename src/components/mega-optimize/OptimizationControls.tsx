@@ -4,6 +4,7 @@ import { Wand2, RotateCcw, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 interface OptimizationControlsProps {
   currentOverallPsf: number;
@@ -25,6 +26,7 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
   onRevert,
 }) => {
   const [showTargetInput, setShowTargetInput] = useState(false);
+  const { toast } = useToast();
   
   // Auto-enable input when component mounts
   useEffect(() => {
@@ -34,6 +36,27 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
   // Calculate the difference between target and current PSF
   const psfDifference = targetPsf - currentOverallPsf;
   const psfDifferencePercentage = (psfDifference / currentOverallPsf) * 100;
+
+  const handleOptimize = () => {
+    if (Math.abs(psfDifferencePercentage) > 30) {
+      toast({
+        title: "Caution",
+        description: `Target PSF differs by ${Math.abs(psfDifferencePercentage).toFixed(1)}% from current PSF. This may lead to significant price changes.`,
+        className: "warning",
+        duration: 5000,
+      });
+    }
+    onOptimize();
+  };
+
+  const handleRevert = () => {
+    onRevert();
+    toast({
+      title: "Optimization Reverted",
+      description: "All pricing has been restored to original values",
+      className: "success",
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -73,7 +96,7 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
       <div className="flex items-end pt-2">
         <div className="flex gap-2 w-full">
           <Button
-            onClick={onOptimize}
+            onClick={handleOptimize}
             disabled={isOptimizing}
             className="flex-1 bg-indigo-600 hover:bg-indigo-700"
           >
@@ -89,7 +112,7 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
           
           <Button
             variant="outline"
-            onClick={onRevert}
+            onClick={handleRevert}
             disabled={!isOptimized}
             className={!isOptimized ? "opacity-50" : ""}
           >
