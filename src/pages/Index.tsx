@@ -42,10 +42,12 @@ const Index = () => {
 
   const handleConfigurationComplete = useCallback((config: PricingConfig) => {
     // Calculate the targetOverallPsf as average of all bedroom type target PSFs
-    const targetOverallPsf = config.bedroomTypePricing.reduce(
-      (sum, type) => sum + type.targetAvgPsf, 
-      0
-    ) / config.bedroomTypePricing.length;
+    const targetOverallPsf = config.targetOverallPsf || (
+      config.bedroomTypePricing.reduce(
+        (sum, type) => sum + type.targetAvgPsf, 
+        0
+      ) / config.bedroomTypePricing.length
+    );
     
     // Update floor rules to use max floor from data
     const updatedConfig = {

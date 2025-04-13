@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Info, Wand2, RotateCcw, TrendingUp, ArrowRight, Sparkles } from "lucide-react";
+import { Info, Wand2, RotateCcw, ArrowRight, Sparkles } from "lucide-react";
 import { megaOptimizePsf, calculateOverallAveragePsf } from "@/utils/psfOptimizer";
 import { toast } from "@/components/ui/use-toast";
 
@@ -43,9 +43,14 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     ) / pricingConfig.bedroomTypePricing.length
   );
   
-  // Update the isOptimized state when config changes
+  // Update the isOptimized state and targetPsf when config changes
   useEffect(() => {
     setIsOptimized(!!pricingConfig.isOptimized);
+    setTargetPsf(pricingConfig.targetOverallPsf || 
+      pricingConfig.bedroomTypePricing.reduce(
+        (sum: number, type: any) => sum + type.targetAvgPsf,
+        0
+      ) / pricingConfig.bedroomTypePricing.length);
   }, [pricingConfig]);
   
   const currentOverallPsf = calculateOverallAveragePsf(data, pricingConfig);
