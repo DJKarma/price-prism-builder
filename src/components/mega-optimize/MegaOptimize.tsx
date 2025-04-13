@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
@@ -47,6 +46,8 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
 
   // Calculate bedroom type average PSF values for display
   const bedroomTypeData = React.useMemo(() => {
+    console.log("Calculating bedroomTypeData in MegaOptimize");
+    
     // Group data by bedroom type
     const typeGroups: Record<string, any[]> = {};
     data.forEach(unit => {
@@ -61,10 +62,15 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       const unitsOfType = typeGroups[type.type] || [];
       const unitCount = unitsOfType.length;
       
-      // Calculate average size
-      const totalArea = unitsOfType.reduce((sum: number, unit: any) => 
-        sum + (parseFloat(unit.area) || 0), 0);
+      // Calculate average size using the correct property
+      const totalArea = unitsOfType.reduce((sum: number, unit: any) => {
+        const area = parseFloat(unit.sellArea) || 0;
+        console.log(`Unit ${unit.name} type ${unit.type} has sellArea: ${area}`);
+        return sum + area;
+      }, 0);
+      
       const avgSize = unitCount > 0 ? totalArea / unitCount : 0;
+      console.log(`Bedroom type ${type.type}: unitCount=${unitCount}, totalArea=${totalArea}, avgSize=${avgSize}`);
       
       // Calculate current average PSF
       let totalPsf = 0;
@@ -98,12 +104,16 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       
       const avgPsf = unitCount > 0 ? totalPsf / unitCount : 0;
       
-      return {
+      // Return the result with explicit values to aid debugging
+      const result = {
         ...type,
         unitCount,
         avgSize,
         avgPsf
       };
+      
+      console.log(`Final bedroom type data for ${type.type}:`, result);
+      return result;
     });
   }, [data, pricingConfig]);
 
