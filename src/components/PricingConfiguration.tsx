@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -46,9 +45,26 @@ export interface ViewPricing {
 
 export interface PricingConfig {
   basePsf: number;
-  floorRiseRules: FloorRiseRule[];
-  bedroomTypePricing: BedroomTypePricing[];
-  viewPricing: ViewPricing[];
+  bedroomTypePricing: Array<{
+    type: string;
+    basePsf: number;
+    targetAvgPsf: number;
+    originalBasePsf?: number;
+  }>;
+  viewPricing: Array<{
+    view: string;
+    psfAdjustment: number;
+    originalPsfAdjustment?: number;
+  }>;
+  floorRiseRules: Array<{
+    startFloor: number;
+    endFloor: number;
+    psfIncrement: number;
+    jumpEveryFloor?: number;
+    jumpIncrement?: number;
+  }>;
+  targetOverallPsf?: number;
+  isOptimized?: boolean;
 }
 
 const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
@@ -62,11 +78,9 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
 
-  // Extract unique bedroom types and views from data
   useEffect(() => {
     if (!data.length) return;
 
-    // Extract bedroom types
     const uniqueTypes = Array.from(
       new Set(
         data
@@ -83,7 +97,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       }))
     );
 
-    // Extract view types
     const uniqueViews = Array.from(
       new Set(
         data
@@ -104,7 +117,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     const value = parseFloat(e.target.value);
     if (!isNaN(value) && value > 0) {
       setBasePsf(value);
-      // Update bedroom type base prices
       setBedroomTypes(prev =>
         prev.map(item => ({
           ...item,
@@ -156,13 +168,11 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   };
 
   const handleSubmit = () => {
-    // Validate configurations
     if (basePsf <= 0) {
       toast.error("Base PSF must be greater than zero");
       return;
     }
 
-    // Check for overlapping floor ranges
     for (let i = 0; i < floorRiseRules.length; i++) {
       const rule = floorRiseRules[i];
       
@@ -219,7 +229,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </p>
         </div>
 
-        {/* Floor Rise Configuration */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium">Floor Rise PSF Rules</h3>
@@ -301,7 +310,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </Table>
         </div>
 
-        {/* Bedroom Type Pricing */}
         {bedroomTypes.length > 0 && (
           <div>
             <h3 className="text-sm font-medium mb-3">Bedroom Type Pricing</h3>
@@ -352,7 +360,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </div>
         )}
 
-        {/* View Type Pricing */}
         {viewTypes.length > 0 && (
           <div>
             <h3 className="text-sm font-medium mb-3">View Pricing Adjustments</h3>
