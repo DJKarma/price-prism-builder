@@ -118,7 +118,7 @@ const FixedHeaderTable = React.forwardRef<
   <div
     ref={ref}
     className={cn("w-full overflow-auto border rounded-md", className)}
-    style={{ maxHeight }}
+    style={{ maxHeight, overflowY: "auto" }}
     {...props}
   />
 ))

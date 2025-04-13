@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Building2, ArrowUp, ArrowDown, Ruler, DollarSign, SquareStack } from "lucide-react";
+import { Building2, ArrowUp, ArrowDown, Ruler, SquareStack } from "lucide-react";
 import { 
   Card, 
   CardContent,
@@ -161,16 +161,16 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                     {/* Primary pricing info */}
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
-                        <p className="text-muted-foreground">Base PSF</p>
+                        <p className="text-muted-foreground truncate">Base PSF</p>
                         <p className="font-medium">{type.basePsf.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Target Avg PSF</p>
+                        <p className="text-muted-foreground truncate">Target Avg PSF</p>
                         <p className="font-medium">{type.targetAvgPsf.toFixed(2)}</p>
                       </div>
                       {hasChanged && (
                         <div className="col-span-2 mt-2 pt-2 border-t">
-                          <p className="text-muted-foreground">Original Base PSF</p>
+                          <p className="text-muted-foreground truncate">Original Base PSF</p>
                           <p className="font-medium">{type.originalBasePsf?.toFixed(2)}</p>
                         </div>
                       )}
@@ -179,30 +179,30 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                     {/* Enhanced mini-cards section */}
                     <div className="mt-2 pt-4 border-t grid grid-cols-3 gap-2">
                       {/* Units mini-card */}
-                      <div className="bg-purple-50 rounded-lg p-2">
+                      <div className="bg-purple-50 rounded-lg p-2 flex flex-col h-full">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-purple-700">Units</span>
-                          <SquareStack className="h-3.5 w-3.5 text-purple-600" />
+                          <span className="text-xs font-medium text-purple-700 truncate">Units</span>
+                          <SquareStack className="h-3.5 w-3.5 text-purple-600 flex-shrink-0" />
                         </div>
-                        <p className="font-semibold text-sm text-purple-900 mt-1">{unitCount}</p>
+                        <p className="font-semibold text-sm text-purple-900 mt-1 truncate">{unitCount}</p>
                       </div>
                       
                       {/* Average Size mini-card */}
-                      <div className="bg-blue-50 rounded-lg p-2">
+                      <div className="bg-blue-50 rounded-lg p-2 flex flex-col h-full">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-blue-700">Avg Size</span>
-                          <Ruler className="h-3.5 w-3.5 text-blue-600" />
+                          <span className="text-xs font-medium text-blue-700 truncate">Avg Size</span>
+                          <Ruler className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
                         </div>
-                        <p className="font-semibold text-sm text-blue-900 mt-1">{avgSize} sf</p>
+                        <p className="font-semibold text-sm text-blue-900 mt-1 truncate">{avgSize} sf</p>
                       </div>
                       
                       {/* Average PSF mini-card */}
-                      <div className="bg-green-50 rounded-lg p-2">
+                      <div className="bg-green-50 rounded-lg p-2 flex flex-col h-full">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-green-700">Avg PSF</span>
-                          <DollarSign className="h-3.5 w-3.5 text-green-600" />
+                          <span className="text-xs font-medium text-green-700 truncate">Avg PSF</span>
+                          {/* Removed DollarSign icon */}
                         </div>
-                        <p className="font-semibold text-sm text-green-900 mt-1">{avgPsf.toFixed(2)}</p>
+                        <p className="font-semibold text-sm text-green-900 mt-1 truncate">{avgPsf.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
