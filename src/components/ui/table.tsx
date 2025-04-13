@@ -121,13 +121,9 @@ const FixedHeaderTable = React.forwardRef<
     style={{ 
       maxHeight, 
       overflowY: "auto",
-      overflowX: "auto", // Changed to auto for consistency
+      overflowX: "auto", 
       scrollbarWidth: "thin",
-      scrollbarColor: "var(--scrollbar-thumb) var(--scrollbar-track)",
-      // Make scrollbars always visible
-      "&::-webkit-scrollbar": { display: "block" },
-      "&::-webkit-scrollbar-thumb": { backgroundColor: "var(--scrollbar-thumb)" },
-      "&::-webkit-scrollbar-track": { backgroundColor: "var(--scrollbar-track)" }
+      scrollbarColor: "var(--scrollbar-thumb) var(--scrollbar-track)"
     }}
     {...props}
   />
