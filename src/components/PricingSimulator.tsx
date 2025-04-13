@@ -81,6 +81,7 @@ import { optimizeBasePsf } from "@/utils/psfOptimizer";
 interface PricingSimulatorProps {
   data: any[];
   pricingConfig: PricingConfig;
+  onConfigUpdate?: (updatedConfig: PricingConfig) => void;
 }
 
 interface UnitWithPricing extends Record<string, any> {
@@ -129,6 +130,7 @@ interface OptimizationState {
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
   pricingConfig,
+  onConfigUpdate,
 }) => {
   const [units, setUnits] = useState<UnitWithPricing[]>([]);
   const [filteredUnits, setFilteredUnits] = useState<UnitWithPricing[]>([]);
