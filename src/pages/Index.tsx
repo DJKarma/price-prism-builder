@@ -25,7 +25,7 @@ const Index = () => {
   };
 
   const handleConfigurationComplete = (config: PricingConfig) => {
-    // Add the targetOverallPsf as average of all bedroom type target PSFs
+    // Calculate the targetOverallPsf as average of all bedroom type target PSFs
     const targetOverallPsf = config.bedroomTypePricing.reduce(
       (sum, type) => sum + type.targetAvgPsf, 
       0

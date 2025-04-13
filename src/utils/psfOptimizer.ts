@@ -1,4 +1,3 @@
-
 /**
  * Gradient Descent PSF Optimizer
  * 
@@ -29,8 +28,8 @@ interface FloorRiseRule {
   startFloor: number;
   endFloor: number;
   psfIncrement: number;
-  jumpIncrement?: number;
   jumpEveryFloor?: number;
+  jumpIncrement?: number;
 }
 
 interface PricingConfig {
@@ -76,7 +75,7 @@ const calculateUnitPsf = (
     viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
   }
   
-  // Calculate floor adjustment - cumulative
+  // Calculate floor adjustment
   let floorAdjustment = 0;
   const floorLevel = parseInt(unit.floor as string) || 1;
   
@@ -89,49 +88,28 @@ const calculateUnitPsf = (
   );
   
   // Calculate cumulative floor adjustment
-  let currentFloor = 1;
   let cumulativeAdjustment = 0;
   
-  for (const rule of sortedFloorRules) {
-    const ruleStartFloor = Math.max(currentFloor, rule.startFloor);
+  // Process floor rules
+  for (let floor = 1; floor <= floorLevel; floor++) {
+    // Find applicable rule for this floor
+    const rule = sortedFloorRules.find(
+      r => floor >= r.startFloor && floor <= r.endFloor
+    );
     
-    // If we already passed this rule's range, apply full adjustment
-    if (floorLevel > rule.endFloor) {
-      // Apply adjustment for all floors in this range
-      for (let floor = ruleStartFloor; floor <= rule.endFloor; floor++) {
-        // Check if this is a jump floor
-        const isJumpFloor = rule.jumpEveryFloor && rule.jumpIncrement && 
-                           ((floor - rule.startFloor) % rule.jumpEveryFloor === 0) && 
-                           floor > rule.startFloor;
-                           
-        // Add the regular increment
-        cumulativeAdjustment += rule.psfIncrement;
-        
-        // Add jump increment if applicable
-        if (isJumpFloor) {
-          cumulativeAdjustment += rule.jumpIncrement || 0;
-        }
+    if (rule) {
+      // Add the regular increment for each floor
+      cumulativeAdjustment += rule.psfIncrement;
+      
+      // Check if this is a jump floor
+      const isJumpFloor = rule.jumpEveryFloor && rule.jumpIncrement && 
+                          floor > rule.startFloor && 
+                          (floor - rule.startFloor) % rule.jumpEveryFloor === 0;
+      
+      // Add jump increment if applicable
+      if (isJumpFloor) {
+        cumulativeAdjustment += rule.jumpIncrement;
       }
-      currentFloor = rule.endFloor + 1;
-    } 
-    // If we're within this rule's range
-    else if (floorLevel >= rule.startFloor) {
-      // Apply adjustment for floors up to the unit's floor
-      for (let floor = ruleStartFloor; floor <= floorLevel; floor++) {
-        // Check if this is a jump floor
-        const isJumpFloor = rule.jumpEveryFloor && rule.jumpIncrement && 
-                           ((floor - rule.startFloor) % rule.jumpEveryFloor === 0) && 
-                           floor > rule.startFloor;
-                           
-        // Add the regular increment
-        cumulativeAdjustment += rule.psfIncrement;
-        
-        // Add jump increment if applicable
-        if (isJumpFloor) {
-          cumulativeAdjustment += rule.jumpIncrement || 0;
-        }
-      }
-      break;
     }
   }
   

@@ -129,6 +129,53 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
     });
   };
   
+  // Calculate cumulative PSF for a specific floor
+  const calculateCumulativePsfForFloor = (floor: number) => {
+    let cumulativePsf = 0;
+    let isJumpFloor = false;
+    let appliedRule = null;
+    
+    // Sort rules by startFloor
+    const sortedRules = [...localConfig.floorRiseRules].sort(
+      (a, b) => a.startFloor - b.startFloor
+    );
+    
+    // Process each floor up to the requested floor
+    for (let currentFloor = 1; currentFloor <= floor; currentFloor++) {
+      // Find applicable rule for this floor
+      const rule = sortedRules.find(
+        r => currentFloor >= r.startFloor && currentFloor <= r.endFloor
+      );
+      
+      if (rule) {
+        // Add regular increment
+        cumulativePsf += rule.psfIncrement;
+        
+        // Check if this is a jump floor
+        const isCurrentJumpFloor = rule.jumpEveryFloor && rule.jumpIncrement && 
+                       currentFloor > rule.startFloor &&
+                       (currentFloor - rule.startFloor) % rule.jumpEveryFloor === 0;
+        
+        // Add jump increment if applicable
+        if (isCurrentJumpFloor) {
+          cumulativePsf += rule.jumpIncrement || 0;
+          
+          // Record if this is the requested floor
+          if (currentFloor === floor) {
+            isJumpFloor = true;
+            appliedRule = rule;
+          }
+        }
+      }
+    }
+    
+    return {
+      psfValue: cumulativePsf,
+      isJumpFloor,
+      appliedRule
+    };
+  };
+  
   return (
     <Collapsible
       open={isOpen}
@@ -396,49 +443,16 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
                   </TableHeader>
                   <TableBody>
                     {Array.from({ length: 50 }, (_, i) => i + 1).map((floor) => {
-                      // Calculate cumulative PSF for this floor
-                      let cumulativePsf = 0;
-                      let isJumpFloor = false;
-                      let appliedRule = null;
-                      
-                      // Sort rules by startFloor
-                      const sortedRules = [...localConfig.floorRiseRules].sort(
-                        (a, b) => a.startFloor - b.startFloor
-                      );
-                      
-                      for (let currentFloor = 1; currentFloor <= floor; currentFloor++) {
-                        // Find applicable rule for this floor
-                        const rule = sortedRules.find(
-                          r => currentFloor >= r.startFloor && currentFloor <= r.endFloor
-                        );
-                        
-                        if (rule) {
-                          // Check if this is a jump floor
-                          const jumpFloor = rule.jumpEveryFloor && rule.jumpIncrement && 
-                                           ((currentFloor - rule.startFloor) % rule.jumpEveryFloor === 0) && 
-                                           currentFloor > rule.startFloor;
-                                           
-                          // Add regular increment
-                          cumulativePsf += rule.psfIncrement;
-                          
-                          // Add jump increment if applicable
-                          if (jumpFloor) {
-                            cumulativePsf += rule.jumpIncrement || 0;
-                            
-                            if (currentFloor === floor) {
-                              isJumpFloor = true;
-                              appliedRule = rule;
-                            }
-                          }
-                        }
-                      }
+                      // Calculate PSF for this floor using the updated method
+                      const { psfValue, isJumpFloor, appliedRule } = calculateCumulativePsfForFloor(floor);
                       
                       return (
-                        <TableRow key={floor} className={isJumpFloor ? "bg-muted" : ""}>
+                        <TableRow key={floor} className={isJumpFloor ? "bg-green-50" : ""}>
                           <TableCell>{floor}</TableCell>
-                          <TableCell>{cumulativePsf.toFixed(2)}</TableCell>
+                          <TableCell>{psfValue.toFixed(2)}</TableCell>
                           <TableCell>
-                            {isJumpFloor ? `Jump floor (+${appliedRule?.jumpIncrement})` : ""}
+                            {isJumpFloor ? 
+                              `Jump floor (+${appliedRule?.jumpIncrement})` : ""}
                           </TableCell>
                         </TableRow>
                       );
