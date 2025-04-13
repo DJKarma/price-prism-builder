@@ -1,2 +1,3 @@
 
-export { default as MegaOptimize } from './MegaOptimize';
+import MegaOptimize from "./MegaOptimize";
+export { MegaOptimize };

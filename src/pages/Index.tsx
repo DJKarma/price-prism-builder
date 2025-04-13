@@ -5,6 +5,7 @@ import CSVUploader from "@/components/CSVUploader";
 import ColumnMapper from "@/components/ColumnMapper";
 import PricingConfiguration, { PricingConfig } from "@/components/PricingConfiguration";
 import PricingSimulator from "@/components/PricingSimulator";
+import MegaOptimize from "@/components/MegaOptimize";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<string>("upload");
@@ -132,12 +133,19 @@ const Index = () => {
 
           <TabsContent value="simulate" className="mt-0">
             {pricingConfig && (
-              <PricingSimulator 
-                data={mappedData} 
-                pricingConfig={pricingConfig} 
-                onConfigUpdate={handleConfigUpdate}
-                key={`simulator-${forceUpdate}`} // Force re-render when config changes
-              />
+              <>
+                <PricingSimulator 
+                  data={mappedData} 
+                  pricingConfig={pricingConfig} 
+                  onConfigUpdate={handleConfigUpdate}
+                  key={`simulator-${forceUpdate}`} // Force re-render when config changes
+                />
+                <MegaOptimize 
+                  data={mappedData} 
+                  pricingConfig={pricingConfig} 
+                  onOptimized={handleConfigUpdate} 
+                />
+              </>
             )}
           </TabsContent>
         </Tabs>
