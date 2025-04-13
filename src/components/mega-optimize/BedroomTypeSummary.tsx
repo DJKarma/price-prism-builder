@@ -158,51 +158,50 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                 </CardHeader>
                 <CardContent className="pt-4 pb-4 px-4">
                   <div className="grid grid-cols-1 gap-4">
-                    {/* Primary pricing info */}
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-muted-foreground truncate">Base PSF</p>
+                    {/* Primary pricing info with improved layout */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <div className="overflow-hidden">
+                        <p className="text-muted-foreground text-xs truncate">Base PSF</p>
                         <p className="font-medium">{type.basePsf.toFixed(2)}</p>
                       </div>
-                      <div>
-                        <p className="text-muted-foreground truncate">Target Avg PSF</p>
+                      <div className="overflow-hidden">
+                        <p className="text-muted-foreground text-xs truncate">Target Avg PSF</p>
                         <p className="font-medium">{type.targetAvgPsf.toFixed(2)}</p>
                       </div>
                       {hasChanged && (
-                        <div className="col-span-2 mt-2 pt-2 border-t">
-                          <p className="text-muted-foreground truncate">Original Base PSF</p>
+                        <div className="col-span-2 mt-2 pt-2 border-t overflow-hidden">
+                          <p className="text-muted-foreground text-xs truncate">Original Base PSF</p>
                           <p className="font-medium">{type.originalBasePsf?.toFixed(2)}</p>
                         </div>
                       )}
                     </div>
                     
-                    {/* Enhanced mini-cards section */}
+                    {/* Enhanced mini-cards section with fixed width issues */}
                     <div className="mt-2 pt-4 border-t grid grid-cols-3 gap-2">
                       {/* Units mini-card */}
-                      <div className="bg-purple-50 rounded-lg p-2 flex flex-col h-full">
+                      <div className="bg-purple-50 rounded-lg p-2 flex flex-col h-full overflow-hidden">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-purple-700 truncate">Units</span>
+                          <span className="text-xs font-medium text-purple-700 truncate mr-1">Units</span>
                           <SquareStack className="h-3.5 w-3.5 text-purple-600 flex-shrink-0" />
                         </div>
-                        <p className="font-semibold text-sm text-purple-900 mt-1 truncate">{unitCount}</p>
+                        <p className="font-semibold text-sm text-purple-900 mt-1 truncate w-full">{unitCount}</p>
                       </div>
                       
                       {/* Average Size mini-card */}
-                      <div className="bg-blue-50 rounded-lg p-2 flex flex-col h-full">
+                      <div className="bg-blue-50 rounded-lg p-2 flex flex-col h-full overflow-hidden">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-blue-700 truncate">Avg Size</span>
+                          <span className="text-xs font-medium text-blue-700 truncate mr-1">Avg Size</span>
                           <Ruler className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
                         </div>
-                        <p className="font-semibold text-sm text-blue-900 mt-1 truncate">{avgSize} sf</p>
+                        <p className="font-semibold text-sm text-blue-900 mt-1 truncate w-full">{avgSize} sf</p>
                       </div>
                       
                       {/* Average PSF mini-card */}
-                      <div className="bg-green-50 rounded-lg p-2 flex flex-col h-full">
+                      <div className="bg-green-50 rounded-lg p-2 flex flex-col h-full overflow-hidden">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-green-700 truncate">Avg PSF</span>
-                          {/* Removed DollarSign icon */}
+                          <span className="text-xs font-medium text-green-700 truncate mr-1">Avg PSF</span>
                         </div>
-                        <p className="font-semibold text-sm text-green-900 mt-1 truncate">{avgPsf.toFixed(2)}</p>
+                        <p className="font-semibold text-sm text-green-900 mt-1 truncate w-full">{avgPsf.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>

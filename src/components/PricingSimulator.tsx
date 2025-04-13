@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -85,14 +84,11 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     floor: "",
   });
   
-  // Optimization state
   const [optimizationState, setOptimizationState] = useState<OptimizationState>({});
-  
-  // Process the data with pricing calculations
+
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
 
-    // Initialize optimization state with original base PSF values
     const initialOptimizationState: OptimizationState = {};
     pricingConfig.bedroomTypePricing.forEach((typeConfig) => {
       initialOptimizationState[typeConfig.type] = {
@@ -104,7 +100,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     setOptimizationState(initialOptimizationState);
 
     const calculatedUnits = data.map((unit) => {
-      // Base calculation
       const bedroomType = pricingConfig.bedroomTypePricing.find(
         (b) => b.type === unit.type
       );
@@ -112,30 +107,24 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         (v) => v.view === unit.view
       );
       
-      // Check if this unit type has an optimized base PSF
       const optimizationInfo = initialOptimizationState[unit.type];
       const useOptimizedBasePsf = optimizationInfo?.isOptimized && optimizationInfo?.optimizedBasePsf;
       
-      // Base price from unit type or default base
       const basePsf = useOptimizedBasePsf 
         ? optimizationInfo.optimizedBasePsf 
         : (bedroomType?.basePsf || pricingConfig.basePsf);
       
-      // Calculate floor adjustment using cumulative and jump logic
       let floorAdjustment = 0;
       const floorLevel = parseInt(unit.floor) || 1;
       
-      // Sort floor rules by startFloor to process them in order
       const sortedFloorRules = [...pricingConfig.floorRiseRules].sort(
         (a, b) => a.startFloor - b.startFloor
       );
       
-      // Calculate cumulative floor adjustment by iterating through each floor in the applicable range
       let cumulativeAdjustment = 0;
       for (const rule of sortedFloorRules) {
-        const ruleEnd = rule.endFloor; // Already set or defaulted elsewhere
+        const ruleEnd = rule.endFloor;
         if (floorLevel > ruleEnd) {
-          // Process full range for this rule
           for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
             cumulativeAdjustment += rule.psfIncrement;
             if (rule.jumpEveryFloor && rule.jumpIncrement) {
@@ -145,7 +134,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             }
           }
         } else if (floorLevel >= rule.startFloor) {
-          // Process only up to the unit's floor in this rule
           for (let floor = Math.max(rule.startFloor, 1); floor <= floorLevel; floor++) {
             cumulativeAdjustment += rule.psfIncrement;
             if (rule.jumpEveryFloor && rule.jumpIncrement) {
@@ -160,17 +148,13 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       
       floorAdjustment = cumulativeAdjustment;
       
-      // Calculate view adjustment
       const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
       
-      // Calculate final PSF
       const calculatedPsf = basePsf + floorAdjustment + viewPsfAdjustment;
       
-      // Calculate sell area and AC area to numeric values
       const sellArea = parseFloat(unit.sellArea) || 0;
       const acArea = parseFloat(unit.acArea) || 0;
       
-      // Calculate balcony area and percentage
       let balconyArea = parseFloat(unit.balcony) || 0;
       if (sellArea > 0 && acArea > 0) {
         if (!unit.balcony || unit.balcony === '0') {
@@ -179,12 +163,10 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       }
       const balconyPercentage = sellArea > 0 ? (balconyArea / sellArea) * 100 : 0;
       
-      // Calculate total and final prices
       const totalPrice = calculatedPsf * sellArea;
       const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
       const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
       
-      // Calculate price components
       const basePriceComponent = basePsf * sellArea;
       const floorPriceComponent = floorAdjustment * sellArea;
       const viewPriceComponent = viewPsfAdjustment * sellArea;
@@ -209,10 +191,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
     setUnits(calculatedUnits);
     setFilteredUnits(calculatedUnits);
-    
   }, [data, pricingConfig]);
 
-  // Apply filters
   useEffect(() => {
     let result = [...units];
     if (filters.type) {
@@ -245,6 +225,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
+    toast.info(`Filter applied: ${key} = ${value || 'All'}`);
   };
 
   const resetFilters = () => {

@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVUploader from "@/components/CSVUploader";
@@ -6,6 +5,7 @@ import ColumnMapper from "@/components/ColumnMapper";
 import PricingConfiguration, { PricingConfig } from "@/components/PricingConfiguration";
 import PricingSimulator from "@/components/PricingSimulator";
 import MegaOptimize from "@/components/MegaOptimize";
+import { Toaster } from "sonner";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<string>("upload");
@@ -63,6 +63,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" closeButton richColors />
+      
       <header className="gradient-bg text-white py-8">
         <div className="container mx-auto px-4">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">Price Prism Builder</h1>
@@ -125,14 +127,12 @@ const Index = () => {
           <TabsContent value="simulate" className="mt-0">
             {pricingConfig && (
               <>
-                {/* MegaOptimize component now appears first */}
                 <MegaOptimize 
                   data={mappedData} 
                   pricingConfig={pricingConfig} 
                   onOptimized={handleConfigUpdate}
                 />
                 
-                {/* PricingSimulator appears after MegaOptimize */}
                 <PricingSimulator 
                   data={mappedData} 
                   pricingConfig={pricingConfig} 

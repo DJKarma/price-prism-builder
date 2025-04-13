@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 import { MegaOptimizeProps } from "./types";
 import { useOptimizer } from "./useOptimizer";
@@ -47,11 +48,29 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   // Handle selected types changes from BedroomTypeSummary
   const handleTypesChange = (types: string[]) => {
     setSelectedTypes(types);
+    toast.info(`Selected ${types.length} bedroom types for optimization`);
   };
   
   // Run optimization with selected types
   const handleRunOptimization = () => {
-    runMegaOptimization(selectedTypes);
+    toast.promise(
+      new Promise(resolve => {
+        runMegaOptimization(selectedTypes);
+        // Simulate promise for toast
+        setTimeout(resolve, 1000);
+      }),
+      {
+        loading: "Optimizing pricing...",
+        success: `Optimization complete for ${selectedTypes.length} bedroom types`,
+        error: "Optimization failed"
+      }
+    );
+  };
+
+  // Handle revert with toast
+  const handleRevert = () => {
+    revertOptimization();
+    toast.success("Optimization reverted successfully");
   };
   
   return (
@@ -108,7 +127,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               isOptimized={isOptimized}
               onTargetPsfChange={handleTargetPsfChange}
               onOptimize={handleRunOptimization}
-              onRevert={revertOptimization}
+              onRevert={handleRevert}
             />
             
             <OptimizationModeSelector
