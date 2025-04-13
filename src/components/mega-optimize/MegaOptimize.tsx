@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
@@ -21,7 +22,7 @@ import { MegaOptimizeProps } from "./types";
 import { useOptimizer } from "./useOptimizer";
 import OptimizationControls from "./OptimizationControls";
 import OptimizationModeSelector from "./OptimizationModeSelector";
-import BedroomTypeSummary from "./BedroomTypeSummary";
+import PricingSummary from "@/components/PricingSummary";
 
 const MegaOptimize: React.FC<MegaOptimizeProps> = ({ 
   data, 
@@ -43,89 +44,6 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     runMegaOptimization,
     revertOptimization
   } = useOptimizer(data, pricingConfig, onOptimized);
-
-  // Calculate bedroom type average PSF values for display using finalPsf only
-  const bedroomTypeData = React.useMemo(() => {
-    console.log("Calculating bedroomTypeData in MegaOptimize");
-    
-    // Group data by bedroom type
-    const typeGroups: Record<string, any[]> = {};
-    data.forEach(unit => {
-      if (!typeGroups[unit.type]) {
-        typeGroups[unit.type] = [];
-      }
-      typeGroups[unit.type].push(unit);
-    });
-    
-    // Calculate metrics for each bedroom type
-    return pricingConfig.bedroomTypePricing.map((type: any) => {
-      const unitsOfType = typeGroups[type.type] || [];
-      const unitCount = unitsOfType.length;
-      
-      // Calculate average size using the correct property
-      const totalArea = unitsOfType.reduce((sum: number, unit: any) => {
-        const area = parseFloat(unit.sellArea) || 0;
-        console.log(`Unit ${unit.name} type ${unit.type} has sellArea: ${area}`);
-        return sum + area;
-      }, 0);
-      
-      const avgSize = unitCount > 0 ? totalArea / unitCount : 0;
-      console.log(`Bedroom type ${type.type}: unitCount=${unitCount}, totalArea=${totalArea}, avgSize=${avgSize}`);
-      
-      // Calculate current average PSF using finalPsf only
-      let totalPsf = 0;
-      unitsOfType.forEach((unit: any) => {
-        const floorNum = parseInt(unit.floor) || 0;
-        const viewPremium = pricingConfig.viewPricing.find((v: any) => v.view === unit.view)?.psfAdjustment || 0;
-        
-        // Calculate floor premium
-        let floorPremium = 0;
-        pricingConfig.floorRiseRules.forEach((rule: any) => {
-          const ruleEndFloor = rule.endFloor === null ? 999 : rule.endFloor;
-          if (floorNum >= rule.startFloor && floorNum <= ruleEndFloor) {
-            const floorsFromStart = floorNum - rule.startFloor;
-            const baseFloorPremium = floorsFromStart * rule.psfIncrement;
-            
-            // Add jump premium if applicable
-            let jumpPremium = 0;
-            if (rule.jumpEveryFloor && rule.jumpIncrement) {
-              const numJumps = Math.floor(floorsFromStart / rule.jumpEveryFloor);
-              jumpPremium = numJumps * rule.jumpIncrement;
-            }
-            
-            floorPremium = baseFloorPremium + jumpPremium;
-          }
-        });
-        
-        // Calculate finalPsf for this unit
-        const sellArea = parseFloat(unit.sellArea) || 0;
-        const basePsf = type.basePsf + floorPremium + viewPremium;
-        const totalPrice = basePsf * sellArea;
-        const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
-        const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
-        totalPsf += finalPsf;
-      });
-      
-      const avgPsf = unitCount > 0 ? totalPsf / unitCount : 0;
-      
-      // Return the result with explicit values to aid debugging
-      const result = {
-        ...type,
-        unitCount,
-        avgSize,
-        avgPsf
-      };
-      
-      console.log(`Final bedroom type data for ${type.type}:`, result);
-      return result;
-    });
-  }, [data, pricingConfig]);
-
-  // Handle selected types changes from BedroomTypeSummary
-  const handleTypesChange = (types: string[]) => {
-    setSelectedTypes(types);
-    toast.info(`Selected ${types.length} bedroom types for optimization`);
-  };
   
   // Run optimization with selected types and update pricingConfig with optimizedTypes
   const handleRunOptimization = () => {
@@ -212,13 +130,20 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
             />
           </div>
           
-          {/* Right column: Bedroom Type Summary */}
+          {/* Right column: Pricing Summary (replacing BedroomTypeSummary) */}
           <div className="lg:col-span-8">
-            <BedroomTypeSummary 
-              bedroomTypes={bedroomTypeData}
-              isOptimized={isOptimized}
-              onSelectedTypesChange={handleTypesChange}
-            />
+            <div className="mb-4">
+              <div className="bg-purple-50 rounded-lg p-4 text-center mb-4">
+                <h3 className="text-xl font-semibold text-purple-700">Target Overall PSF</h3>
+                <p className="text-3xl font-bold text-purple-900">{targetPsf.toFixed(2)}</p>
+                {isOptimized && (
+                  <Badge className="mt-2 bg-green-100 text-green-800 hover:bg-green-200">
+                    Optimized
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <PricingSummary data={data} showDollarSign={false} />
           </div>
         </div>
       </CardContent>

@@ -39,7 +39,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import PricingSummary from "./PricingSummary";
 
 interface PricingSimulatorProps {
   data: any[];
@@ -302,264 +301,260 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   };
 
   return (
-    <>
-      <PricingSummary data={units} />
-      
-      <Card className="w-full mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TableIcon className="h-5 w-5" />
-            Unit Pricing Details
-          </CardTitle>
-          <CardDescription>
-            View and filter detailed pricing for all units
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-            <div>
-              <Select
-                value={filters.type}
-                onValueChange={(value) => handleFilterChange("type", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
-                  {getUniqueValues("type").map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Select
-                value={filters.view}
-                onValueChange={(value) => handleFilterChange("view", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Views" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Views</SelectItem>
-                  {getUniqueValues("view").map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Select
-                value={filters.floor}
-                onValueChange={(value) => handleFilterChange("floor", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Floors" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Floors</SelectItem>
-                  {getUniqueValues("floor").map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={resetFilters}
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset Filters
-              </Button>
-            </div>
-            <div>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={exportCSV}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export Results
-              </Button>
-            </div>
-          </div>
-
-          <FixedHeaderTable maxHeight="650px" className="scrollbar-always-visible">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("name")}
-                  >
-                    <div className="flex items-center">
-                      Unit <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("type")}
-                  >
-                    <div className="flex items-center">
-                      Type <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("floor")}
-                  >
-                    <div className="flex items-center">
-                      Floor <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead>View</TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("sellArea")}
-                  >
-                    <div className="flex items-center">
-                      Sell Area <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("acArea")}
-                  >
-                    <div className="flex items-center">
-                      AC Area <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("balconyArea")}
-                  >
-                    <div className="flex items-center">
-                      Balcony <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("balconyPercentage")}
-                  >
-                    <div className="flex items-center">
-                      Balcony % <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("basePsf")}
-                  >
-                    <div className="flex items-center">
-                      Base PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("floorAdjustment")}
-                  >
-                    <div className="flex items-center">
-                      Floor Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("viewPsfAdjustment")}
-                  >
-                    <div className="flex items-center">
-                      View Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("finalTotalPrice")}
-                  >
-                    <div className="flex items-center">
-                      Final Price <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("finalPsf")}
-                  >
-                    <div className="flex items-center">
-                      Final PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex items-center justify-center">
-                      Optimized
-                    </div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUnits.map((unit, index) => (
-                  <TableRow key={index} className={unit.isOptimized ? "bg-green-50 dark:bg-green-950/20" : ""}>
-                    <TableCell className="font-medium">{unit.name}</TableCell>
-                    <TableCell>{unit.type || "—"}</TableCell>
-                    <TableCell>{unit.floor || "—"}</TableCell>
-                    <TableCell>{unit.view || "—"}</TableCell>
-                    <TableCell>{unit.sellArea || "0"}</TableCell>
-                    <TableCell>{unit.acArea || "0"}</TableCell>
-                    <TableCell>
-                      {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0"}
-                    </TableCell>
-                    <TableCell>
-                      {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0"}%
-                    </TableCell>
-                    <TableCell>
-                      {unit.basePsf.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.floorAdjustment.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.viewPsfAdjustment.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.finalTotalPrice.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {unit.finalPsf?.toFixed(2) || "0.00"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {unit.isOptimized ? <Check className="h-4 w-4 text-green-600 inline" /> : "—"}
-                    </TableCell>
-                  </TableRow>
+    <Card className="w-full mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <TableIcon className="h-5 w-5" />
+          Unit Pricing Details
+        </CardTitle>
+        <CardDescription>
+          View and filter detailed pricing for all units
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div>
+            <Select
+              value={filters.type}
+              onValueChange={(value) => handleFilterChange("type", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Types</SelectItem>
+                {getUniqueValues("type").map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
                 ))}
-                {filteredUnits.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={15} className="text-center py-4">
-                      No units match your filter criteria
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </FixedHeaderTable>
-
-          <div className="mt-4 flex items-center justify-end">
-            <div className="text-sm text-muted-foreground flex items-center gap-2">
-              <Filter className="h-4 w-4 mr-1" />
-              <span>{Object.values(filters).filter(Boolean).length} active filters</span>
-              <span className="ml-2">Showing {filteredUnits.length} units</span>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
-    </>
+          <div>
+            <Select
+              value={filters.view}
+              onValueChange={(value) => handleFilterChange("view", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Views" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Views</SelectItem>
+                {getUniqueValues("view").map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Select
+              value={filters.floor}
+              onValueChange={(value) => handleFilterChange("floor", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Floors" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Floors</SelectItem>
+                {getUniqueValues("floor").map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={resetFilters}
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset Filters
+            </Button>
+          </div>
+          <div>
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={exportCSV}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Results
+            </Button>
+          </div>
+        </div>
+
+        <FixedHeaderTable maxHeight="650px" className="scrollbar-always-visible">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("name")}
+                >
+                  <div className="flex items-center">
+                    Unit <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("type")}
+                >
+                  <div className="flex items-center">
+                    Type <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("floor")}
+                >
+                  <div className="flex items-center">
+                    Floor <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead>View</TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("sellArea")}
+                >
+                  <div className="flex items-center">
+                    Sell Area <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("acArea")}
+                >
+                  <div className="flex items-center">
+                    AC Area <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("balconyArea")}
+                >
+                  <div className="flex items-center">
+                    Balcony <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("balconyPercentage")}
+                >
+                  <div className="flex items-center">
+                    Balcony % <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("basePsf")}
+                >
+                  <div className="flex items-center">
+                    Base PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("floorAdjustment")}
+                >
+                  <div className="flex items-center">
+                    Floor Premium <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("viewPsfAdjustment")}
+                >
+                  <div className="flex items-center">
+                    View Premium <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("finalTotalPrice")}
+                >
+                  <div className="flex items-center">
+                    Final Price <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("finalPsf")}
+                >
+                  <div className="flex items-center">
+                    Final PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center justify-center">
+                    Optimized
+                  </div>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUnits.map((unit, index) => (
+                <TableRow key={index} className={unit.isOptimized ? "bg-green-50 dark:bg-green-950/20" : ""}>
+                  <TableCell className="font-medium">{unit.name}</TableCell>
+                  <TableCell>{unit.type || "—"}</TableCell>
+                  <TableCell>{unit.floor || "—"}</TableCell>
+                  <TableCell>{unit.view || "—"}</TableCell>
+                  <TableCell>{unit.sellArea || "0"}</TableCell>
+                  <TableCell>{unit.acArea || "0"}</TableCell>
+                  <TableCell>
+                    {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0"}
+                  </TableCell>
+                  <TableCell>
+                    {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0"}%
+                  </TableCell>
+                  <TableCell>
+                    {unit.basePsf.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {unit.floorAdjustment.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {unit.viewPsfAdjustment.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {unit.finalTotalPrice.toLocaleString(undefined, {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    {unit.finalPsf?.toFixed(2) || "0.00"}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {unit.isOptimized ? <Check className="h-4 w-4 text-green-600 inline" /> : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredUnits.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={15} className="text-center py-4">
+                    No units match your filter criteria
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </FixedHeaderTable>
+
+        <div className="mt-4 flex items-center justify-end">
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
+            <Filter className="h-4 w-4 mr-1" />
+            <span>{Object.values(filters).filter(Boolean).length} active filters</span>
+            <span className="ml-2">Showing {filteredUnits.length} units</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

@@ -46,9 +46,13 @@ interface BedroomTypeStats {
 
 interface PricingSummaryProps {
   data: any[];
+  showDollarSign?: boolean;
 }
 
-const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
+const PricingSummary: React.FC<PricingSummaryProps> = ({ 
+  data,
+  showDollarSign = true
+}) => {
   const [isOpen, setIsOpen] = useState(true);
 
   const bedroomTypeStats = useMemo(() => {
@@ -156,7 +160,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
                     <TableHead className="font-semibold text-purple-700">Bedroom Type</TableHead>
                     <TableHead className="font-semibold text-purple-700">Unit Count</TableHead>
                     <TableHead className="text-center">
-                      <div className="text-purple-700 font-semibold">PSF ($ per sqft)</div>
+                      <div className="text-purple-700 font-semibold">PSF (per sqft)</div>
                       <div className="grid grid-cols-3 gap-1 text-xs mt-1">
                         <span className="text-purple-600">Min</span>
                         <span className="text-purple-600">Avg</span>
@@ -164,7 +168,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
                       </div>
                     </TableHead>
                     <TableHead className="text-center">
-                      <div className="text-purple-700 font-semibold">Final Price ($)</div>
+                      <div className="text-purple-700 font-semibold">Final Price</div>
                       <div className="grid grid-cols-3 gap-1 text-xs mt-1">
                         <span className="text-purple-600">Min</span>
                         <span className="text-purple-600">Avg</span>
@@ -206,13 +210,13 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
                         <TableCell>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                              {stat.minPrice.toLocaleString()}
+                              {showDollarSign ? "$" : ""}{stat.minPrice.toLocaleString()}
                             </div>
                             <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                              {Math.round(stat.avgPrice).toLocaleString()}
+                              {showDollarSign ? "$" : ""}{Math.round(stat.avgPrice).toLocaleString()}
                             </div>
                             <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                              {stat.maxPrice.toLocaleString()}
+                              {showDollarSign ? "$" : ""}{stat.maxPrice.toLocaleString()}
                             </div>
                           </div>
                         </TableCell>
@@ -260,13 +264,13 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
                       <TableCell>
                         <div className="grid grid-cols-3 gap-2">
                           <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
-                            {totals.minPrice.toLocaleString()}
+                            {showDollarSign ? "$" : ""}{totals.minPrice.toLocaleString()}
                           </div>
                           <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
-                            {Math.round(totals.avgPrice).toLocaleString()}
+                            {showDollarSign ? "$" : ""}{Math.round(totals.avgPrice).toLocaleString()}
                           </div>
                           <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
-                            {totals.maxPrice.toLocaleString()}
+                            {showDollarSign ? "$" : ""}{totals.maxPrice.toLocaleString()}
                           </div>
                         </div>
                       </TableCell>
