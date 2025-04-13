@@ -6,7 +6,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -39,23 +38,21 @@ const OptimizationModeSelector: React.FC<OptimizationModeSelectorProps> = ({
           </ToggleGroupItem>
         </ToggleGroup>
         
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="text-sm text-muted-foreground flex items-center mt-1">
-                <Info className="h-4 w-4 mr-1 inline-block" />
-                Learn more about optimization modes
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[350px] p-4 text-sm">
-              <p className="font-medium mb-2">Optimization Mode Comparison:</p>
-              <ul className="list-disc pl-4 space-y-2">
-                <li><span className="font-medium">Base PSF Only:</span> Adjusts only the bedroom type base PSF values to achieve target overall PSF.</li>
-                <li><span className="font-medium">All Parameters:</span> Optimizes bedroom base PSF, floor premium values, and view adjustments together. This mode preserves the cumulative nature of floor premiums while achieving the target PSF with minimal changes.</li>
-              </ul>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="text-sm text-muted-foreground flex items-center mt-1">
+              <Info className="h-4 w-4 mr-1 inline-block" />
+              Learn more about optimization modes
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[350px] p-4 text-sm">
+            <p className="font-medium mb-2">Optimization Mode Comparison:</p>
+            <ul className="list-disc pl-4 space-y-2">
+              <li><span className="font-medium">Base PSF Only:</span> Adjusts only the bedroom type base PSF values to achieve target overall PSF.</li>
+              <li><span className="font-medium">All Parameters:</span> Optimizes bedroom base PSF, floor premium values, and view adjustments together. This mode preserves the cumulative nature of floor premiums while achieving the target PSF with minimal changes.</li>
+            </ul>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
