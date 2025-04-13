@@ -22,7 +22,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
     setIsOptimized(!!pricingConfig.isOptimized);
   }, [data, pricingConfig]);
   
-  // Calculate average PSF per bedroom type - improved to match PricingSummary calculation
+  // Calculate average PSF per bedroom type - using same method as PricingSummary
   const calculateBedroomTypesAvgPsf = (config: any) => {
     // Group data by bedroom type
     const typeGroups: Record<string, any[]> = {};
@@ -47,10 +47,11 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         return;
       }
       
-      let totalPsf = 0;
+      // Initialize arrays to collect values for min/max/avg calculations
+      const psfs: number[] = [];
       let totalArea = 0;
-      const psfValues: number[] = [];
       
+      // Calculate final PSF for each unit using same method as PricingSummary
       unitsOfType.forEach((unit: any) => {
         const area = parseFloat(unit.sellArea) || 0;
         totalArea += area;
@@ -77,18 +78,24 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
           }
         });
         
-        // Calculate total PSF for this unit - this is the key calculation that needs to be correct
-        const unitPsf = typeConfig.basePsf + floorPremium + viewPremium;
-        psfValues.push(unitPsf);
-        totalPsf += unitPsf;
+        // Calculate the final PSF with all premiums
+        const unitBasePsf = typeConfig.basePsf + floorPremium + viewPremium;
+        
+        // Calculate total price and apply ceiling to match PricingSummary
+        const totalPrice = unitBasePsf * area;
+        const finalPrice = Math.ceil(totalPrice / 1000) * 1000;
+        
+        // Calculate final PSF based on ceiled price (same as PricingSummary)
+        const finalPsf = area > 0 ? finalPrice / area : 0;
+        psfs.push(finalPsf);
       });
       
-      // Calculate the true average PSF (not weighted by area)
-      const avgPsf = totalPsf / unitsOfType.length;
+      // Calculate average PSF - exactly like PricingSummary does
+      const avgPsf = psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length;
       const avgSize = totalArea / unitsOfType.length;
       
       bedroomAvgData[typeConfig.type] = { 
-        avgPsf, 
+        avgPsf,
         avgSize,
         unitCount: unitsOfType.length
       };
@@ -205,6 +212,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       }
       
       // Calculate average PSF and size values for each bedroom type after optimization
+      // Using the consistent calculation method
       const avgDataByType = calculateBedroomTypesAvgPsf(optimizedConfig);
       
       // Add avgPsf and avgSize to bedroom types in the optimized config
