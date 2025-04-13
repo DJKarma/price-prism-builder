@@ -45,6 +45,68 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     revertOptimization
   } = useOptimizer(data, pricingConfig, onOptimized);
 
+  // Calculate bedroom type average PSF values for display
+  const bedroomTypeData = React.useMemo(() => {
+    // Group data by bedroom type
+    const typeGroups: Record<string, any[]> = {};
+    data.forEach(unit => {
+      if (!typeGroups[unit.type]) {
+        typeGroups[unit.type] = [];
+      }
+      typeGroups[unit.type].push(unit);
+    });
+    
+    // Calculate metrics for each bedroom type
+    return pricingConfig.bedroomTypePricing.map((type: any) => {
+      const unitsOfType = typeGroups[type.type] || [];
+      const unitCount = unitsOfType.length;
+      
+      // Calculate average size
+      const totalArea = unitsOfType.reduce((sum: number, unit: any) => 
+        sum + (parseFloat(unit.area) || 0), 0);
+      const avgSize = unitCount > 0 ? totalArea / unitCount : 0;
+      
+      // Calculate current average PSF
+      let totalPsf = 0;
+      unitsOfType.forEach((unit: any) => {
+        const floorNum = parseInt(unit.floor) || 0;
+        const viewPremium = pricingConfig.viewPricing.find((v: any) => v.view === unit.view)?.psfAdjustment || 0;
+        
+        // Calculate floor premium
+        let floorPremium = 0;
+        pricingConfig.floorRiseRules.forEach((rule: any) => {
+          const ruleEndFloor = rule.endFloor === null ? 999 : rule.endFloor;
+          if (floorNum >= rule.startFloor && floorNum <= ruleEndFloor) {
+            const floorsFromStart = floorNum - rule.startFloor;
+            const baseFloorPremium = floorsFromStart * rule.psfIncrement;
+            
+            // Add jump premium if applicable
+            let jumpPremium = 0;
+            if (rule.jumpEveryFloor && rule.jumpIncrement) {
+              const numJumps = Math.floor(floorsFromStart / rule.jumpEveryFloor);
+              jumpPremium = numJumps * rule.jumpIncrement;
+            }
+            
+            floorPremium = baseFloorPremium + jumpPremium;
+          }
+        });
+        
+        // Calculate total PSF for this unit
+        const unitPsf = type.basePsf + floorPremium + viewPremium;
+        totalPsf += unitPsf;
+      });
+      
+      const avgPsf = unitCount > 0 ? totalPsf / unitCount : 0;
+      
+      return {
+        ...type,
+        unitCount,
+        avgSize,
+        avgPsf
+      };
+    });
+  }, [data, pricingConfig]);
+
   // Handle selected types changes from BedroomTypeSummary
   const handleTypesChange = (types: string[]) => {
     setSelectedTypes(types);
@@ -139,7 +201,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
           {/* Right column: Bedroom Type Summary */}
           <div className="lg:col-span-8">
             <BedroomTypeSummary 
-              bedroomTypes={pricingConfig.bedroomTypePricing}
+              bedroomTypes={bedroomTypeData}
               isOptimized={isOptimized}
               onSelectedTypesChange={handleTypesChange}
             />

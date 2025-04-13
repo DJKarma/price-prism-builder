@@ -64,17 +64,6 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
     );
   };
 
-  // Mock data function - in a real app, this would come from props or be calculated
-  const getMockData = (type: string): { unitCount: number; avgSize: number; avgPsf: number } => {
-    // Generate consistent mock data based on the type string
-    const typeSum = type.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    return {
-      unitCount: 10 + (typeSum % 40),
-      avgSize: 500 + (typeSum % 1500),
-      avgPsf: 1000 + (typeSum % 500),
-    };
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
@@ -116,10 +105,10 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
               : 0;
             const isIncrease = changePercent > 0;
             
-            // Get mock data for this bedroom type
-            const { unitCount, avgSize, avgPsf } = type.unitCount && type.avgSize && type.avgPsf 
-              ? { unitCount: type.unitCount, avgSize: type.avgSize, avgPsf: type.avgPsf }
-              : getMockData(type.type);
+            // Use provided values or fallback to computed values
+            const unitCount = type.unitCount || 0;
+            const avgSize = type.avgSize || 0;
+            const avgPsf = type.avgPsf || 0;
             
             return (
               <Card 
@@ -160,17 +149,17 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                   <div className="grid grid-cols-1 gap-4">
                     {/* Primary pricing info with improved layout */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                      <div className="overflow-hidden">
-                        <p className="text-muted-foreground text-xs truncate">Base PSF</p>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Base PSF</p>
                         <p className="font-medium">{type.basePsf.toFixed(2)}</p>
                       </div>
-                      <div className="overflow-hidden">
-                        <p className="text-muted-foreground text-xs truncate">Target Avg PSF</p>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Target Avg PSF</p>
                         <p className="font-medium">{type.targetAvgPsf.toFixed(2)}</p>
                       </div>
                       {hasChanged && (
-                        <div className="col-span-2 mt-2 pt-2 border-t overflow-hidden">
-                          <p className="text-muted-foreground text-xs truncate">Original Base PSF</p>
+                        <div className="col-span-2 mt-2 pt-2 border-t">
+                          <p className="text-muted-foreground text-xs">Original Base PSF</p>
                           <p className="font-medium">{type.originalBasePsf?.toFixed(2)}</p>
                         </div>
                       )}
@@ -179,29 +168,29 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                     {/* Enhanced mini-cards section with fixed width issues */}
                     <div className="mt-2 pt-4 border-t grid grid-cols-3 gap-2">
                       {/* Units mini-card */}
-                      <div className="bg-purple-50 rounded-lg p-2 flex flex-col h-full overflow-hidden">
+                      <div className="bg-purple-50 rounded-lg p-2 flex flex-col">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-purple-700 truncate mr-1">Units</span>
-                          <SquareStack className="h-3.5 w-3.5 text-purple-600 flex-shrink-0" />
+                          <span className="text-xs font-medium text-purple-700">Units</span>
+                          <SquareStack className="h-3.5 w-3.5 text-purple-600" />
                         </div>
-                        <p className="font-semibold text-sm text-purple-900 mt-1 truncate w-full">{unitCount}</p>
+                        <p className="font-semibold text-sm text-purple-900 mt-1">{unitCount}</p>
                       </div>
                       
                       {/* Average Size mini-card */}
-                      <div className="bg-blue-50 rounded-lg p-2 flex flex-col h-full overflow-hidden">
+                      <div className="bg-blue-50 rounded-lg p-2 flex flex-col">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-blue-700 truncate mr-1">Avg Size</span>
-                          <Ruler className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                          <span className="text-xs font-medium text-blue-700">Avg Size</span>
+                          <Ruler className="h-3.5 w-3.5 text-blue-600" />
                         </div>
-                        <p className="font-semibold text-sm text-blue-900 mt-1 truncate w-full">{avgSize} sf</p>
+                        <p className="font-semibold text-sm text-blue-900 mt-1">{avgSize.toFixed(0)} sf</p>
                       </div>
                       
                       {/* Average PSF mini-card */}
-                      <div className="bg-green-50 rounded-lg p-2 flex flex-col h-full overflow-hidden">
+                      <div className="bg-green-50 rounded-lg p-2 flex flex-col">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-green-700 truncate mr-1">Avg PSF</span>
+                          <span className="text-xs font-medium text-green-700">Avg PSF</span>
                         </div>
-                        <p className="font-semibold text-sm text-green-900 mt-1 truncate w-full">{avgPsf.toFixed(2)}</p>
+                        <p className="font-semibold text-sm text-green-900 mt-1">{avgPsf.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
