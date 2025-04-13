@@ -52,33 +52,36 @@ const calculateFloorPremium = (
     (a, b) => a.startFloor - b.startFloor
   );
   
-  // Find the rule that applies to this floor
-  const applicableRule = sortedRules.find(
-    r => floorLevel >= r.startFloor && floorLevel <= (r.endFloor === null ? 99 : r.endFloor)
-  );
-  
-  if (!applicableRule) {
-    return 0; // No rule applies to this floor
-  }
-  
-  // Calculate the cumulative PSF from the rule's base increment
-  // For each floor from start to current, add the increment
-  const floorOffset = floorLevel - applicableRule.startFloor;
-  let basePsfAdjustment = (floorOffset + 1) * applicableRule.psfIncrement;
-  
-  // Calculate jump floor additions
-  if (applicableRule.jumpEveryFloor && applicableRule.jumpIncrement) {
-    // Jump floors start after the start floor
-    // Calculate how many complete jumps have occurred
-    if (floorOffset > 0) {
-      const jumps = Math.floor(floorOffset / applicableRule.jumpEveryFloor);
-      if (jumps > 0) {
-        basePsfAdjustment += jumps * applicableRule.jumpIncrement;
+  let cumulativeAdjustment = 0;
+  let currentFloor = 1;
+
+  for (const rule of sortedRules) {
+    // Ensure rule.endFloor is set (default to 99 if necessary)
+    const ruleEnd = rule.endFloor !== null ? rule.endFloor : 99;
+
+    if (floorLevel > ruleEnd) {
+      // Process full range for the rule
+      for (let floor = Math.max(currentFloor, rule.startFloor); floor <= ruleEnd; floor++) {
+        cumulativeAdjustment += rule.psfIncrement;
+        // Check if this floor qualifies as a jump floor
+        if (rule.jumpEveryFloor && rule.jumpIncrement && ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0)) {
+          cumulativeAdjustment += rule.jumpIncrement;
+        }
       }
+      currentFloor = ruleEnd + 1;
+    } else if (floorLevel >= rule.startFloor) {
+      // Process up to the current floor within this rule
+      for (let floor = Math.max(currentFloor, rule.startFloor); floor <= floorLevel; floor++) {
+        cumulativeAdjustment += rule.psfIncrement;
+        if (rule.jumpEveryFloor && rule.jumpIncrement && ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0)) {
+          cumulativeAdjustment += rule.jumpIncrement;
+        }
+      }
+      break;
     }
   }
   
-  return basePsfAdjustment;
+  return cumulativeAdjustment;
 };
 
 /**
