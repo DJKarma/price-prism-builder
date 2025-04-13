@@ -344,7 +344,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     
     setDetailedTypeSummary(detailedSummaries);
     
-  }, [data, pricingConfig, units]); // Updated dependency array to include "units"
+  }, [data, pricingConfig]); // Updated dependency array to include "units"
 
   // Apply filters
   useEffect(() => {
