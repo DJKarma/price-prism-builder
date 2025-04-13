@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -33,6 +32,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  LabelList,
+  Cell,
 } from "recharts";
 import { 
   ArrowUpDown, 
@@ -50,6 +51,10 @@ import {
   Minimize2,
   RefreshCcw,
   Wand2,
+  TrendingUp,
+  Zap,
+  Target,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PricingConfig } from "./PricingConfiguration";
@@ -87,6 +92,8 @@ interface UnitWithPricing extends Record<string, any> {
   basePriceComponent?: number;
   floorPriceComponent?: number;
   viewPriceComponent?: number;
+  finalPsf?: number; // Added for clarity
+  isOptimized?: boolean; // Flag to indicate if this unit's price was optimized
 }
 
 interface TypeSummary {
@@ -135,7 +142,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     floor: "",
   });
   const [typeSummary, setTypeSummary] = useState<
-    Array<{ type: string; avgPsf: number; targetPsf: number; units: number }>
+    Array<{ type: string; avgPsf: number; targetPsf: number; units: number; difference: number }>
   >([]);
   const [detailedTypeSummary, setDetailedTypeSummary] = useState<TypeSummary[]>([]);
   
@@ -249,6 +256,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       // Calculate ceiled total price (to nearest 1000)
       const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
       
+      // Calculate final PSF based on ceiled price
+      const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
+      
       // Calculate price components
       const basePriceComponent = basePsf * sellArea;
       const floorPriceComponent = floorAdjustment * sellArea;
@@ -259,6 +269,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         calculatedPsf,
         totalPrice,
         finalTotalPrice,
+        finalPsf,
         balconyArea,
         balconyPercentage,
         basePriceComponent,
@@ -266,7 +277,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         viewPriceComponent,
         basePsf,
         floorAdjustment,
-        viewPsfAdjustment
+        viewPsfAdjustment,
+        isOptimized: useOptimizedBasePsf
       };
     });
 
@@ -288,10 +300,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     // Basic summary for chart
     const summaries = Object.entries(typeGroups).map(([type, unitGroup]) => {
       // Use final PSF (after ceiling prices)
-      const psfValues = unitGroup.map(u => {
-        const sellArea = parseFloat(u.sellArea) || 0;
-        return sellArea > 0 ? u.finalTotalPrice / sellArea : 0;
-      });
+      const psfValues = unitGroup.map(u => u.finalPsf || 0);
       
       const totalPsf = psfValues.reduce((sum, psf) => sum + psf, 0);
       const avgPsf = totalPsf / psfValues.length;
@@ -299,12 +308,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       const targetConfig = pricingConfig.bedroomTypePricing.find(
         (b) => b.type === type
       );
+      const targetPsf = targetConfig?.targetAvgPsf || pricingConfig.basePsf;
       
       return {
         type,
         avgPsf,
-        targetPsf: targetConfig?.targetAvgPsf || pricingConfig.basePsf,
+        targetPsf,
         units: unitGroup.length,
+        difference: avgPsf - targetPsf
       };
     });
     
@@ -313,7 +324,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     // Detailed summary by bedroom type - use ceiled prices for calculations
     const detailedSummaries = Object.entries(typeGroups).map(([type, unitGroup]) => {
       // Get PSF stats - use final PSF based on ceiled price
-      const psfValues = unitGroup.map(u => u.finalTotalPrice / parseFloat(u.sellArea));
+      const psfValues = unitGroup.map(u => u.finalPsf || 0);
       const minPsf = Math.min(...psfValues);
       const maxPsf = Math.max(...psfValues);
       const avgPsf = psfValues.reduce((sum, val) => sum + val, 0) / psfValues.length;
@@ -479,14 +490,12 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       "View Premium", 
       "Total Price (Raw)",
       "Final Total Price",
-      "Final PSF"
+      "Final PSF",
+      "Optimized"
     ];
     
     // Create CSV rows with all component values
     const rows = filteredUnits.map((unit) => {
-      const sellArea = parseFloat(unit.sellArea) || 0;
-      const finalPsf = sellArea > 0 ? unit.finalTotalPrice / sellArea : 0;
-      
       return [
         unit.name,
         unit.type,
@@ -505,7 +514,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         unit.viewPriceComponent.toFixed(2),
         unit.totalPrice.toFixed(2),
         unit.finalTotalPrice.toFixed(2),
-        finalPsf.toFixed(2)
+        unit.finalPsf ? unit.finalPsf.toFixed(2) : "0",
+        unit.isOptimized ? "Yes" : "No"
       ];
     });
     
@@ -574,9 +584,57 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         )
       };
       
-      // Re-run the pricing simulation with the updated pricingConfig
-      // This is done by passing the updated config back to the parent
-      // or by recalculating the units directly here
+      // Recalculate units with the updated base PSF for this bedroom type
+      const updatedUnits = units.map(unit => {
+        if (unit.type !== bedroomType) return unit;
+        
+        // Recalculate unit pricing with the optimized base PSF
+        const viewAdjustment = pricingConfig.viewPricing.find(
+          (v) => v.view === unit.view
+        );
+        
+        // Use the optimized base PSF
+        const basePsf = result.optimizedBasePsf;
+        
+        // Floor adjustment remains the same
+        const floorAdjustment = unit.floorAdjustment;
+        
+        // View adjustment remains the same
+        const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
+        
+        // Calculate new total PSF
+        const calculatedPsf = basePsf + floorAdjustment + viewPsfAdjustment;
+        
+        // Calculate sell area
+        const sellArea = parseFloat(unit.sellArea) || 0;
+        
+        // Calculate new total price
+        const totalPrice = calculatedPsf * sellArea;
+        
+        // Calculate new ceiled total price
+        const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+        
+        // Calculate new final PSF
+        const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
+        
+        // Update price components
+        const basePriceComponent = basePsf * sellArea;
+        
+        // Return updated unit
+        return {
+          ...unit,
+          calculatedPsf,
+          totalPrice,
+          finalTotalPrice,
+          finalPsf,
+          basePriceComponent,
+          basePsf,
+          isOptimized: true
+        };
+      });
+      
+      // Update units with the new calculations
+      setUnits(updatedUnits);
       
       // Show success message with optimization details
       toast.success(
@@ -611,11 +669,73 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       }
     }));
     
+    // Recalculate units with the original base PSF for this bedroom type
+    const updatedUnits = units.map(unit => {
+      if (unit.type !== bedroomType) return unit;
+      
+      // Recalculate unit pricing with the original base PSF
+      const viewAdjustment = pricingConfig.viewPricing.find(
+        (v) => v.view === unit.view
+      );
+      
+      // Use the original base PSF
+      const basePsf = originalBasePsf;
+      
+      // Floor adjustment remains the same
+      const floorAdjustment = unit.floorAdjustment;
+      
+      // View adjustment remains the same
+      const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
+      
+      // Calculate new total PSF
+      const calculatedPsf = basePsf + floorAdjustment + viewPsfAdjustment;
+      
+      // Calculate sell area
+      const sellArea = parseFloat(unit.sellArea) || 0;
+      
+      // Calculate new total price
+      const totalPrice = calculatedPsf * sellArea;
+      
+      // Calculate new ceiled total price
+      const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+      
+      // Calculate new final PSF
+      const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
+      
+      // Update price components
+      const basePriceComponent = basePsf * sellArea;
+      
+      // Return updated unit
+      return {
+        ...unit,
+        calculatedPsf,
+        totalPrice,
+        finalTotalPrice,
+        finalPsf,
+        basePriceComponent,
+        basePsf,
+        isOptimized: false
+      };
+    });
+    
+    // Update units with the new calculations
+    setUnits(updatedUnits);
+    
     // Show success message
     toast.success(`Reverted ${bedroomType} to original base PSF: ${originalBasePsf.toFixed(2)}`);
   };
 
   const totals = calculateTotals();
+
+  // Generate custom colors for the bar chart based on how close values are to targets
+  const getChartBarColor = (difference: number) => {
+    // Color based on difference between achieved and target
+    if (Math.abs(difference) < 1) return "#22c55e"; // Green - very close match
+    if (Math.abs(difference) < 5) return "#16a34a"; // Light green - close match
+    if (Math.abs(difference) < 10) return "#eab308"; // Yellow - moderate difference
+    if (difference < 0) return "#f97316"; // Orange - under target
+    return "#ef4444"; // Red - significantly over target
+  };
 
   return (
     <div className="space-y-6">
@@ -735,10 +855,12 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     const psfDifference = summary.avgPsf - targetPsf;
                     const psfDifferenceClass = 
                       Math.abs(psfDifference) < 1 ? "text-green-500" :
-                      psfDifference < 0 ? "text-amber-500" : "text-red-500";
+                      Math.abs(psfDifference) < 5 ? "text-green-700" :
+                      Math.abs(psfDifference) < 10 ? "text-amber-500" :
+                      psfDifference < 0 ? "text-amber-700" : "text-red-500";
                     
                     return (
-                      <Card key={summary.type} className="border border-muted">
+                      <Card key={summary.type} className={`border ${optimized ? 'border-green-200 dark:border-green-800' : 'border-muted'}`}>
                         <CardHeader className="p-4 pb-2">
                           <CardTitle className="text-md font-semibold flex items-center justify-between">
                             <span>{summary.type}</span>
@@ -764,15 +886,43 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                               <div className="flex items-center gap-1">
                                 <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
                                 {targetPsf > 0 && (
-                                  <span className={`text-xs ${psfDifferenceClass}`}>
-                                    ({psfDifference > 0 ? "+" : ""}{psfDifference.toFixed(2)})
-                                  </span>
+                                  <TooltipComponent>
+                                    <TooltipTrigger asChild>
+                                      <span className={`text-xs ${psfDifferenceClass}`}>
+                                        ({psfDifference > 0 ? "+" : ""}{psfDifference.toFixed(2)})
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="text-xs">
+                                        {Math.abs(psfDifference) < 1 
+                                          ? "Excellent match to target" 
+                                          : Math.abs(psfDifference) < 5
+                                            ? "Good match to target"
+                                            : Math.abs(psfDifference) < 10
+                                              ? "Moderate difference from target"
+                                              : psfDifference < 0
+                                                ? "Significantly below target"
+                                                : "Significantly above target"
+                                        }
+                                      </p>
+                                    </TooltipContent>
+                                  </TooltipComponent>
                                 )}
                               </div>
                             </div>
                             <div>
                               <p className="text-sm text-muted-foreground">Target PSF</p>
-                              <p className="font-medium">{targetPsf.toFixed(2)}</p>
+                              <div className="flex items-center gap-1">
+                                <p className="font-medium">{targetPsf.toFixed(2)}</p>
+                                <TooltipComponent>
+                                  <TooltipTrigger asChild>
+                                    <Target className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">Target PSF from configuration</p>
+                                  </TooltipContent>
+                                </TooltipComponent>
+                              </div>
                             </div>
                           </div>
                           
@@ -787,12 +937,20 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                                   onClick={() => handleOptimizePsf(summary.type)}
                                   disabled={optimizationInProgress === summary.type}
                                 >
-                                  <Wand2 className="h-3.5 w-3.5 mr-1" />
-                                  {optimizationInProgress === summary.type 
-                                    ? "Optimizing..." 
-                                    : optimized 
-                                      ? "Re-optimize PSF" 
-                                      : "Optimize PSF"}
+                                  {optimizationInProgress === summary.type ? (
+                                    <>
+                                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                      Optimizing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Wand2 className="h-3.5 w-3.5 mr-1" />
+                                      {optimized ? "Re-optimize PSF" : "Optimize PSF"}
+                                    </>
+                                  )}
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent side="bottom" className="max-w-xs">
@@ -892,10 +1050,12 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     const psfDifference = summary.avgPsf - targetPsf;
                     const psfDifferenceClass = 
                       Math.abs(psfDifference) < 1 ? "text-green-500" :
-                      psfDifference < 0 ? "text-amber-500" : "text-red-500";
+                      Math.abs(psfDifference) < 5 ? "text-green-700" :
+                      Math.abs(psfDifference) < 10 ? "text-amber-500" :
+                      psfDifference < 0 ? "text-amber-700" : "text-red-500";
                     
                     return (
-                      <Card key={summary.type} className="overflow-hidden">
+                      <Card key={summary.type} className={`overflow-hidden ${optimized ? 'border-green-200 dark:border-green-800' : ''}`}>
                         <CardHeader className="py-3 bg-muted/30">
                           <div className="flex justify-between items-center">
                             <CardTitle className="text-md flex items-center gap-2">
@@ -917,12 +1077,20 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                                     disabled={optimizationInProgress === summary.type}
                                     className="h-8"
                                   >
-                                    <Wand2 className="h-4 w-4 mr-1" />
-                                    {optimizationInProgress === summary.type 
-                                      ? "Optimizing..." 
-                                      : optimized 
-                                        ? "Re-optimize" 
-                                        : "Optimize PSF"}
+                                    {optimizationInProgress === summary.type ? (
+                                      <>
+                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Optimizing...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Wand2 className="h-4 w-4 mr-1" />
+                                        {optimized ? "Re-optimize" : "Optimize PSF"}
+                                      </>
+                                    )}
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom" className="max-w-xs">
@@ -967,9 +1135,27 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                               <span className="text-sm text-muted-foreground">Achieved PSF:</span>
                               <span className="text-sm font-medium">{summary.avgPsf.toFixed(2)}</span>
                               {targetPsf > 0 && (
-                                <span className={`text-xs ${psfDifferenceClass}`}>
-                                  ({psfDifference > 0 ? "+" : ""}{psfDifference.toFixed(2)})
-                                </span>
+                                <TooltipComponent>
+                                  <TooltipTrigger asChild>
+                                    <span className={`text-xs ${psfDifferenceClass}`}>
+                                      ({psfDifference > 0 ? "+" : ""}{psfDifference.toFixed(2)})
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">
+                                      {Math.abs(psfDifference) < 1 
+                                        ? "Excellent match to target" 
+                                        : Math.abs(psfDifference) < 5
+                                          ? "Good match to target"
+                                          : Math.abs(psfDifference) < 10
+                                            ? "Moderate difference from target"
+                                            : psfDifference < 0
+                                              ? "Significantly below target"
+                                              : "Significantly above target"
+                                      }
+                                    </p>
+                                  </TooltipContent>
+                                </TooltipComponent>
                               )}
                             </div>
                             
@@ -1063,7 +1249,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                 </div>
               )}
               
-              {/* Chart is now optional and shown below the cards */}
+              {/* Improved Chart with more intuitive visuals */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-medium flex items-center gap-2">
@@ -1071,33 +1257,90 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     PSF Target Comparison
                   </h3>
                 </div>
-                <div className="h-80">
+                <div className="rounded-lg border border-muted p-4 h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={typeSummary}
                       margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                       <XAxis dataKey="type" />
                       <YAxis />
                       <Tooltip 
-                        formatter={(value) => [parseFloat(value as string).toFixed(2), "PSF"]}
+                        formatter={(value, name, props) => {
+                          if (name === "Difference") {
+                            return [`${parseFloat(value as string).toFixed(2)} PSF ${parseFloat(value as string) >= 0 ? 'above' : 'below'} target`, "Difference"];
+                          }
+                          return [parseFloat(value as string).toFixed(2), name];
+                        }}
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          borderRadius: '8px',
+                          border: '1px solid #ccc',
+                          padding: '8px'
+                        }}
                       />
-                      <Legend />
+                      <Legend 
+                        verticalAlign="top" 
+                        height={36}
+                        formatter={(value) => <span className="text-sm">{value}</span>}
+                      />
                       <Bar
                         name="Average PSF"
                         dataKey="avgPsf"
                         fill="#3b82f6"
                         radius={[4, 4, 0, 0]}
-                      />
+                      >
+                        <LabelList 
+                          dataKey="avgPsf" 
+                          position="top" 
+                          formatter={(value) => parseFloat(value).toFixed(0)}
+                          style={{ fontSize: '11px' }}
+                        />
+                        {/* Custom color for each bar based on difference */}
+                        {typeSummary.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={getChartBarColor(entry.difference)} />
+                        ))}
+                      </Bar>
                       <Bar
                         name="Target PSF"
                         dataKey="targetPsf"
                         fill="#10b981"
                         radius={[4, 4, 0, 0]}
-                      />
+                      >
+                        <LabelList 
+                          dataKey="targetPsf" 
+                          position="top" 
+                          formatter={(value) => parseFloat(value).toFixed(0)}
+                          style={{ fontSize: '11px' }}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
+                </div>
+                <div className="flex justify-center mt-2">
+                  <div className="grid grid-cols-5 gap-2 text-xs text-center">
+                    <div className="flex flex-col items-center">
+                      <div className="w-4 h-4 bg-green-500 rounded mb-1"></div>
+                      <p>Perfect Match</p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <div className="w-4 h-4 bg-green-700 rounded mb-1"></div>
+                      <p>Good Match</p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <div className="w-4 h-4 bg-yellow-500 rounded mb-1"></div>
+                      <p>Moderate</p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <div className="w-4 h-4 bg-orange-500 rounded mb-1"></div>
+                      <p>Below Target</p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <div className="w-4 h-4 bg-red-500 rounded mb-1"></div>
+                      <p>Above Target</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1108,7 +1351,10 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       {/* Detailed Unit Pricing */}
       <Card>
         <CardHeader>
-          <CardTitle>Unit Pricing Details</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <TableIcon className="h-5 w-5" />
+            Unit Pricing Details
+          </CardTitle>
           <CardDescription>
             View and filter detailed pricing for all units
           </CardDescription>
@@ -1304,77 +1550,83 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                       Final Price <ArrowUpDown className="ml-1 h-4 w-4" />
                     </div>
                   </TableHead>
-                  <TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("finalPsf")}
+                  >
                     <div className="flex items-center">
-                      Final PSF
+                      Final PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center justify-center">
+                      Optimized
                     </div>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUnits.map((unit, index) => {
-                  const sellArea = parseFloat(unit.sellArea) || 0;
-                  const finalPsf = sellArea > 0 ? unit.finalTotalPrice / sellArea : 0;
-                  
-                  return (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{unit.name}</TableCell>
-                      <TableCell>{unit.type || "—"}</TableCell>
-                      <TableCell>{unit.floor || "—"}</TableCell>
-                      <TableCell>{unit.view || "—"}</TableCell>
-                      <TableCell>{unit.sellArea || "0"}</TableCell>
-                      <TableCell>{unit.acArea || "0"}</TableCell>
-                      <TableCell>
-                        {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0"}
-                      </TableCell>
-                      <TableCell>
-                        {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0"}%
-                      </TableCell>
-                      <TableCell>
-                        {unit.basePsf.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        {unit.floorAdjustment.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        {unit.viewPsfAdjustment.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        {unit.calculatedPsf.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        {unit.basePriceComponent.toLocaleString(undefined, {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        {unit.floorPriceComponent.toLocaleString(undefined, {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        {unit.viewPriceComponent.toLocaleString(undefined, {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        {unit.finalTotalPrice.toLocaleString(undefined, {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        {finalPsf.toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {filteredUnits.map((unit, index) => (
+                  <TableRow key={index} className={unit.isOptimized ? "bg-green-50 dark:bg-green-950/20" : ""}>
+                    <TableCell className="font-medium">{unit.name}</TableCell>
+                    <TableCell>{unit.type || "—"}</TableCell>
+                    <TableCell>{unit.floor || "—"}</TableCell>
+                    <TableCell>{unit.view || "—"}</TableCell>
+                    <TableCell>{unit.sellArea || "0"}</TableCell>
+                    <TableCell>{unit.acArea || "0"}</TableCell>
+                    <TableCell>
+                      {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0"}
+                    </TableCell>
+                    <TableCell>
+                      {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0"}%
+                    </TableCell>
+                    <TableCell>
+                      {unit.basePsf.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      {unit.floorAdjustment.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      {unit.viewPsfAdjustment.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      {unit.calculatedPsf.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      {unit.basePriceComponent.toLocaleString(undefined, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      {unit.floorPriceComponent.toLocaleString(undefined, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      {unit.viewPriceComponent.toLocaleString(undefined, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      {unit.finalTotalPrice.toLocaleString(undefined, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      {unit.finalPsf?.toFixed(2) || "0.00"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {unit.isOptimized ? <Check className="h-4 w-4 text-green-600 inline" /> : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
                 {filteredUnits.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={17} className="text-center py-4">
+                    <TableCell colSpan={18} className="text-center py-4">
                       No units match your filter criteria
                     </TableCell>
                   </TableRow>
