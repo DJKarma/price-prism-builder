@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 interface CSVUploaderProps {
   onDataParsed: (data: any[], headers: string[]) => void;
@@ -22,8 +23,8 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] || null;
-    if (selectedFile && selectedFile.type !== "text/csv") {
-      toast.error("Please upload a CSV file");
+    if (selectedFile && !['text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'].includes(selectedFile.type)) {
+      toast.error("Please upload a CSV or Excel file");
       return;
     }
     setFile(selectedFile);
@@ -40,29 +41,60 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const content = e.target?.result as string;
-        const lines = content.split("\n");
-        const headers = lines[0].split(",").map(header => header.trim());
+        const content = e.target?.result;
+        let data: any[] = [];
+        let headers: string[] = [];
         
-        const data = [];
-        for (let i = 1; i < lines.length; i++) {
-          if (lines[i].trim() === "") continue;
+        if (file.name.endsWith('.csv')) {
+          // Process CSV
+          const text = content as string;
+          const lines = text.split("\n");
+          headers = lines[0].split(",").map(header => header.trim());
           
-          const values = lines[i].split(",").map(value => value.trim());
-          const row: Record<string, any> = {};
+          for (let i = 1; i < lines.length; i++) {
+            if (lines[i].trim() === "") continue;
+            
+            const values = lines[i].split(",").map(value => value.trim());
+            const row: Record<string, any> = {};
+            
+            headers.forEach((header, index) => {
+              row[header] = values[index] || "";
+            });
+            
+            data.push(row);
+          }
+        } else {
+          // Process Excel
+          const workbook = XLSX.read(content, { type: 'binary' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
           
-          headers.forEach((header, index) => {
-            row[header] = values[index] || "";
-          });
+          // Convert Excel data to JSON with header row
+          const result = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
           
-          data.push(row);
+          if (result.length > 0) {
+            headers = (result[0] as any[]).map(header => String(header).trim());
+            
+            for (let i = 1; i < result.length; i++) {
+              if (!result[i] || (result[i] as any[]).length === 0) continue;
+              
+              const row: Record<string, any> = {};
+              (result[i] as any[]).forEach((value, index) => {
+                if (index < headers.length) {
+                  row[headers[index]] = value !== undefined ? String(value).trim() : "";
+                }
+              });
+              
+              data.push(row);
+            }
+          }
         }
         
         onDataParsed(data, headers);
-        toast.success("CSV file successfully parsed!");
+        toast.success(`${file.name} successfully parsed!`);
       } catch (error) {
-        console.error("Error parsing CSV:", error);
-        toast.error("Error parsing CSV file. Please check the format.");
+        console.error("Error parsing file:", error);
+        toast.error("Error parsing file. Please check the format.");
       } finally {
         setIsUploading(false);
       }
@@ -73,7 +105,11 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
       setIsUploading(false);
     };
     
-    reader.readAsText(file);
+    if (file.name.endsWith('.csv')) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsBinaryString(file);
+    }
   };
 
   return (
@@ -84,19 +120,19 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
           Upload Property Data
         </CardTitle>
         <CardDescription>
-          Upload your CSV file containing property data
+          Upload your CSV or Excel file containing property data
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-12 mb-4 bg-gray-50">
           <FileUp className="h-12 w-12 text-gray-400 mb-3" />
           <p className="text-sm text-gray-500 mb-2">
-            Drag and drop your CSV file here, or click to browse
+            Drag and drop your CSV or Excel file here, or click to browse
           </p>
           <input
             type="file"
             id="csv-upload"
-            accept=".csv"
+            accept=".csv,.xlsx,.xls"
             className="hidden"
             onChange={handleFileChange}
           />
@@ -122,7 +158,7 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
           disabled={!file || isUploading}
           className="w-full sm:w-auto"
         >
-          {isUploading ? "Processing..." : "Upload and Parse CSV"}
+          {isUploading ? "Processing..." : "Upload and Parse File"}
         </Button>
       </CardFooter>
     </Card>

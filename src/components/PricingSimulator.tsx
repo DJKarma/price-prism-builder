@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -130,8 +129,11 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       let balconyArea = parseFloat(unit.balcony) || 0;
       
       // If balcony is not provided but sell area and AC area are available, calculate it
-      if ((!unit.balcony || unit.balcony === '0') && sellArea > 0 && acArea > 0) {
-        balconyArea = sellArea - acArea;
+      if (sellArea > 0 && acArea > 0) {
+        // If balcony is provided, use it, otherwise calculate
+        if (!unit.balcony || unit.balcony === '0') {
+          balconyArea = sellArea - acArea;
+        }
       }
       
       // Calculate balcony percentage
@@ -154,6 +156,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         basePriceComponent,
         floorPriceComponent,
         viewPriceComponent,
+        basePsf,
+        floorAdjustment,
+        viewPsfAdjustment
       };
     });
 
@@ -246,9 +251,20 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       result = result.filter((unit) => unit.floor === filters.floor);
     }
 
-    // Apply sorting
+    // Apply sorting with numeric handling for floors
     if (sortConfig) {
       result.sort((a, b) => {
+        // Special handling for floor field to sort numerically
+        if (sortConfig.key === 'floor') {
+          const floorA = parseInt(a.floor) || 0;
+          const floorB = parseInt(b.floor) || 0;
+          
+          return sortConfig.direction === "ascending" 
+            ? floorA - floorB 
+            : floorB - floorA;
+        }
+        
+        // Normal sorting for other fields
         if (a[sortConfig.key] < b[sortConfig.key]) {
           return sortConfig.direction === "ascending" ? -1 : 1;
         }
@@ -288,6 +304,11 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       }
     });
     
+    // For floor field, sort numerically
+    if (fieldName === 'floor') {
+      return Array.from(values).sort((a, b) => parseInt(a) - parseInt(b));
+    }
+    
     return Array.from(values).sort();
   };
 
@@ -317,7 +338,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       return;
     }
     
-    // Create CSV headers including new columns
+    // Create CSV headers including all columns
     const headers = [
       "Unit",
       "Bedroom Type",
@@ -327,7 +348,10 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       "AC Area",
       "Balcony Area",
       "Balcony %",
-      "PSF",
+      "Base PSF",
+      "Floor Premium PSF",
+      "View Premium PSF",
+      "Total PSF",
       "Base Price",
       "Floor Premium",
       "View Premium", 
@@ -344,6 +368,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       unit.acArea || 0,
       unit.balconyArea ? unit.balconyArea.toFixed(2) : 0,
       unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : 0,
+      unit.basePsf.toFixed(2),
+      unit.floorAdjustment.toFixed(2),
+      unit.viewPsfAdjustment.toFixed(2),
       unit.calculatedPsf.toFixed(2),
       unit.basePriceComponent.toFixed(2),
       unit.floorPriceComponent.toFixed(2),
@@ -398,7 +425,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             <div className="bg-secondary p-4 rounded-lg">
               <p className="text-sm text-muted-foreground">Average PSF</p>
               <p className="text-2xl font-bold">
-                ${totals.avgPsf.toLocaleString(undefined, {
+                {totals.avgPsf.toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
@@ -407,7 +434,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             <div className="bg-secondary p-4 rounded-lg">
               <p className="text-sm text-muted-foreground">Total Value</p>
               <p className="text-2xl font-bold">
-                ${totals.value.toLocaleString(undefined, {
+                {totals.value.toLocaleString(undefined, {
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0,
                 })}
@@ -429,7 +456,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     <XAxis dataKey="type" />
                     <YAxis />
                     <Tooltip 
-                      formatter={(value) => [`$${parseFloat(value as string).toFixed(2)}`, "PSF"]}
+                      formatter={(value) => [parseFloat(value as string).toFixed(2), "PSF"]}
                     />
                     <Legend />
                     <Bar
@@ -465,17 +492,17 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                         <TableCell className="font-medium">{summary.type}</TableCell>
                         <TableCell>{summary.units}</TableCell>
                         <TableCell>
-                          ${summary.avgPsf.toFixed(2)}
+                          {summary.avgPsf.toFixed(2)}
                         </TableCell>
                         <TableCell>
-                          ${summary.targetPsf.toFixed(2)}
+                          {summary.targetPsf.toFixed(2)}
                         </TableCell>
                         <TableCell className={
                           Math.abs(summary.avgPsf - summary.targetPsf) / summary.targetPsf > 0.05
                             ? "text-destructive"
                             : "text-green-600"
                         }>
-                          ${(summary.avgPsf - summary.targetPsf).toFixed(2)}
+                          {(summary.avgPsf - summary.targetPsf).toFixed(2)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -485,48 +512,76 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </div>
           )}
           
-          {/* New: Detailed Bedroom Type Summary */}
+          {/* Improved Detailed Bedroom Type Summary */}
           {detailedTypeSummary.length > 0 && (
             <div className="mt-8">
               <h3 className="text-lg font-medium mb-2 flex items-center gap-2">
                 <Layers className="h-5 w-5" />
                 Detailed Bedroom Type Summary
               </h3>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Count</TableHead>
-                      <TableHead>Min PSF</TableHead>
-                      <TableHead>Avg PSF</TableHead>
-                      <TableHead>Max PSF</TableHead>
-                      <TableHead>Min Price</TableHead>
-                      <TableHead>Avg Price</TableHead>
-                      <TableHead>Max Price</TableHead>
-                      <TableHead>Min Size</TableHead>
-                      <TableHead>Avg Size</TableHead>
-                      <TableHead>Max Size</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {detailedTypeSummary.map((summary) => (
-                      <TableRow key={summary.type}>
-                        <TableCell className="font-medium">{summary.type}</TableCell>
-                        <TableCell>{summary.count}</TableCell>
-                        <TableCell>${summary.minPsf.toFixed(2)}</TableCell>
-                        <TableCell>${summary.avgPsf.toFixed(2)}</TableCell>
-                        <TableCell>${summary.maxPsf.toFixed(2)}</TableCell>
-                        <TableCell>${summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</TableCell>
-                        <TableCell>${summary.avgPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</TableCell>
-                        <TableCell>${summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</TableCell>
-                        <TableCell>{summary.minSize.toFixed(1)} sqft</TableCell>
-                        <TableCell>{summary.avgSize.toFixed(1)} sqft</TableCell>
-                        <TableCell>{summary.maxSize.toFixed(1)} sqft</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="grid grid-cols-1 gap-4">
+                {detailedTypeSummary.map((summary) => (
+                  <Card key={summary.type} className="overflow-hidden">
+                    <CardHeader className="py-3 bg-muted/30">
+                      <CardTitle className="text-md">
+                        {summary.type} ({summary.count} units)
+                      </CardTitle>
+                    </CardHeader>
+                    <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x">
+                      <div className="p-4">
+                        <h4 className="text-sm font-medium mb-2">Price Per Square Foot</h4>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Min</p>
+                            <p className="font-medium">{summary.minPsf.toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Avg</p>
+                            <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Max</p>
+                            <p className="font-medium">{summary.maxPsf.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h4 className="text-sm font-medium mb-2">Total Price</h4>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Min</p>
+                            <p className="font-medium">{summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Avg</p>
+                            <p className="font-medium">{summary.avgPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Max</p>
+                            <p className="font-medium">{summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h4 className="text-sm font-medium mb-2">Unit Size (sqft)</h4>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Min</p>
+                            <p className="font-medium">{summary.minSize.toFixed(1)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Avg</p>
+                            <p className="font-medium">{summary.avgSize.toFixed(1)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Max</p>
+                            <p className="font-medium">{summary.maxSize.toFixed(1)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
             </div>
           )}
@@ -606,7 +661,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </div>
           </div>
 
-          {/* Results Table with Added Columns */}
+          {/* Results Table with Improved Structure */}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -641,7 +696,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     onClick={() => handleSort("sellArea")}
                   >
                     <div className="flex items-center">
-                      Area <ArrowUpDown className="ml-1 h-4 w-4" />
+                      Sell Area <ArrowUpDown className="ml-1 h-4 w-4" />
                     </div>
                   </TableHead>
                   <TableHead
@@ -670,10 +725,34 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </TableHead>
                   <TableHead
                     className="cursor-pointer"
+                    onClick={() => handleSort("basePsf")}
+                  >
+                    <div className="flex items-center">
+                      Base PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("floorAdjustment")}
+                  >
+                    <div className="flex items-center">
+                      Floor Premium PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("viewPsfAdjustment")}
+                  >
+                    <div className="flex items-center">
+                      View Premium PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer"
                     onClick={() => handleSort("calculatedPsf")}
                   >
                     <div className="flex items-center">
-                      PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                      Total PSF <ArrowUpDown className="ml-1 h-4 w-4" />
                     </div>
                   </TableHead>
                   <TableHead
@@ -726,31 +805,37 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                       {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0"}%
                     </TableCell>
                     <TableCell>
-                      ${unit.calculatedPsf.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {unit.basePsf.toFixed(2)}
                     </TableCell>
                     <TableCell>
-                      ${unit.basePriceComponent.toLocaleString(undefined, {
+                      {unit.floorAdjustment.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      {unit.viewPsfAdjustment.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      {unit.calculatedPsf.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      {unit.basePriceComponent.toLocaleString(undefined, {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 0,
                       })}
                     </TableCell>
                     <TableCell>
-                      ${unit.floorPriceComponent.toLocaleString(undefined, {
+                      {unit.floorPriceComponent.toLocaleString(undefined, {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 0,
                       })}
                     </TableCell>
                     <TableCell>
-                      ${unit.viewPriceComponent.toLocaleString(undefined, {
+                      {unit.viewPriceComponent.toLocaleString(undefined, {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 0,
                       })}
                     </TableCell>
                     <TableCell>
-                      ${unit.totalPrice.toLocaleString(undefined, {
+                      {unit.totalPrice.toLocaleString(undefined, {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 0,
                       })}
@@ -759,7 +844,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                 ))}
                 {filteredUnits.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-4">
+                    <TableCell colSpan={16} className="text-center py-4">
                       No units match your filter criteria
                     </TableCell>
                   </TableRow>
