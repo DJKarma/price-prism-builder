@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -150,21 +151,23 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       
       // Include default values for all fields, even if not mapped
       allFields.forEach(field => {
-        // Use the mapped column value if available, otherwise use default values
         if (mapping[field.id]) {
+          // Use the mapped column value if available
           let value = row[mapping[field.id]];
           
-          // Handle special cases
+          // Handle special cases and blank values
           if (field.id === "floor") {
-            // Handle floor values: convert "G" to "0", handle blanks, etc.
             value = parseFloorValue(value);
           } else if (["sellArea", "acArea", "balcony"].includes(field.id)) {
-            // Convert area values to numbers, with fallback to "0"
-            value = value?.toString().trim() ? parseFloat(value) || 0 : 0;
+            // Convert area values to numbers, handle blanks with default 0
+            value = parseNumericValue(value, 0);
           }
           
-          transformedRow[field.id] = value || getDefaultValue(field.id);
+          transformedRow[field.id] = value !== undefined && value !== null && value !== "" 
+            ? value 
+            : getDefaultValue(field.id);
         } else {
+          // Use default value for unmapped fields
           transformedRow[field.id] = getDefaultValue(field.id);
         }
       });
@@ -172,10 +175,10 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       return transformedRow;
     });
     
-    // Show a toast if some required fields were not mapped
-    const missingFields = requiredFields.filter(field => !mapping[field.id]);
-    if (missingFields.length > 0) {
-      toast(`Using default values for: ${missingFields.map(f => f.label).join(", ")}`);
+    // Show a toast if some fields were not mapped
+    const unmappedFields = allFields.filter(field => !mapping[field.id]);
+    if (unmappedFields.length > 0) {
+      toast.info(`Using default values for: ${unmappedFields.map(f => f.label).join(", ")}`);
     }
     
     onMappingComplete(mapping, transformedData);
@@ -183,12 +186,14 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
 
   // Helper function to parse floor values
   const parseFloorValue = (value: any): string => {
-    if (!value || value.toString().trim() === "") return "1";
+    if (value === undefined || value === null || value.toString().trim() === "") {
+      return "1"; // Default floor value
+    }
     
     const strValue = value.toString().trim().toUpperCase();
     
-    // Handle "G" or "GF" for ground floor
-    if (strValue === "G" || strValue === "GF" || strValue === "GROUND" || strValue === "GROUND FLOOR") {
+    // Handle various forms of ground floor notation
+    if (["G", "GF", "GROUND", "GROUND FLOOR", "G FLOOR", "G F"].includes(strValue)) {
       return "0";
     }
     
@@ -202,15 +207,27 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     return strValue;
   };
 
+  // Helper function to parse numeric values with defaults
+  const parseNumericValue = (value: any, defaultValue: number): number => {
+    if (value === undefined || value === null || value.toString().trim() === "") {
+      return defaultValue;
+    }
+    
+    const numValue = parseFloat(value.toString().replace(/,/g, ''));
+    return isNaN(numValue) ? defaultValue : numValue;
+  };
+
   // Helper function to get default values
-  const getDefaultValue = (fieldId: string): string => {
+  const getDefaultValue = (fieldId: string): any => {
     switch (fieldId) {
       case "name":
         return "Unit 1";
       case "sellArea":
+        return 0;
       case "acArea":
+        return 0;
       case "balcony":
-        return "0";
+        return 0;
       case "floor":
         return "1";
       case "type":
@@ -260,7 +277,8 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
           <Alert className="mb-6 bg-amber-50">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Special floor values like "G" (Ground Floor) will be automatically converted. Blank values will use defaults.
+              Special floor values like "G" (Ground Floor) will be automatically converted. 
+              Blank values will use defaults: 0 for numeric fields, "Unit 1" for names, etc.
             </AlertDescription>
           </Alert>
           
