@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Info, Wand2, RotateCcw, TrendingUp, ArrowRight } from "lucide-react";
+import { Info, Wand2, RotateCcw, TrendingUp, ArrowRight, Sparkles } from "lucide-react";
 import { megaOptimizePsf, calculateOverallAveragePsf } from "@/utils/psfOptimizer";
 import { toast } from "@/components/ui/use-toast";
 
@@ -57,8 +57,19 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       // Simulate delay for UX feedback
       await new Promise(resolve => setTimeout(resolve, 500));
       
+      // Process floor rules to ensure endFloor is properly handled
+      const processedFloorRules = pricingConfig.floorRiseRules.map((rule: any) => ({
+        ...rule,
+        endFloor: rule.endFloor === null ? 99 : rule.endFloor
+      }));
+      
+      const configWithProcessedRules = {
+        ...pricingConfig,
+        floorRiseRules: processedFloorRules
+      };
+      
       // Run mega optimization
-      const result = megaOptimizePsf(data, pricingConfig, targetPsf);
+      const result = megaOptimizePsf(data, configWithProcessedRules, targetPsf);
       
       // Create optimized config
       const optimizedConfig = {
@@ -74,6 +85,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
           psfAdjustment: result.optimizedParams.viewAdjustments[view.view] || view.psfAdjustment,
           originalPsfAdjustment: view.originalPsfAdjustment || view.psfAdjustment // Store original value if not already stored
         })),
+        floorRiseRules: pricingConfig.floorRiseRules, // Keep the original floor rules
         targetOverallPsf: targetPsf,
         isOptimized: true
       };
@@ -128,15 +140,15 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   };
   
   return (
-    <Card className="mb-6">
-      <CardHeader>
+    <Card className="mb-6 border-2 border-indigo-100">
+      <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Sparkles className="h-6 w-6 text-indigo-500" />
               Mega Optimization
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-indigo-700">
               Optimize all premium values to achieve your target overall PSF
             </CardDescription>
           </div>
@@ -172,7 +184,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         </div>
       </CardHeader>
       
-      <CardContent>
+      <CardContent className="pt-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div className="space-y-2">
             <Label htmlFor="current-psf">Current Overall PSF</Label>
@@ -205,14 +217,14 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               <Button
                 onClick={runMegaOptimization}
                 disabled={isOptimizing}
-                className="flex-1"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700"
               >
                 {isOptimizing ? (
                   "Optimizing..."
                 ) : (
                   <>
                     <Wand2 className="mr-2 h-4 w-4" />
-                    Mega Optimize
+                    Mega Optimize Overall PSF
                   </>
                 )}
               </Button>
@@ -230,12 +242,12 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         </div>
         
         {isOptimized && (
-          <div className="mt-4 p-4 bg-muted rounded-lg">
-            <h4 className="font-medium mb-2">Optimization Impact</h4>
+          <div className="mt-4 p-4 bg-indigo-50 rounded-lg">
+            <h4 className="font-medium mb-2 text-indigo-900">Optimization Impact</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <h5 className="text-sm font-medium mb-1">Bedroom Type Adjustments</h5>
-                <ul className="space-y-1">
+                <h5 className="text-sm font-medium mb-1 text-indigo-800">Bedroom Type Adjustments</h5>
+                <ul className="space-y-1 bg-white p-2 rounded">
                   {pricingConfig.bedroomTypePricing.map((type: any) => {
                     const original = type.originalBasePsf || type.basePsf;
                     const current = type.basePsf;
@@ -244,7 +256,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                     
                     return (
                       <li key={type.type} className="text-sm flex items-center justify-between">
-                        <span>{type.type}:</span>
+                        <span className="font-medium">{type.type}:</span>
                         <span className="flex items-center">
                           {original.toFixed(2)}
                           <ArrowRight className="mx-1 h-3 w-3" />
@@ -259,8 +271,8 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               </div>
               
               <div>
-                <h5 className="text-sm font-medium mb-1">View Adjustments</h5>
-                <ul className="space-y-1">
+                <h5 className="text-sm font-medium mb-1 text-indigo-800">View Adjustments</h5>
+                <ul className="space-y-1 bg-white p-2 rounded">
                   {pricingConfig.viewPricing.map((view: any) => {
                     const original = view.originalPsfAdjustment || view.psfAdjustment;
                     const current = view.psfAdjustment;
@@ -269,7 +281,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                     
                     return (
                       <li key={view.view} className="text-sm flex items-center justify-between">
-                        <span>{view.view}:</span>
+                        <span className="font-medium">{view.view}:</span>
                         <span className="flex items-center">
                           {original.toFixed(2)}
                           <ArrowRight className="mx-1 h-3 w-3" />
@@ -287,7 +299,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         )}
       </CardContent>
       
-      <CardFooter className="flex flex-col items-start text-sm text-muted-foreground">
+      <CardFooter className="flex flex-col items-start text-sm text-muted-foreground bg-gradient-to-r from-indigo-50/50 to-blue-50/50 rounded-b">
         <p>
           Mega Optimize uses advanced constrained gradient descent to find the optimal 
           premium values while minimizing changes from your original settings.

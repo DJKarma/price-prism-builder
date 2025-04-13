@@ -29,7 +29,7 @@ interface PricingConfigurationProps {
 
 export interface FloorRiseRule {
   startFloor: number;
-  endFloor: number;
+  endFloor: number | null;
   psfIncrement: number;
   jumpEveryFloor?: number;
   jumpIncrement?: number;
@@ -61,7 +61,7 @@ export interface PricingConfig {
   }>;
   floorRiseRules: Array<{
     startFloor: number;
-    endFloor: number;
+    endFloor: number | null;
     psfIncrement: number;
     jumpEveryFloor?: number;
     jumpIncrement?: number;
@@ -132,13 +132,14 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
 
   const handleAddFloorRiseRule = () => {
     const lastRule = floorRiseRules[floorRiseRules.length - 1];
-    const newStartFloor = lastRule ? lastRule.endFloor + 1 : 1;
+    const newStartFloor = lastRule ? 
+      (lastRule.endFloor === null ? 99 : lastRule.endFloor) + 1 : 1;
     
     setFloorRiseRules([
       ...floorRiseRules,
       {
         startFloor: newStartFloor,
-        endFloor: newStartFloor + 9,
+        endFloor: null, // Default to null (which will be treated as 99)
         psfIncrement: 10,
         jumpEveryFloor: 10,
         jumpIncrement: 20,
@@ -154,7 +155,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     setFloorRiseRules(floorRiseRules.filter((_, i) => i !== index));
   };
 
-  const updateFloorRiseRule = (index: number, field: keyof FloorRiseRule, value: number) => {
+  const updateFloorRiseRule = (index: number, field: keyof FloorRiseRule, value: number | null) => {
     const newRules = [...floorRiseRules];
     newRules[index] = { ...newRules[index], [field]: value };
     setFloorRiseRules(newRules);
@@ -181,17 +182,19 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     for (let i = 0; i < floorRiseRules.length; i++) {
       const rule = floorRiseRules[i];
       
-      if (rule.startFloor > rule.endFloor) {
+      if (rule.endFloor !== null && rule.startFloor > rule.endFloor) {
         toast.error(`Floor rise rule #${i+1} has start floor greater than end floor`);
         return;
       }
       
       for (let j = i + 1; j < floorRiseRules.length; j++) {
         const otherRule = floorRiseRules[j];
+        const ruleEnd = rule.endFloor === null ? 99 : rule.endFloor;
+        const otherRuleEnd = otherRule.endFloor === null ? 99 : otherRule.endFloor;
         
         if (
-          (rule.startFloor <= otherRule.endFloor && rule.endFloor >= otherRule.startFloor) ||
-          (otherRule.startFloor <= rule.endFloor && otherRule.endFloor >= rule.startFloor)
+          (rule.startFloor <= otherRuleEnd && ruleEnd >= otherRule.startFloor) ||
+          (otherRule.startFloor <= ruleEnd && otherRuleEnd >= rule.startFloor)
         ) {
           toast.error(`Floor rise rules #${i+1} and #${j+1} have overlapping floor ranges`);
           return;
@@ -270,7 +273,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                         updateFloorRiseRule(
                           index,
                           "startFloor",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value) || 1
                         )
                       }
                     />
@@ -279,14 +282,16 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                     <Input
                       type="number"
                       min={rule.startFloor}
-                      value={rule.endFloor}
-                      onChange={(e) =>
+                      value={rule.endFloor === null ? '' : rule.endFloor}
+                      placeholder="99 (Default)"
+                      onChange={(e) => {
+                        const value = e.target.value.trim() === '' ? null : parseInt(e.target.value);
                         updateFloorRiseRule(
                           index,
                           "endFloor",
-                          parseInt(e.target.value)
-                        )
-                      }
+                          value
+                        );
+                      }}
                     />
                   </TableCell>
                   <TableCell>
@@ -297,7 +302,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                         updateFloorRiseRule(
                           index,
                           "psfIncrement",
-                          parseFloat(e.target.value)
+                          parseFloat(e.target.value) || 0
                         )
                       }
                     />
@@ -311,7 +316,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                         updateFloorRiseRule(
                           index,
                           "jumpEveryFloor",
-                          parseInt(e.target.value)
+                          parseInt(e.target.value) || 10
                         )
                       }
                       placeholder="e.g., 10"
@@ -325,7 +330,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                         updateFloorRiseRule(
                           index,
                           "jumpIncrement",
-                          parseFloat(e.target.value)
+                          parseFloat(e.target.value) || 0
                         )
                       }
                       placeholder="e.g., 20"

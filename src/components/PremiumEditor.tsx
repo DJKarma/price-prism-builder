@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   Card, 
@@ -78,7 +79,7 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
     });
   };
   
-  const handleFloorRuleChange = (index: number, field: string, value: number) => {
+  const handleFloorRuleChange = (index: number, field: string, value: number | null) => {
     const updatedRules = [...localConfig.floorRiseRules];
     updatedRules[index] = {
       ...updatedRules[index],
@@ -92,9 +93,18 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
   };
   
   const addFloorRule = () => {
-    const lastRule = localConfig.floorRiseRules[localConfig.floorRiseRules.length - 1];
-    const newStartFloor = lastRule ? lastRule.endFloor + 1 : 1;
-    const newEndFloor = newStartFloor + 9;
+    // Find the highest endFloor from existing rules
+    let maxEndFloor = 0;
+    localConfig.floorRiseRules.forEach((rule: any) => {
+      const endFloor = rule.endFloor === null ? 99 : rule.endFloor;
+      if (endFloor > maxEndFloor) {
+        maxEndFloor = endFloor;
+      }
+    });
+    
+    // New rule starts after the highest endFloor
+    const newStartFloor = maxEndFloor + 1;
+    const newEndFloor = null; // Default to null (which will be treated as 99)
     
     setLocalConfig({
       ...localConfig,
@@ -130,22 +140,30 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
   };
   
   const calculateCumulativePsfForFloor = (floor: number) => {
-    const psfValue = calculateFloorPremium(floor, localConfig.floorRiseRules);
+    // Process rules to ensure endFloor is properly handled
+    const processedRules = localConfig.floorRiseRules.map((rule: any) => ({
+      ...rule,
+      endFloor: rule.endFloor === null ? 99 : rule.endFloor
+    }));
+    
+    const psfValue = calculateFloorPremium(floor, processedRules);
     
     let isJumpFloor = false;
     let appliedRule = null;
     
-    const sortedRules = [...localConfig.floorRiseRules].sort(
+    const sortedRules = [...processedRules].sort(
       (a, b) => a.startFloor - b.startFloor
     );
     
     const rule = sortedRules.find(
-      r => floor >= r.startFloor && floor <= r.endFloor
+      (r: any) => floor >= r.startFloor && floor <= (r.endFloor === null ? 99 : r.endFloor)
     );
     
     if (rule && rule.jumpEveryFloor && rule.jumpIncrement) {
-      isJumpFloor = (floor - rule.startFloor) % rule.jumpEveryFloor === 0 && 
-                    floor >= rule.startFloor + rule.jumpEveryFloor;
+      // Check if this is a jump floor - a multiple of jumpEveryFloor from startFloor
+      const floorsAfterStart = floor - rule.startFloor;
+      isJumpFloor = floorsAfterStart > 0 && 
+                    floorsAfterStart % rule.jumpEveryFloor === 0;
       
       if (isJumpFloor) {
         appliedRule = rule;
@@ -346,14 +364,16 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
                       <Input
                         type="number"
                         min={rule.startFloor}
-                        value={rule.endFloor}
-                        onChange={(e) => 
+                        value={rule.endFloor === null ? '' : rule.endFloor}
+                        placeholder="99 (Default)"
+                        onChange={(e) => {
+                          const value = e.target.value.trim() === '' ? null : parseInt(e.target.value) || rule.startFloor;
                           handleFloorRuleChange(
                             index, 
                             "endFloor", 
-                            parseInt(e.target.value) || rule.startFloor
-                          )
-                        }
+                            value
+                          );
+                        }}
                       />
                     </TableCell>
                     <TableCell>

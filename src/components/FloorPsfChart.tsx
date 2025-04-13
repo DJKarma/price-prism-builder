@@ -11,13 +11,13 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { generateFloorPsfData, FloorPsfPoint } from "@/utils/floorPsfChart";
+import { FloorPsfPoint } from "@/utils/floorPsfChart";
 import { calculateFloorPremium } from "@/utils/psfOptimizer";
 
 interface FloorPsfChartProps {
   floorRules: Array<{
     startFloor: number;
-    endFloor: number;
+    endFloor: number | null;
     psfIncrement: number;
     jumpEveryFloor?: number;
     jumpIncrement?: number;
@@ -41,28 +41,35 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
 };
 
 const FloorPsfChart: React.FC<FloorPsfChartProps> = ({ floorRules, maxFloor = 50 }) => {
+  // Process rules to ensure endFloor is properly set (default to 99 if null)
+  const processedRules = floorRules.map(rule => ({
+    ...rule,
+    endFloor: rule.endFloor === null ? 99 : rule.endFloor
+  }));
+  
   // Generate data using our own calculation instead of the utility
   const data: FloorPsfPoint[] = Array.from({ length: maxFloor }, (_, i) => {
     const floor = i + 1;
-    const psfValue = calculateFloorPremium(floor, floorRules);
+    const psfValue = calculateFloorPremium(floor, processedRules);
     
     // Determine if this is a jump floor
     let isJump = false;
     
     // Get sorted rules
-    const sortedRules = [...floorRules].sort(
+    const sortedRules = [...processedRules].sort(
       (a, b) => a.startFloor - b.startFloor
     );
     
     // Find the rule that applies to this floor
     const rule = sortedRules.find(
-      r => floor >= r.startFloor && floor <= r.endFloor
+      r => floor >= r.startFloor && floor <= (r.endFloor === null ? 99 : r.endFloor)
     );
     
     if (rule && rule.jumpEveryFloor && rule.jumpIncrement) {
-      // Check if this is a jump floor
-      isJump = (floor - rule.startFloor) % rule.jumpEveryFloor === 0 && 
-               floor >= rule.startFloor + rule.jumpEveryFloor;
+      // Check if this is a jump floor - a multiple of jumpEveryFloor from startFloor
+      const floorsAfterStart = floor - rule.startFloor;
+      isJump = floorsAfterStart > 0 && 
+               floorsAfterStart % rule.jumpEveryFloor === 0;
     }
     
     return {
