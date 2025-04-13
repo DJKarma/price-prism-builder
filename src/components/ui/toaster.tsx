@@ -43,9 +43,9 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      {/* Bottom-right positioning with fixed gap for non-stacking */}
+      {/* Fixed positioning with gap for non-stacking toasts */}
       <div className="fixed bottom-0 right-0 z-[100] flex flex-col p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px] gap-3">
-        {toasts.map(function ({ id, title, description, action, variant, className, ...props }, index) {
+        {toasts.map(function ({ id, title, description, action, variant, className, ...props }) {
           // Determine icon based on variant
           let Icon = Info
           let iconClass = "text-blue-500"

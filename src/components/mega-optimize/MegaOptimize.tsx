@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
@@ -229,12 +230,12 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     toast.promise(
       new Promise(resolve => {
         runMegaOptimization(selectedTypes);
-        // Highlight the selected types for 3 seconds only (reduced from 5)
+        // Highlight the selected types for 3 seconds only
         setHighlightedTypes([...selectedTypes]);
         setTimeout(() => {
           setHighlightedTypes([]);
           setIsAnimating(false);
-        }, 3000);
+        }, 3000); // Exactly 3 seconds as requested
         // Simulate promise for toast
         setTimeout(resolve, 1000);
       }),

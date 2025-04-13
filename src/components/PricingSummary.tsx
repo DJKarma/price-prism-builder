@@ -51,17 +51,20 @@ interface PricingSummaryProps {
   highlightedTypes?: string[];
 }
 
-// Helper function to format numbers for display
-const formatNumber = (num: number): string => {
+// Helper function to format numbers for display (only for price values)
+const formatNumber = (num: number, isPrice: boolean): string => {
   if (!isFinite(num) || num === 0) return "0";
   
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(2) + "M";
-  } else if (num >= 1000) {
-    return (num / 1000).toFixed(0) + "K";
+  // Only apply K/M formatting to price values
+  if (isPrice) {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(2) + "M";
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(0) + "K";
+    }
   }
   
-  return num.toString();
+  return num.toFixed(isPrice ? 0 : 2);
 };
 
 // Helper function to sort bedroom types naturally
@@ -87,11 +90,11 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
   const [isOpen, setIsOpen] = useState(true);
   const [highlightedValues, setHighlightedValues] = useState<string[]>([]);
   
-  // Slot machine effect for numbers
+  // Slot machine effect for numbers - with 3 second timeout
   useEffect(() => {
     if (highlightedTypes.length > 0) {
       setHighlightedValues(highlightedTypes);
-      // Clear highlighting after 3 seconds (reduced from 5)
+      // Clear highlighting after exactly 3 seconds
       const timer = setTimeout(() => {
         setHighlightedValues([]);
       }, 3000);
@@ -222,11 +225,18 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
   }, [bedroomTypeStats]);
 
   // Function to render slot-machine-like effect for numbers
-  const SlotMachineNumber = ({ value, isHighlighted = false, prefix = '', suffix = '' }: { 
+  const SlotMachineNumber = ({ 
+    value, 
+    isHighlighted = false, 
+    prefix = '', 
+    suffix = '',
+    isPrice = false
+  }: { 
     value: number, 
     isHighlighted?: boolean,
     prefix?: string,
-    suffix?: string
+    suffix?: string,
+    isPrice?: boolean
   }) => {
     const [displayValue, setDisplayValue] = useState(value);
     const [isAnimating, setIsAnimating] = useState(false);
@@ -263,8 +273,8 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
       }
     }, [value, isHighlighted]);
     
-    // Format the value for display (K/M for thousands/millions)
-    const formattedValue = formatNumber(displayValue);
+    // Format the value for display (K/M for thousands/millions only for prices)
+    const formattedValue = formatNumber(displayValue, isPrice);
     
     return (
       <span className={`transition-all duration-200 ${isAnimating ? 'text-indigo-800 scale-110' : ''}`}>
@@ -350,17 +360,17 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                             <TableCell>
                               <div className="grid grid-cols-3 gap-2">
                                 <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                  <SlotMachineNumber value={stat.minPsf} isHighlighted={isHighlighted} />
+                                  <SlotMachineNumber value={stat.minPsf} isHighlighted={isHighlighted} isPrice={false} />
                                 </div>
                                 <div className={`text-center px-2 py-1 rounded-md font-medium transition-all duration-300 ${
                                   isHighlighted 
                                     ? "bg-yellow-300 text-yellow-900 animate-pulse" 
                                     : "bg-purple-50 text-purple-600"
                                 }`}>
-                                  <SlotMachineNumber value={stat.avgPsf} isHighlighted={isHighlighted} />
+                                  <SlotMachineNumber value={stat.avgPsf} isHighlighted={isHighlighted} isPrice={false} />
                                 </div>
                                 <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                  <SlotMachineNumber value={stat.maxPsf} isHighlighted={isHighlighted} />
+                                  <SlotMachineNumber value={stat.maxPsf} isHighlighted={isHighlighted} isPrice={false} />
                                 </div>
                               </div>
                             </TableCell>
@@ -371,6 +381,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                     value={stat.minPrice} 
                                     isHighlighted={isHighlighted} 
                                     prefix={showDollarSign ? '$' : ''}
+                                    isPrice={true}
                                   />
                                 </div>
                                 <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
@@ -378,6 +389,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                     value={stat.avgPrice} 
                                     isHighlighted={isHighlighted} 
                                     prefix={showDollarSign ? '$' : ''}
+                                    isPrice={true}
                                   />
                                 </div>
                                 <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
@@ -385,6 +397,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                     value={stat.maxPrice} 
                                     isHighlighted={isHighlighted} 
                                     prefix={showDollarSign ? '$' : ''}
+                                    isPrice={true}
                                   />
                                 </div>
                               </div>
@@ -392,13 +405,13 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                             <TableCell>
                               <div className="grid grid-cols-3 gap-2">
                                 <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                  <SlotMachineNumber value={stat.minSize} isHighlighted={isHighlighted} />
+                                  <SlotMachineNumber value={stat.minSize} isHighlighted={isHighlighted} isPrice={false} />
                                 </div>
                                 <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                                  <SlotMachineNumber value={stat.avgSize} isHighlighted={isHighlighted} />
+                                  <SlotMachineNumber value={stat.avgSize} isHighlighted={isHighlighted} isPrice={false} />
                                 </div>
                                 <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                  <SlotMachineNumber value={stat.maxSize} isHighlighted={isHighlighted} />
+                                  <SlotMachineNumber value={stat.maxSize} isHighlighted={isHighlighted} isPrice={false} />
                                 </div>
                               </div>
                             </TableCell>
@@ -421,13 +434,13 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                         <TableCell>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
-                              <SlotMachineNumber value={totals.minPsf} isHighlighted={highlightedValues.length > 0} />
+                              <SlotMachineNumber value={totals.minPsf} isHighlighted={highlightedValues.length > 0} isPrice={false} />
                             </div>
                             <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
-                              <SlotMachineNumber value={totals.avgPsf} isHighlighted={highlightedValues.length > 0} />
+                              <SlotMachineNumber value={totals.avgPsf} isHighlighted={highlightedValues.length > 0} isPrice={false} />
                             </div>
                             <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
-                              <SlotMachineNumber value={totals.maxPsf} isHighlighted={highlightedValues.length > 0} />
+                              <SlotMachineNumber value={totals.maxPsf} isHighlighted={highlightedValues.length > 0} isPrice={false} />
                             </div>
                           </div>
                         </TableCell>
@@ -438,6 +451,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                 value={totals.minPrice} 
                                 isHighlighted={highlightedValues.length > 0} 
                                 prefix={showDollarSign ? '$' : ''}
+                                isPrice={true}
                               />
                             </div>
                             <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
@@ -445,6 +459,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                 value={totals.avgPrice} 
                                 isHighlighted={highlightedValues.length > 0} 
                                 prefix={showDollarSign ? '$' : ''}
+                                isPrice={true}
                               />
                             </div>
                             <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
@@ -452,6 +467,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                 value={totals.maxPrice} 
                                 isHighlighted={highlightedValues.length > 0} 
                                 prefix={showDollarSign ? '$' : ''}
+                                isPrice={true}
                               />
                             </div>
                           </div>
@@ -459,13 +475,13 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                         <TableCell>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="text-center px-2 py-1 bg-red-100 rounded-md text-red-700 font-bold">
-                              <SlotMachineNumber value={totals.minSize} isHighlighted={highlightedValues.length > 0} />
+                              <SlotMachineNumber value={totals.minSize} isHighlighted={highlightedValues.length > 0} isPrice={false} />
                             </div>
                             <div className="text-center px-2 py-1 bg-indigo-100 rounded-md text-indigo-700 font-bold">
-                              <SlotMachineNumber value={totals.avgSize} isHighlighted={highlightedValues.length > 0} />
+                              <SlotMachineNumber value={totals.avgSize} isHighlighted={highlightedValues.length > 0} isPrice={false} />
                             </div>
                             <div className="text-center px-2 py-1 bg-green-100 rounded-md text-green-700 font-bold">
-                              <SlotMachineNumber value={totals.maxSize} isHighlighted={highlightedValues.length > 0} />
+                              <SlotMachineNumber value={totals.maxSize} isHighlighted={highlightedValues.length > 0} isPrice={false} />
                             </div>
                           </div>
                         </TableCell>

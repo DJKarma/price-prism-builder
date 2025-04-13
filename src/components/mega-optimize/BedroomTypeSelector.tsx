@@ -56,9 +56,21 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
       setSelectedTypes([...safeSelectedTypes, type]);
     }
   };
+  
+  // Select all types
+  const handleSelectAll = () => {
+    if (safeSelectedTypes.length === safeBedroomTypes.length) {
+      setSelectedTypes([]);
+    } else {
+      setSelectedTypes([...safeBedroomTypes]);
+    }
+  };
 
   // Sort the selected types for display
   const sortedSelectedTypes = [...safeSelectedTypes].sort(sortBedroomTypes);
+  
+  // Check if all types are selected
+  const allSelected = safeSelectedTypes.length === safeBedroomTypes.length && safeBedroomTypes.length > 0;
 
   return (
     <div className="space-y-2">
@@ -78,18 +90,35 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
         <DropdownMenuContent className="w-full min-w-[200px] bg-popover p-2">
           <DropdownMenuLabel>Bedroom Types</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {safeBedroomTypes.map((type) => (
-            <DropdownMenuCheckboxItem
-              key={type || "empty-key"}
-              checked={safeSelectedTypes.includes(type)}
-              onSelect={(e) => {
-                e.preventDefault();
-                handleTypeSelection(type);
-              }}
-            >
-              {type || ""}
-            </DropdownMenuCheckboxItem>
-          ))}
+          {/* Select All option */}
+          <DropdownMenuCheckboxItem
+            checked={allSelected}
+            onSelect={(e) => {
+              e.preventDefault();
+              handleSelectAll();
+            }}
+            className="font-medium"
+          >
+            {allSelected ? "Deselect All" : "Select All"}
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
+          {/* List all bedroom types */}
+          {safeBedroomTypes.length > 0 ? (
+            safeBedroomTypes.map((type) => (
+              <DropdownMenuCheckboxItem
+                key={type}
+                checked={safeSelectedTypes.includes(type)}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  handleTypeSelection(type);
+                }}
+              >
+                {type}
+              </DropdownMenuCheckboxItem>
+            ))
+          ) : (
+            <div className="px-2 py-1 text-sm text-muted-foreground">No bedroom types available</div>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -97,11 +126,11 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
         <div className="flex flex-wrap gap-2 mt-2">
           {sortedSelectedTypes.map((type) => (
             <Badge
-              key={type || "empty-key"}
+              key={type}
               variant="secondary"
               className="flex items-center gap-1"
             >
-              {type || ""}
+              {type}
               <button
                 type="button"
                 className="ml-1 rounded-full outline-none focus:ring-2 focus:ring-offset-1"
