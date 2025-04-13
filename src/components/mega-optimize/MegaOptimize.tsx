@@ -61,7 +61,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   };
   
   return (
-    <Card className="mb-6 border-2 border-indigo-100">
+    <Card className="mb-6 border-2 border-indigo-100 w-full">
       <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
           <div>
@@ -136,7 +136,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         </div>
       </CardContent>
       
-      <CardFooter className="flex flex-col items-start text-sm text-muted-foreground bg-gradient-to-r from-indigo-50/50 to-blue-50/50 rounded-b">
+      <CardFooter className="flex flex-col items-start text-sm text-muted-foreground bg-gradient-to-r from-indigo-50/50 to-blue-50/50 rounded-b p-4">
         <p>
           {optimizationMode === "basePsf" 
             ? "Base PSF Optimization adjusts only bedroom type PSF values to achieve target overall PSF."
