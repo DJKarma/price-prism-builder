@@ -113,10 +113,10 @@ const CommandItem = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Item>
 >(({ className, ...props }, ref) => {
-  // Ensure the value prop is always defined
+  // Ensure the value prop is always defined and never empty
   const safeProps = {
     ...props,
-    value: props.value || ""
+    value: props.value || "empty-value"
   };
   
   return (

@@ -32,12 +32,14 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
 
   // Ensure bedroomTypes is always an array, even if it's undefined
   const safeBedroomTypes = Array.isArray(bedroomTypes) ? bedroomTypes : [];
+  // Ensure selectedTypes is always an array
+  const safeSelectedTypes = Array.isArray(selectedTypes) ? selectedTypes : [];
 
   const handleTypeSelection = (type: string) => {
-    if (selectedTypes.includes(type)) {
-      setSelectedTypes(selectedTypes.filter((t) => t !== type));
+    if (safeSelectedTypes.includes(type)) {
+      setSelectedTypes(safeSelectedTypes.filter((t) => t !== type));
     } else {
-      setSelectedTypes([...selectedTypes, type]);
+      setSelectedTypes([...safeSelectedTypes, type]);
     }
   };
 
@@ -52,8 +54,8 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
             aria-expanded={open}
             className="w-full justify-between"
           >
-            {selectedTypes.length > 0
-              ? `${selectedTypes.length} ${selectedTypes.length === 1 ? "type" : "types"} selected`
+            {safeSelectedTypes.length > 0
+              ? `${safeSelectedTypes.length} ${safeSelectedTypes.length === 1 ? "type" : "types"} selected`
               : "Select bedroom types..."}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -65,17 +67,17 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
             <CommandGroup>
               {safeBedroomTypes.map((type) => (
                 <CommandItem
-                  key={type}
-                  value={type || ""}
+                  key={type || "empty-key"}
+                  value={type || "empty-value"}
                   onSelect={() => handleTypeSelection(type)}
                 >
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      selectedTypes.includes(type) ? "opacity-100" : "opacity-0"
+                      safeSelectedTypes.includes(type) ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {type}
+                  {type || ""}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -83,15 +85,15 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
         </PopoverContent>
       </Popover>
 
-      {selectedTypes.length > 0 && (
+      {safeSelectedTypes.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
-          {selectedTypes.map((type) => (
+          {safeSelectedTypes.map((type) => (
             <Badge
-              key={type}
+              key={type || "empty-key"}
               variant="secondary"
               className="flex items-center gap-1"
             >
-              {type}
+              {type || ""}
               <button
                 type="button"
                 className="ml-1 rounded-full outline-none focus:ring-2 focus:ring-offset-1"
