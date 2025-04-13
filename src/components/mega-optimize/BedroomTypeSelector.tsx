@@ -1,19 +1,15 @@
 
-import React from "react";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import React, { useState } from "react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -28,7 +24,7 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
   selectedTypes,
   setSelectedTypes,
 }) => {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
 
   // Ensure bedroomTypes is always an array, even if it's undefined
   const safeBedroomTypes = Array.isArray(bedroomTypes) ? bedroomTypes : [];
@@ -46,44 +42,35 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">Select Bedroom Types to Optimize</label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
-            role="combobox"
-            aria-expanded={open}
             className="w-full justify-between"
           >
             {safeSelectedTypes.length > 0
               ? `${safeSelectedTypes.length} ${safeSelectedTypes.length === 1 ? "type" : "types"} selected`
               : "Select bedroom types..."}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <span className="ml-2">▼</span>
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-full p-0">
-          <Command>
-            <CommandInput placeholder="Search bedroom types..." />
-            <CommandEmpty>No bedroom type found.</CommandEmpty>
-            <CommandGroup>
-              {safeBedroomTypes.map((type) => (
-                <CommandItem
-                  key={type || "empty-key"}
-                  value={type || "empty-value"}
-                  onSelect={() => handleTypeSelection(type)}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      safeSelectedTypes.includes(type) ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {type || ""}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-full min-w-[200px] bg-popover p-2">
+          <DropdownMenuLabel>Bedroom Types</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {safeBedroomTypes.map((type) => (
+            <DropdownMenuCheckboxItem
+              key={type || "empty-key"}
+              checked={safeSelectedTypes.includes(type)}
+              onSelect={(e) => {
+                e.preventDefault();
+                handleTypeSelection(type);
+              }}
+            >
+              {type || ""}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {safeSelectedTypes.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
