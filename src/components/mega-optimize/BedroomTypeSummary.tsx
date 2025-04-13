@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from "react";
-import { Building2, Check, ArrowUp, ArrowDown } from "lucide-react";
+import { Building2, Check, ArrowUp, ArrowDown, Ruler, DollarSign, Home } from "lucide-react";
 import { 
   Card, 
   CardContent,
@@ -21,6 +22,10 @@ interface BedroomType {
   basePsf: number;
   targetAvgPsf: number;
   originalBasePsf?: number;
+  // Added mock data properties for the mini-cards
+  unitCount?: number;
+  avgSize?: number;
+  avgPsf?: number;
 }
 
 interface BedroomTypeSummaryProps {
@@ -50,6 +55,17 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
         ? prev.filter(t => t !== type)
         : [...prev, type]
     );
+  };
+
+  // Mock data function - in a real app, this would come from props or be calculated
+  const getMockData = (type: string): { unitCount: number; avgSize: number; avgPsf: number } => {
+    // Generate consistent mock data based on the type string
+    const typeSum = type.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return {
+      unitCount: 10 + (typeSum % 40),
+      avgSize: 500 + (typeSum % 1500),
+      avgPsf: 1000 + (typeSum % 500),
+    };
   };
 
   return (
@@ -93,6 +109,11 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
               : 0;
             const isIncrease = changePercent > 0;
             
+            // Get mock data for this bedroom type
+            const { unitCount, avgSize, avgPsf } = type.unitCount && type.avgSize && type.avgPsf 
+              ? { unitCount: type.unitCount, avgSize: type.avgSize, avgPsf: type.avgPsf }
+              : getMockData(type.type);
+            
             return (
               <Card 
                 key={type.type} 
@@ -129,21 +150,54 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4 pb-4 px-4">
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Base PSF</p>
-                      <p className="font-medium">${type.basePsf.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Target Avg PSF</p>
-                      <p className="font-medium">${type.targetAvgPsf.toFixed(2)}</p>
-                    </div>
-                    {hasChanged && (
-                      <div className="col-span-2 mt-2 pt-2 border-t">
-                        <p className="text-muted-foreground">Original Base PSF</p>
-                        <p className="font-medium">${type.originalBasePsf?.toFixed(2)}</p>
+                  <div className="grid grid-cols-1 gap-4">
+                    {/* Primary pricing info */}
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Base PSF</p>
+                        <p className="font-medium">${type.basePsf.toFixed(2)}</p>
                       </div>
-                    )}
+                      <div>
+                        <p className="text-muted-foreground">Target Avg PSF</p>
+                        <p className="font-medium">${type.targetAvgPsf.toFixed(2)}</p>
+                      </div>
+                      {hasChanged && (
+                        <div className="col-span-2 mt-2 pt-2 border-t">
+                          <p className="text-muted-foreground">Original Base PSF</p>
+                          <p className="font-medium">${type.originalBasePsf?.toFixed(2)}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Mini-cards section */}
+                    <div className="mt-2 pt-4 border-t grid grid-cols-3 gap-2">
+                      {/* Units mini-card */}
+                      <div className="bg-purple-50 p-2 rounded-md border border-purple-100">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs text-purple-700">Units</span>
+                          <Home className="h-3 w-3 text-purple-500" />
+                        </div>
+                        <p className="font-medium text-sm">{unitCount}</p>
+                      </div>
+                      
+                      {/* Average Size mini-card */}
+                      <div className="bg-blue-50 p-2 rounded-md border border-blue-100">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs text-blue-700">Avg Size</span>
+                          <Ruler className="h-3 w-3 text-blue-500" />
+                        </div>
+                        <p className="font-medium text-sm">{avgSize} sf</p>
+                      </div>
+                      
+                      {/* Average PSF mini-card */}
+                      <div className="bg-green-50 p-2 rounded-md border border-green-100">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs text-green-700">Avg PSF</span>
+                          <DollarSign className="h-3 w-3 text-green-500" />
+                        </div>
+                        <p className="font-medium text-sm">${avgPsf.toFixed(2)}</p>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
