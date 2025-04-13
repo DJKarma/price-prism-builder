@@ -34,7 +34,21 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { ArrowUpDown, Download, Calculator, Layers, Filter } from "lucide-react";
+import { 
+  ArrowUpDown, 
+  Download, 
+  Calculator, 
+  Layers, 
+  Filter, 
+  ChartBar,
+  BedDouble,
+  PieChart,
+  Table as TableIcon,
+  Check,
+  CheckCheck,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PricingConfig } from "./PricingConfiguration";
 import {
@@ -45,6 +59,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 interface PricingSimulatorProps {
   data: any[];
@@ -54,6 +73,7 @@ interface PricingSimulatorProps {
 interface UnitWithPricing extends Record<string, any> {
   calculatedPsf: number;
   totalPrice: number;
+  finalTotalPrice: number; // Ceiled total price
   balconyArea?: number;
   balconyPercentage?: number;
   basePriceComponent?: number;
@@ -109,6 +129,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "price", label: "Price Stats", enabled: true },
     { id: "size", label: "Size Stats", enabled: true },
   ]);
+  
+  // Card view control
+  const [summaryCardView, setSummaryCardView] = useState<"compact" | "detailed">("compact");
 
   // Process the data with pricing calculations
   useEffect(() => {
@@ -142,7 +165,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       for (const rule of sortedFloorRules) {
         // If we already passed this rule's range, apply full adjustment
         if (floorLevel > rule.endFloor) {
-          // Apply adjustment for all floors in this rule
+          // Apply adjustment for all floors in this range
           const floorsInRange = rule.endFloor - Math.max(currentFloor, rule.startFloor) + 1;
           cumulativeAdjustment += floorsInRange * rule.psfIncrement;
           currentFloor = rule.endFloor + 1;
@@ -185,6 +208,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       // Calculate total price
       const totalPrice = calculatedPsf * sellArea;
       
+      // Calculate ceiled total price (to nearest 1000)
+      const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+      
       // Calculate price components
       const basePriceComponent = basePsf * sellArea;
       const floorPriceComponent = floorAdjustment * sellArea;
@@ -194,6 +220,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         ...unit,
         calculatedPsf,
         totalPrice,
+        finalTotalPrice,
         balconyArea,
         balconyPercentage,
         basePriceComponent,
@@ -239,16 +266,16 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     
     setTypeSummary(summaries);
     
-    // Detailed summary by bedroom type
+    // Detailed summary by bedroom type - use ceiled prices for calculations
     const detailedSummaries = Object.entries(typeGroups).map(([type, unitGroup]) => {
-      // Get PSF stats
-      const psfValues = unitGroup.map(u => u.calculatedPsf);
+      // Get PSF stats - use final PSF based on ceiled price
+      const psfValues = unitGroup.map(u => u.finalTotalPrice / parseFloat(u.sellArea));
       const minPsf = Math.min(...psfValues);
       const maxPsf = Math.max(...psfValues);
       const avgPsf = psfValues.reduce((sum, val) => sum + val, 0) / psfValues.length;
       
-      // Get price stats
-      const priceValues = unitGroup.map(u => u.totalPrice);
+      // Get price stats - use ceiled total price
+      const priceValues = unitGroup.map(u => u.finalTotalPrice);
       const minPrice = Math.min(...priceValues);
       const maxPrice = Math.max(...priceValues);
       const avgPrice = priceValues.reduce((sum, val) => sum + val, 0) / priceValues.length;
@@ -371,7 +398,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         return {
           units: acc.units + 1,
           area: acc.area + sellArea,
-          value: acc.value + unit.totalPrice,
+          value: acc.value + unit.finalTotalPrice, // Use ceiled price
         };
       },
       { units: 0, area: 0, value: 0 }
@@ -406,28 +433,37 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       "Base Price",
       "Floor Premium",
       "View Premium", 
-      "Total Price",
+      "Total Price (Raw)",
+      "Final Total Price",
+      "Final PSF"
     ];
     
     // Create CSV rows with all component values
-    const rows = filteredUnits.map((unit) => [
-      unit.name,
-      unit.type,
-      unit.floor,
-      unit.view,
-      unit.sellArea,
-      unit.acArea || 0,
-      unit.balconyArea ? unit.balconyArea.toFixed(2) : 0,
-      unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : 0,
-      unit.basePsf.toFixed(2),
-      unit.floorAdjustment.toFixed(2),
-      unit.viewPsfAdjustment.toFixed(2),
-      unit.calculatedPsf.toFixed(2),
-      unit.basePriceComponent.toFixed(2),
-      unit.floorPriceComponent.toFixed(2),
-      unit.viewPriceComponent.toFixed(2),
-      unit.totalPrice.toFixed(2),
-    ]);
+    const rows = filteredUnits.map((unit) => {
+      const sellArea = parseFloat(unit.sellArea) || 0;
+      const finalPsf = sellArea > 0 ? unit.finalTotalPrice / sellArea : 0;
+      
+      return [
+        unit.name,
+        unit.type,
+        unit.floor,
+        unit.view,
+        unit.sellArea,
+        unit.acArea || 0,
+        unit.balconyArea ? unit.balconyArea.toFixed(2) : 0,
+        unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : 0,
+        unit.basePsf.toFixed(2),
+        unit.floorAdjustment.toFixed(2),
+        unit.viewPsfAdjustment.toFixed(2),
+        unit.calculatedPsf.toFixed(2),
+        unit.basePriceComponent.toFixed(2),
+        unit.floorPriceComponent.toFixed(2),
+        unit.viewPriceComponent.toFixed(2),
+        unit.totalPrice.toFixed(2),
+        unit.finalTotalPrice.toFixed(2),
+        finalPsf.toFixed(2)
+      ];
+    });
     
     // Combine headers and rows
     const csvContent =
@@ -453,10 +489,32 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       {/* Summary Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calculator className="h-5 w-5" />
-            Pricing Simulation Results
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              Pricing Simulation Results
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant={summaryCardView === "compact" ? "default" : "outline"} 
+                size="sm"
+                className="h-8"
+                onClick={() => setSummaryCardView("compact")}
+              >
+                <Minimize2 className="h-4 w-4 mr-1" />
+                Compact
+              </Button>
+              <Button 
+                variant={summaryCardView === "detailed" ? "default" : "outline"} 
+                size="sm"
+                className="h-8"
+                onClick={() => setSummaryCardView("detailed")}
+              >
+                <Maximize2 className="h-4 w-4 mr-1" />
+                Detailed
+              </Button>
+            </div>
+          </div>
           <CardDescription>
             Summary of calculated prices based on your configuration
           </CardDescription>
@@ -493,83 +551,13 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </div>
           </div>
 
-          {/* Type Summary Chart */}
-          {typeSummary.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-lg font-medium mb-2">Bedroom Type Analysis</h3>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={typeSummary}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="type" />
-                    <YAxis />
-                    <Tooltip 
-                      formatter={(value) => [parseFloat(value as string).toFixed(2), "PSF"]}
-                    />
-                    <Legend />
-                    <Bar
-                      name="Average PSF"
-                      dataKey="avgPsf"
-                      fill="#3b82f6"
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      name="Target PSF"
-                      dataKey="targetPsf"
-                      fill="#10b981"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              
-              <div className="mt-4 overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Bedroom Type</TableHead>
-                      <TableHead>Units</TableHead>
-                      <TableHead>Average PSF</TableHead>
-                      <TableHead>Target PSF</TableHead>
-                      <TableHead>Difference</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {typeSummary.map((summary) => (
-                      <TableRow key={summary.type}>
-                        <TableCell className="font-medium">{summary.type}</TableCell>
-                        <TableCell>{summary.units}</TableCell>
-                        <TableCell>
-                          {summary.avgPsf.toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          {summary.targetPsf.toFixed(2)}
-                        </TableCell>
-                        <TableCell className={
-                          Math.abs(summary.avgPsf - summary.targetPsf) / summary.targetPsf > 0.05
-                            ? "text-destructive"
-                            : "text-green-600"
-                        }>
-                          {(summary.avgPsf - summary.targetPsf).toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
-          
-          {/* Improved Detailed Bedroom Type Summary with Dropdown Selector */}
+          {/* Type Summary Cards */}
           {detailedTypeSummary.length > 0 && (
-            <div className="mt-8">
-              <div className="flex items-center justify-between mb-2">
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium flex items-center gap-2">
-                  <Layers className="h-5 w-5" />
-                  Detailed Bedroom Type Summary
+                  <BedDouble className="h-5 w-5" />
+                  Bedroom Type Summary
                 </h3>
                 
                 <DropdownMenu>
@@ -595,88 +583,193 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                 </DropdownMenu>
               </div>
               
-              <div className="grid grid-cols-1 gap-4">
-                {detailedTypeSummary.map((summary) => (
-                  <Card key={summary.type} className="overflow-hidden">
-                    <CardHeader className="py-3 bg-muted/30">
-                      <CardTitle className="text-md">
-                        {summary.type} ({summary.count} units)
-                      </CardTitle>
-                    </CardHeader>
-                    <div className="grid grid-cols-1 divide-y md:divide-y-0 md:divide-x md:grid-cols-4">
-                      {/* Unit Count - Always show */}
-                      {summaryStats.find(s => s.id === "count")?.enabled && (
-                        <div className="p-4">
-                          <h4 className="text-sm font-medium mb-2">Unit Count</h4>
-                          <p className="text-xl font-medium">{summary.count}</p>
-                        </div>
-                      )}
-                      
-                      {/* PSF Stats */}
-                      {summaryStats.find(s => s.id === "psf")?.enabled && (
-                        <div className="p-4">
-                          <h4 className="text-sm font-medium mb-2">Price Per Square Foot</h4>
-                          <div className="grid grid-cols-3 gap-2 text-sm">
-                            <div>
-                              <p className="text-muted-foreground">Min</p>
-                              <p className="font-medium">{summary.minPsf.toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Avg</p>
-                              <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Max</p>
-                              <p className="font-medium">{summary.maxPsf.toFixed(2)}</p>
-                            </div>
+              {/* Compact Summary Cards */}
+              {summaryCardView === "compact" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {detailedTypeSummary.map((summary) => (
+                    <Card key={summary.type} className="border border-muted">
+                      <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-md font-semibold">
+                          {summary.type}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Units</p>
+                            <p className="font-medium">{summary.count}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Avg Size</p>
+                            <p className="font-medium">{summary.avgSize.toFixed(1)} sqft</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Avg PSF</p>
+                            <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Avg Price</p>
+                            <p className="font-medium">{summary.avgPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
                           </div>
                         </div>
-                      )}
-                      
-                      {/* Price Stats */}
-                      {summaryStats.find(s => s.id === "price")?.enabled && (
-                        <div className="p-4">
-                          <h4 className="text-sm font-medium mb-2">Total Price</h4>
-                          <div className="grid grid-cols-3 gap-2 text-sm">
-                            <div>
-                              <p className="text-muted-foreground">Min</p>
-                              <p className="font-medium">{summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                        
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <Button variant="ghost" size="sm" className="mt-2 w-full text-xs">
+                              View More Details
+                            </Button>
+                          </HoverCardTrigger>
+                          <HoverCardContent className="w-80 p-3">
+                            <div className="grid grid-cols-3 gap-2 text-sm">
+                              <div className="col-span-3">
+                                <p className="text-sm font-semibold mb-1">{summary.type} - {summary.count} units</p>
+                              </div>
+                              <div className="bg-muted/30 p-2 rounded">
+                                <p className="text-xs text-muted-foreground">PSF Range</p>
+                                <p className="text-xs font-medium mt-1">{summary.minPsf.toFixed(2)} - {summary.maxPsf.toFixed(2)}</p>
+                              </div>
+                              <div className="bg-muted/30 p-2 rounded">
+                                <p className="text-xs text-muted-foreground">Size Range</p>
+                                <p className="text-xs font-medium mt-1">{summary.minSize.toFixed(1)} - {summary.maxSize.toFixed(1)}</p>
+                              </div>
+                              <div className="bg-muted/30 p-2 rounded">
+                                <p className="text-xs text-muted-foreground">Price Range</p>
+                                <p className="text-xs font-medium mt-1">
+                                  {summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})} - {summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-muted-foreground">Avg</p>
-                              <p className="font-medium">{summary.avgPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Max</p>
-                              <p className="font-medium">{summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                          </HoverCardContent>
+                        </HoverCard>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              
+              {/* Detailed Summary Cards - only show if detailed view is selected */}
+              {summaryCardView === "detailed" && (
+                <div className="grid grid-cols-1 gap-4">
+                  {detailedTypeSummary.map((summary) => (
+                    <Card key={summary.type} className="overflow-hidden">
+                      <CardHeader className="py-3 bg-muted/30">
+                        <CardTitle className="text-md">
+                          {summary.type} ({summary.count} units)
+                        </CardTitle>
+                      </CardHeader>
+                      <div className="grid grid-cols-1 divide-y md:divide-y-0 md:divide-x md:grid-cols-4">
+                        {/* Unit Count - Always show */}
+                        {summaryStats.find(s => s.id === "count")?.enabled && (
+                          <div className="p-4">
+                            <h4 className="text-sm font-medium mb-2">Unit Count</h4>
+                            <p className="text-xl font-medium">{summary.count}</p>
+                          </div>
+                        )}
+                        
+                        {/* PSF Stats */}
+                        {summaryStats.find(s => s.id === "psf")?.enabled && (
+                          <div className="p-4">
+                            <h4 className="text-sm font-medium mb-2">Price Per Square Foot</h4>
+                            <div className="grid grid-cols-3 gap-2 text-sm">
+                              <div>
+                                <p className="text-muted-foreground">Min</p>
+                                <p className="font-medium">{summary.minPsf.toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Avg</p>
+                                <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Max</p>
+                                <p className="font-medium">{summary.maxPsf.toFixed(2)}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                      
-                      {/* Size Stats */}
-                      {summaryStats.find(s => s.id === "size")?.enabled && (
-                        <div className="p-4">
-                          <h4 className="text-sm font-medium mb-2">Unit Size (sqft)</h4>
-                          <div className="grid grid-cols-3 gap-2 text-sm">
-                            <div>
-                              <p className="text-muted-foreground">Min</p>
-                              <p className="font-medium">{summary.minSize.toFixed(1)}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Avg</p>
-                              <p className="font-medium">{summary.avgSize.toFixed(1)}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Max</p>
-                              <p className="font-medium">{summary.maxSize.toFixed(1)}</p>
+                        )}
+                        
+                        {/* Price Stats */}
+                        {summaryStats.find(s => s.id === "price")?.enabled && (
+                          <div className="p-4">
+                            <h4 className="text-sm font-medium mb-2">Total Price</h4>
+                            <div className="grid grid-cols-3 gap-2 text-sm">
+                              <div>
+                                <p className="text-muted-foreground">Min</p>
+                                <p className="font-medium">{summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Avg</p>
+                                <p className="font-medium">{summary.avgPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Max</p>
+                                <p className="font-medium">{summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                ))}
+                        )}
+                        
+                        {/* Size Stats */}
+                        {summaryStats.find(s => s.id === "size")?.enabled && (
+                          <div className="p-4">
+                            <h4 className="text-sm font-medium mb-2">Unit Size (sqft)</h4>
+                            <div className="grid grid-cols-3 gap-2 text-sm">
+                              <div>
+                                <p className="text-muted-foreground">Min</p>
+                                <p className="font-medium">{summary.minSize.toFixed(1)}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Avg</p>
+                                <p className="font-medium">{summary.avgSize.toFixed(1)}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Max</p>
+                                <p className="font-medium">{summary.maxSize.toFixed(1)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              
+              {/* Chart is now optional and shown below the cards */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-medium flex items-center gap-2">
+                    <ChartBar className="h-5 w-5" />
+                    PSF Target Comparison
+                  </h3>
+                </div>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={typeSummary}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="type" />
+                      <YAxis />
+                      <Tooltip 
+                        formatter={(value) => [parseFloat(value as string).toFixed(2), "PSF"]}
+                      />
+                      <Legend />
+                      <Bar
+                        name="Average PSF"
+                        dataKey="avgPsf"
+                        fill="#3b82f6"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        name="Target PSF"
+                        dataKey="targetPsf"
+                        fill="#10b981"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           )}
@@ -876,70 +969,83 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </TableHead>
                   <TableHead
                     className="cursor-pointer"
-                    onClick={() => handleSort("totalPrice")}
+                    onClick={() => handleSort("finalTotalPrice")}
                   >
                     <div className="flex items-center">
-                      Total Price <ArrowUpDown className="ml-1 h-4 w-4" />
+                      Final Price <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center">
+                      Final PSF
                     </div>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUnits.map((unit, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{unit.name}</TableCell>
-                    <TableCell>{unit.type || "—"}</TableCell>
-                    <TableCell>{unit.floor || "—"}</TableCell>
-                    <TableCell>{unit.view || "—"}</TableCell>
-                    <TableCell>{unit.sellArea || "0"}</TableCell>
-                    <TableCell>{unit.acArea || "0"}</TableCell>
-                    <TableCell>
-                      {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0"}
-                    </TableCell>
-                    <TableCell>
-                      {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0"}%
-                    </TableCell>
-                    <TableCell>
-                      {unit.basePsf.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.floorAdjustment.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.viewPsfAdjustment.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.calculatedPsf.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.basePriceComponent.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {unit.floorPriceComponent.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {unit.viewPriceComponent.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {unit.totalPrice.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredUnits.map((unit, index) => {
+                  const sellArea = parseFloat(unit.sellArea) || 0;
+                  const finalPsf = sellArea > 0 ? unit.finalTotalPrice / sellArea : 0;
+                  
+                  return (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{unit.name}</TableCell>
+                      <TableCell>{unit.type || "—"}</TableCell>
+                      <TableCell>{unit.floor || "—"}</TableCell>
+                      <TableCell>{unit.view || "—"}</TableCell>
+                      <TableCell>{unit.sellArea || "0"}</TableCell>
+                      <TableCell>{unit.acArea || "0"}</TableCell>
+                      <TableCell>
+                        {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0"}
+                      </TableCell>
+                      <TableCell>
+                        {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0"}%
+                      </TableCell>
+                      <TableCell>
+                        {unit.basePsf.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        {unit.floorAdjustment.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        {unit.viewPsfAdjustment.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        {unit.calculatedPsf.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        {unit.basePriceComponent.toLocaleString(undefined, {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0,
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        {unit.floorPriceComponent.toLocaleString(undefined, {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0,
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        {unit.viewPriceComponent.toLocaleString(undefined, {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0,
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        {unit.finalTotalPrice.toLocaleString(undefined, {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0,
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        {finalPsf.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {filteredUnits.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={16} className="text-center py-4">
+                    <TableCell colSpan={17} className="text-center py-4">
                       No units match your filter criteria
                     </TableCell>
                   </TableRow>
