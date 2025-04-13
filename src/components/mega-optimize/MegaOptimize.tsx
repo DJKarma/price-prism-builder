@@ -33,6 +33,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   const [selectedTypes, setSelectedTypes] = useState<string[]>(
     pricingConfig.bedroomTypePricing.map((type: any) => type.type)
   );
+  const [processedData, setProcessedData] = useState<any[]>([]);
 
   const {
     isOptimizing,
@@ -46,6 +47,101 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     revertOptimization
   } = useOptimizer(data, pricingConfig, onOptimized);
   
+  // Process data to ensure all units have finalPsf and finalTotalPrice
+  useEffect(() => {
+    if (!data || !data.length || !pricingConfig) return;
+    
+    const processed = data.map((unit) => {
+      // Find the bedroom type config for this unit
+      const bedroomType = pricingConfig.bedroomTypePricing.find(
+        (b: any) => b.type === unit.type
+      );
+      
+      // Find view adjustment for this unit
+      const viewAdjustment = pricingConfig.viewPricing.find(
+        (v: any) => v.view === unit.view
+      );
+      
+      const basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
+      const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
+      
+      // Calculate floor adjustment based on rules
+      let floorAdjustment = 0;
+      const floorLevel = parseInt(unit.floor) || 1;
+      
+      const sortedFloorRules = [...pricingConfig.floorRiseRules].sort(
+        (a: any, b: any) => a.startFloor - b.startFloor
+      );
+      
+      let cumulativeAdjustment = 0;
+      for (const rule of sortedFloorRules) {
+        const ruleEnd = rule.endFloor === null ? 999 : rule.endFloor;
+        if (floorLevel > ruleEnd) {
+          for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
+            cumulativeAdjustment += rule.psfIncrement;
+            if (rule.jumpEveryFloor && rule.jumpIncrement) {
+              if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+                cumulativeAdjustment += rule.jumpIncrement;
+              }
+            }
+          }
+        } else if (floorLevel >= rule.startFloor) {
+          for (let floor = Math.max(rule.startFloor, 1); floor <= floorLevel; floor++) {
+            cumulativeAdjustment += rule.psfIncrement;
+            if (rule.jumpEveryFloor && rule.jumpIncrement) {
+              if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+                cumulativeAdjustment += rule.jumpIncrement;
+              }
+            }
+          }
+          break;
+        }
+      }
+      
+      floorAdjustment = cumulativeAdjustment;
+      
+      // Calculate base PSF with all adjustments
+      const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment;
+      
+      const sellArea = parseFloat(unit.sellArea) || 0;
+      
+      // Calculate total price and final PSF
+      const totalPrice = basePsfWithAdjustments * sellArea;
+      const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+      const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
+      
+      // Create a processed unit with all required fields
+      const processedUnit = {
+        ...unit,
+        basePsf,
+        floorAdjustment,
+        viewPsfAdjustment,
+        totalPrice,
+        finalTotalPrice,
+        finalPsf
+      };
+      
+      return processedUnit;
+    });
+    
+    // Log a sample of processed data for debugging
+    if (processed.length > 0) {
+      console.log("Sample processed unit data:", {
+        name: processed[0].name,
+        type: processed[0].type,
+        sellArea: processed[0].sellArea,
+        basePsf: processed[0].basePsf,
+        floorAdjustment: processed[0].floorAdjustment,
+        viewPsfAdjustment: processed[0].viewPsfAdjustment,
+        totalPrice: processed[0].totalPrice,
+        finalTotalPrice: processed[0].finalTotalPrice,
+        finalPsf: processed[0].finalPsf
+      });
+    }
+    
+    setProcessedData(processed);
+  }, [data, pricingConfig]);
+
   // Run optimization with selected types and update pricingConfig with optimizedTypes
   const handleRunOptimization = () => {
     if (selectedTypes.length === 0) {
@@ -159,7 +255,8 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                 )}
               </div>
             </div>
-            <PricingSummary data={data} showDollarSign={false} />
+            {/* Use the processed data for PricingSummary instead of raw data */}
+            <PricingSummary data={processedData.length > 0 ? processedData : data} showDollarSign={false} />
           </div>
         </div>
       </CardContent>
