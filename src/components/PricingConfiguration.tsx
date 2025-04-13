@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -18,7 +19,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Settings, PlusCircle, MinusCircle } from "lucide-react";
+import { Settings, PlusCircle, MinusCircle, Ruler, Building2, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 interface PricingConfigurationProps {
@@ -229,231 +230,242 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
+    <Card className="w-full border-2 border-indigo-100 shadow-md">
+      <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50">
+        <CardTitle className="flex items-center gap-2 text-xl text-indigo-800">
+          <Settings className="h-5 w-5 text-indigo-600" />
           Pricing Configuration
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-indigo-600">
           Set up base pricing and adjustment factors
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div>
-          <Label htmlFor="base-psf">Base PSF ($/sqft)</Label>
+      <CardContent className="space-y-8 p-6">
+        <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
+          <Label htmlFor="base-psf" className="text-lg font-medium text-indigo-700 mb-2 block">Base PSF (Per Sqft)</Label>
           <Input
             id="base-psf"
             type="number"
             min="0"
             value={basePsf}
             onChange={handleBasePsfChange}
-            className="w-full md:w-64"
+            className="w-full md:w-64 border-indigo-200 focus:border-indigo-400"
           />
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-indigo-500 mt-2">
             This is the starting point for all price calculations
           </p>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium">Floor Rise PSF Rules</h3>
+        <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-indigo-700 flex items-center">
+              <Ruler className="h-5 w-5 mr-2 text-indigo-600" />
+              Floor Rise PSF Rules
+            </h3>
             <Button
               variant="outline"
               size="sm"
               onClick={handleAddFloorRiseRule}
-              className="h-8"
+              className="h-9 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-indigo-700"
             >
-              <PlusCircle className="h-4 w-4 mr-1" /> Add Rule
+              <PlusCircle className="h-4 w-4 mr-2 text-indigo-600" /> Add Rule
             </Button>
           </div>
           
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Start Floor</TableHead>
-                <TableHead>End Floor</TableHead>
-                <TableHead>PSF Increment</TableHead>
-                <TableHead>Jump Every</TableHead>
-                <TableHead>Jump PSF</TableHead>
-                <TableHead className="w-24">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {floorRiseRules.map((rule, index) => (
-                <TableRow key={index}>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={rule.startFloor}
-                      onChange={(e) =>
-                        updateFloorRiseRule(
-                          index,
-                          "startFloor",
-                          parseInt(e.target.value) || 1
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min={rule.startFloor}
-                      value={rule.endFloor === null ? '' : rule.endFloor}
-                      placeholder={`${maxFloor} (Default)`}
-                      onChange={(e) => {
-                        const value = e.target.value.trim() === '' ? null : parseInt(e.target.value);
-                        updateFloorRiseRule(
-                          index,
-                          "endFloor",
-                          value
-                        );
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      value={rule.psfIncrement}
-                      onChange={(e) =>
-                        updateFloorRiseRule(
-                          index,
-                          "psfIncrement",
-                          parseFloat(e.target.value) || 0
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={rule.jumpEveryFloor || 10}
-                      onChange={(e) =>
-                        updateFloorRiseRule(
-                          index,
-                          "jumpEveryFloor",
-                          parseInt(e.target.value) || 10
-                        )
-                      }
-                      placeholder="e.g., 10"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      value={rule.jumpIncrement || 20}
-                      onChange={(e) =>
-                        updateFloorRiseRule(
-                          index,
-                          "jumpIncrement",
-                          parseFloat(e.target.value) || 0
-                        )
-                      }
-                      placeholder="e.g., 20"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveFloorRiseRule(index)}
-                    >
-                      <MinusCircle className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        {bedroomTypes.length > 0 && (
-          <div>
-            <h3 className="text-sm font-medium mb-3">Bedroom Type Pricing</h3>
+          <div className="rounded-lg border border-indigo-100 overflow-hidden">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-indigo-50">
                 <TableRow>
-                  <TableHead>Bedroom Type</TableHead>
-                  <TableHead>Base PSF</TableHead>
-                  <TableHead>Target Average PSF</TableHead>
+                  <TableHead className="text-indigo-700">Start Floor</TableHead>
+                  <TableHead className="text-indigo-700">End Floor</TableHead>
+                  <TableHead className="text-indigo-700">PSF Increment</TableHead>
+                  <TableHead className="text-indigo-700">Jump Every</TableHead>
+                  <TableHead className="text-indigo-700">Jump PSF</TableHead>
+                  <TableHead className="w-24 text-indigo-700">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bedroomTypes.map((type, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{type.type}</TableCell>
+                {floorRiseRules.map((rule, index) => (
+                  <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
                     <TableCell>
                       <Input
                         type="number"
-                        min="0"
-                        value={type.basePsf}
+                        min="1"
+                        value={rule.startFloor}
                         onChange={(e) =>
-                          updateBedroomTypePrice(
+                          updateFloorRiseRule(
                             index,
-                            "basePsf",
-                            parseFloat(e.target.value)
+                            "startFloor",
+                            parseInt(e.target.value) || 1
                           )
                         }
+                        className="border-indigo-200"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
-                        min="0"
-                        value={type.targetAvgPsf}
-                        onChange={(e) =>
-                          updateBedroomTypePrice(
+                        min={rule.startFloor}
+                        value={rule.endFloor === null ? '' : rule.endFloor}
+                        placeholder={`${maxFloor} (Default)`}
+                        onChange={(e) => {
+                          const value = e.target.value.trim() === '' ? null : parseInt(e.target.value);
+                          updateFloorRiseRule(
                             index,
-                            "targetAvgPsf",
-                            parseFloat(e.target.value)
+                            "endFloor",
+                            value
+                          );
+                        }}
+                        className="border-indigo-200"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={rule.psfIncrement}
+                        onChange={(e) =>
+                          updateFloorRiseRule(
+                            index,
+                            "psfIncrement",
+                            parseFloat(e.target.value) || 0
                           )
                         }
+                        className="border-indigo-200"
                       />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={rule.jumpEveryFloor || 10}
+                        onChange={(e) =>
+                          updateFloorRiseRule(
+                            index,
+                            "jumpEveryFloor",
+                            parseInt(e.target.value) || 10
+                          )
+                        }
+                        placeholder="e.g., 10"
+                        className="border-indigo-200"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={rule.jumpIncrement || 20}
+                        onChange={(e) =>
+                          updateFloorRiseRule(
+                            index,
+                            "jumpIncrement",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
+                        placeholder="e.g., 20"
+                        className="border-indigo-200"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveFloorRiseRule(index)}
+                        className="hover:bg-red-50 hover:text-red-500"
+                      >
+                        <MinusCircle className="h-4 w-4 text-red-400 hover:text-red-500" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+          </div>
+        </div>
+
+        {bedroomTypes.length > 0 && (
+          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
+            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
+              <Building2 className="h-5 w-5 mr-2 text-indigo-600" />
+              Bedroom Type Pricing
+            </h3>
+            <div className="rounded-lg border border-indigo-100 overflow-hidden">
+              <Table>
+                <TableHeader className="bg-indigo-50">
+                  <TableRow>
+                    <TableHead className="text-indigo-700">Bedroom Type</TableHead>
+                    <TableHead className="text-indigo-700">Base PSF</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bedroomTypes.map((type, index) => (
+                    <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
+                      <TableCell className="font-medium">{type.type}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={type.basePsf}
+                          onChange={(e) =>
+                            updateBedroomTypePrice(
+                              index,
+                              "basePsf",
+                              parseFloat(e.target.value)
+                            )
+                          }
+                          className="border-indigo-200"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
 
         {viewTypes.length > 0 && (
-          <div>
-            <h3 className="text-sm font-medium mb-3">View Pricing Adjustments</h3>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>View Type</TableHead>
-                  <TableHead>PSF Adjustment</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {viewTypes.map((view, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{view.view}</TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={view.psfAdjustment}
-                        onChange={(e) =>
-                          updateViewPricing(
-                            index,
-                            parseFloat(e.target.value)
-                          )
-                        }
-                      />
-                    </TableCell>
+          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
+            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
+              <Eye className="h-5 w-5 mr-2 text-indigo-600" />
+              View Pricing Adjustments
+            </h3>
+            <div className="rounded-lg border border-indigo-100 overflow-hidden">
+              <Table>
+                <TableHeader className="bg-indigo-50">
+                  <TableRow>
+                    <TableHead className="text-indigo-700">View Type</TableHead>
+                    <TableHead className="text-indigo-700">PSF Adjustment</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {viewTypes.map((view, index) => (
+                    <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
+                      <TableCell className="font-medium">{view.view}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={view.psfAdjustment}
+                          onChange={(e) =>
+                            updateViewPricing(
+                              index,
+                              parseFloat(e.target.value)
+                            )
+                          }
+                          className="border-indigo-200"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-end">
-        <Button onClick={handleSubmit} className="w-full sm:w-auto">
+      <CardFooter className="flex justify-end p-6 bg-gradient-to-r from-indigo-50/70 to-blue-50/70">
+        <Button 
+          onClick={handleSubmit} 
+          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
+        >
           Apply Configuration
         </Button>
       </CardFooter>
