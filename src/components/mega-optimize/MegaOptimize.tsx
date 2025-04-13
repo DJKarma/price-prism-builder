@@ -99,8 +99,13 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         });
         
         // Calculate total PSF for this unit
-        const unitPsf = type.basePsf + floorPremium + viewPremium;
+        const sellArea = parseFloat(unit.sellArea) || 0;
+        const rawPsf = type.basePsf + floorPremium + viewPremium;
+        const totalPrice = rawPsf * sellArea;
+        const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+        const unitPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
         totalPsf += unitPsf;
+
       });
       
       const avgPsf = unitCount > 0 ? totalPsf / unitCount : 0;
