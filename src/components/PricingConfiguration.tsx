@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -30,6 +31,8 @@ export interface FloorRiseRule {
   startFloor: number;
   endFloor: number;
   psfIncrement: number;
+  jumpEveryFloor?: number;
+  jumpIncrement?: number;
 }
 
 export interface BedroomTypePricing {
@@ -73,7 +76,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
 }) => {
   const [basePsf, setBasePsf] = useState<number>(1000);
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
-    { startFloor: 1, endFloor: 10, psfIncrement: 10 },
+    { startFloor: 1, endFloor: 10, psfIncrement: 10, jumpEveryFloor: 10, jumpIncrement: 20 },
   ]);
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
@@ -137,6 +140,8 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
         startFloor: newStartFloor,
         endFloor: newStartFloor + 9,
         psfIncrement: 10,
+        jumpEveryFloor: 10,
+        jumpIncrement: 20,
       },
     ]);
   };
@@ -248,6 +253,8 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                 <TableHead>Start Floor</TableHead>
                 <TableHead>End Floor</TableHead>
                 <TableHead>PSF Increment</TableHead>
+                <TableHead>Jump Every</TableHead>
+                <TableHead>Jump PSF</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -293,6 +300,35 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                           parseFloat(e.target.value)
                         )
                       }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={rule.jumpEveryFloor || 10}
+                      onChange={(e) =>
+                        updateFloorRiseRule(
+                          index,
+                          "jumpEveryFloor",
+                          parseInt(e.target.value)
+                        )
+                      }
+                      placeholder="e.g., 10"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      value={rule.jumpIncrement || 20}
+                      onChange={(e) =>
+                        updateFloorRiseRule(
+                          index,
+                          "jumpIncrement",
+                          parseFloat(e.target.value)
+                        )
+                      }
+                      placeholder="e.g., 20"
                     />
                   </TableCell>
                   <TableCell>

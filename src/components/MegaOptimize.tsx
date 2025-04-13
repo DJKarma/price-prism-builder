@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -43,6 +43,11 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     ) / pricingConfig.bedroomTypePricing.length
   );
   
+  // Update the isOptimized state when config changes
+  useEffect(() => {
+    setIsOptimized(!!pricingConfig.isOptimized);
+  }, [pricingConfig]);
+  
   const currentOverallPsf = calculateOverallAveragePsf(data, pricingConfig);
   
   const runMegaOptimization = async () => {
@@ -69,6 +74,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
           psfAdjustment: result.optimizedParams.viewAdjustments[view.view] || view.psfAdjustment,
           originalPsfAdjustment: view.originalPsfAdjustment || view.psfAdjustment // Store original value if not already stored
         })),
+        targetOverallPsf: targetPsf,
         isOptimized: true
       };
       
