@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -68,7 +69,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "ascending" | "descending";
-  } | null>(null);
+  }>({ key: "floor", direction: "ascending" }); // Set default sort to floor ascending
   const [filters, setFilters] = useState<Record<string, string>>({
     type: "",
     view: "",
@@ -154,6 +155,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       
       const totalPrice = basePsfWithAdjustments * sellArea;
       const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+      
+      // Calculate finalPsf exactly as in PricingSummary - based on finalTotalPrice / sellArea
       const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
       
       const basePriceComponent = basePsf * sellArea;
@@ -390,7 +393,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </div>
           </div>
 
-          <FixedHeaderTable maxHeight="650px">
+          <FixedHeaderTable maxHeight="650px" className="scrollbar-always-visible">
             <Table>
               <TableHeader>
                 <TableRow>
