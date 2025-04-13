@@ -25,7 +25,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { PlusCircle, MinusCircle, ChevronDown, ChevronUp } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 import { calculateFloorPremium } from "@/utils/psfOptimizer";
 
 export interface PremiumEditorProps {
@@ -142,7 +142,8 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
     };
     
     onPricingConfigChange(processedConfig);
-    toast.success("Changes Applied", {
+    toast({
+      title: "Changes Applied",
       description: "Premium values have been updated and prices recalculated."
     });
   };
