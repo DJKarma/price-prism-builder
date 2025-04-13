@@ -22,7 +22,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
     setIsOptimized(!!pricingConfig.isOptimized);
   }, [data, pricingConfig]);
   
-  const runMegaOptimization = async () => {
+  const runMegaOptimization = async (selectedTypes: string[] = []) => {
     setIsOptimizing(true);
     
     try {
@@ -40,6 +40,13 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         floorRiseRules: processedFloorRules
       };
       
+      // Filter bedroom types if specific types are selected
+      if (selectedTypes.length > 0) {
+        configWithProcessedRules.bedroomTypePricing = configWithProcessedRules.bedroomTypePricing.filter(
+          (type: any) => selectedTypes.includes(type.type)
+        );
+      }
+      
       let result;
       let optimizedConfig;
       
@@ -51,11 +58,17 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         optimizedConfig = {
           ...pricingConfig,
           basePsf: pricingConfig.basePsf, // Keep original base PSF
-          bedroomTypePricing: pricingConfig.bedroomTypePricing.map((type: any) => ({
-            ...type,
-            basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
-            originalBasePsf: type.originalBasePsf || type.basePsf // Store original value if not already stored
-          })),
+          bedroomTypePricing: pricingConfig.bedroomTypePricing.map((type: any) => {
+            // Only optimize selected types (or all if none specified)
+            if (selectedTypes.length === 0 || selectedTypes.includes(type.type)) {
+              return {
+                ...type,
+                basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
+                originalBasePsf: type.originalBasePsf || type.basePsf // Store original value if not already stored
+              };
+            }
+            return type; // Keep type as is if not selected for optimization
+          }),
           viewPricing: pricingConfig.viewPricing.map((view: any) => ({
             ...view,
             psfAdjustment: result.optimizedParams.viewAdjustments[view.view] || view.psfAdjustment,
@@ -73,11 +86,17 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         optimizedConfig = {
           ...pricingConfig,
           basePsf: pricingConfig.basePsf, // Keep original base PSF
-          bedroomTypePricing: pricingConfig.bedroomTypePricing.map((type: any) => ({
-            ...type,
-            basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
-            originalBasePsf: type.originalBasePsf || type.basePsf // Store original value if not already stored
-          })),
+          bedroomTypePricing: pricingConfig.bedroomTypePricing.map((type: any) => {
+            // Only optimize selected types (or all if none specified)
+            if (selectedTypes.length === 0 || selectedTypes.includes(type.type)) {
+              return {
+                ...type,
+                basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
+                originalBasePsf: type.originalBasePsf || type.basePsf // Store original value if not already stored
+              };
+            }
+            return type; // Keep type as is if not selected for optimization
+          }),
           viewPricing: pricingConfig.viewPricing.map((view: any) => ({
             ...view,
             psfAdjustment: result.optimizedParams.viewAdjustments[view.view] || view.psfAdjustment,
@@ -96,8 +115,13 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       setCurrentOverallPsf(calculateOverallAveragePsf(data, optimizedConfig));
       setIsOptimized(true);
       
+      // Determine optimization type message
+      const optimizationTypeMsg = selectedTypes.length > 0 
+        ? `for ${selectedTypes.length} bedroom types` 
+        : "for all bedroom types";
+      
       toast({
-        title: `${optimizationMode === "basePsf" ? "Base PSF" : "Full Parameter"} Optimization Complete`,
+        title: `Mega Optimization Complete ${optimizationTypeMsg}`,
         description: `Optimized from ${result.initialAvgPsf.toFixed(2)} to ${result.finalAvgPsf.toFixed(2)} PSF in ${result.iterations} iterations.`,
       });
     } catch (error) {

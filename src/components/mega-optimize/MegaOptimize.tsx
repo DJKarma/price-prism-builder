@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
   Card, 
@@ -29,6 +29,10 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   pricingConfig, 
   onOptimized 
 }) => {
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(
+    pricingConfig.bedroomTypePricing.map((type: any) => type.type)
+  );
+
   const {
     isOptimizing,
     isOptimized,
@@ -45,6 +49,16 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   useEffect(() => {
     // The useOptimizer hook now handles this automatically
   }, [pricingConfig]);
+
+  // Handle selected types changes from BedroomTypeSummary
+  const handleTypesChange = (types: string[]) => {
+    setSelectedTypes(types);
+  };
+  
+  // Run optimization with selected types
+  const handleRunOptimization = () => {
+    runMegaOptimization(selectedTypes);
+  };
   
   return (
     <Card className="mb-6 border-2 border-indigo-100">
@@ -99,7 +113,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               isOptimizing={isOptimizing}
               isOptimized={isOptimized}
               onTargetPsfChange={handleTargetPsfChange}
-              onOptimize={runMegaOptimization}
+              onOptimize={handleRunOptimization}
               onRevert={revertOptimization}
             />
             
@@ -116,6 +130,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
             <BedroomTypeSummary 
               bedroomTypes={pricingConfig.bedroomTypePricing}
               isOptimized={isOptimized}
+              onSelectedTypesChange={handleTypesChange}
             />
           </div>
         </div>

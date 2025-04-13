@@ -31,11 +31,13 @@ interface BedroomType {
 interface BedroomTypeSummaryProps {
   bedroomTypes: BedroomType[];
   isOptimized: boolean;
+  onSelectedTypesChange?: (selectedTypes: string[]) => void;
 }
 
 const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
   bedroomTypes,
-  isOptimized
+  isOptimized,
+  onSelectedTypesChange
 }) => {
   const [selectedTypes, setSelectedTypes] = useState<string[]>(
     bedroomTypes.map(type => type.type)
@@ -48,6 +50,12 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
       return filteredTypes.length ? filteredTypes : allTypes;
     });
   }, [bedroomTypes]);
+
+  useEffect(() => {
+    if (onSelectedTypesChange) {
+      onSelectedTypesChange(selectedTypes);
+    }
+  }, [selectedTypes, onSelectedTypesChange]);
 
   const handleTypeToggle = (type: string) => {
     setSelectedTypes(prev => 
@@ -215,4 +223,3 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
 };
 
 export default BedroomTypeSummary;
-

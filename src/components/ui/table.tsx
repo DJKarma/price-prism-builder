@@ -1,13 +1,13 @@
 
 import * as React from "react"
-
 import { cn } from "@/lib/utils"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const Table = React.forwardRef<
   HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
+  React.HTMLAttributes<HTMLTableElement> & { maxHeight?: string }
+>(({ className, maxHeight, ...props }, ref) => (
+  <div className="relative w-full overflow-auto border rounded-md">
     <table
       ref={ref}
       className={cn("w-full caption-bottom text-sm", className)}
@@ -21,19 +21,25 @@ const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
+  <thead 
+    ref={ref} 
+    className={cn("bg-muted/50 sticky top-0 z-10", className)} 
+    {...props} 
+  />
 ))
 TableHeader.displayName = "TableHeader"
 
 const TableBody = React.forwardRef<
   HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <tbody
-    ref={ref}
-    className={cn("[&_tr:last-child]:border-0", className)}
-    {...props}
-  />
+  React.HTMLAttributes<HTMLTableSectionElement> & { maxHeight?: string }
+>(({ className, maxHeight = "500px", ...props }, ref) => (
+  <ScrollArea className={`max-h-[${maxHeight}]`}>
+    <tbody
+      ref={ref}
+      className={cn("[&_tr:last-child]:border-0", className)}
+      {...props}
+    />
+  </ScrollArea>
 ))
 TableBody.displayName = "TableBody"
 
@@ -44,7 +50,7 @@ const TableFooter = React.forwardRef<
   <tfoot
     ref={ref}
     className={cn(
-      "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
+      "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0 sticky bottom-0",
       className
     )}
     {...props}
