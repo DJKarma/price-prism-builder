@@ -29,6 +29,8 @@ interface FloorRiseRule {
   startFloor: number;
   endFloor: number;
   psfIncrement: number;
+  jumpIncrement?: number;
+  jumpEveryFloor?: number;
 }
 
 interface PricingConfig {
@@ -36,6 +38,7 @@ interface PricingConfig {
   bedroomTypePricing: BedroomTypePricing[];
   viewPricing: ViewPricing[];
   floorRiseRules: FloorRiseRule[];
+  targetOverallPsf?: number;
 }
 
 /**
@@ -44,7 +47,11 @@ interface PricingConfig {
 const calculateUnitPsf = (
   unit: Unit, 
   pricingConfig: PricingConfig, 
-  overrideBasePsf?: number
+  overrideParams?: {
+    basePsf?: number,
+    viewAdjustments?: Record<string, number>,
+    floorRules?: FloorRiseRule[]
+  }
 ): number => {
   // Find bedroom type pricing
   const bedroomType = pricingConfig.bedroomTypePricing.find(
@@ -52,22 +59,32 @@ const calculateUnitPsf = (
   );
   
   // Use override base PSF if provided, otherwise use configured value
-  const basePsf = overrideBasePsf !== undefined 
-    ? overrideBasePsf 
+  const basePsf = overrideParams?.basePsf !== undefined 
+    ? overrideParams.basePsf 
     : (bedroomType?.basePsf || pricingConfig.basePsf);
   
   // Find view adjustment
-  const viewAdjustment = pricingConfig.viewPricing.find(
-    (v) => v.view === unit.view
-  );
-  const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
+  const unitView = unit.view as string;
+  let viewPsfAdjustment = 0;
+  
+  if (overrideParams?.viewAdjustments && unitView in overrideParams.viewAdjustments) {
+    viewPsfAdjustment = overrideParams.viewAdjustments[unitView];
+  } else {
+    const viewAdjustment = pricingConfig.viewPricing.find(
+      (v) => v.view === unitView
+    );
+    viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
+  }
   
   // Calculate floor adjustment - cumulative
   let floorAdjustment = 0;
   const floorLevel = parseInt(unit.floor as string) || 1;
   
+  // Use provided floor rules or default from config
+  const floorRules = overrideParams?.floorRules || pricingConfig.floorRiseRules;
+  
   // Sort floor rules by startFloor to process them in order
-  const sortedFloorRules = [...pricingConfig.floorRiseRules].sort(
+  const sortedFloorRules = [...floorRules].sort(
     (a, b) => a.startFloor - b.startFloor
   );
   
@@ -76,18 +93,44 @@ const calculateUnitPsf = (
   let cumulativeAdjustment = 0;
   
   for (const rule of sortedFloorRules) {
+    const ruleStartFloor = Math.max(currentFloor, rule.startFloor);
+    
     // If we already passed this rule's range, apply full adjustment
     if (floorLevel > rule.endFloor) {
       // Apply adjustment for all floors in this range
-      const floorsInRange = rule.endFloor - Math.max(currentFloor, rule.startFloor) + 1;
-      cumulativeAdjustment += floorsInRange * rule.psfIncrement;
+      for (let floor = ruleStartFloor; floor <= rule.endFloor; floor++) {
+        // Check if this is a jump floor
+        const isJumpFloor = rule.jumpEveryFloor && rule.jumpIncrement && 
+                           ((floor - rule.startFloor) % rule.jumpEveryFloor === 0) && 
+                           floor > rule.startFloor;
+                           
+        // Add the regular increment
+        cumulativeAdjustment += rule.psfIncrement;
+        
+        // Add jump increment if applicable
+        if (isJumpFloor) {
+          cumulativeAdjustment += rule.jumpIncrement || 0;
+        }
+      }
       currentFloor = rule.endFloor + 1;
     } 
     // If we're within this rule's range
     else if (floorLevel >= rule.startFloor) {
       // Apply adjustment for floors up to the unit's floor
-      const floorsInRange = floorLevel - Math.max(currentFloor, rule.startFloor) + 1;
-      cumulativeAdjustment += floorsInRange * rule.psfIncrement;
+      for (let floor = ruleStartFloor; floor <= floorLevel; floor++) {
+        // Check if this is a jump floor
+        const isJumpFloor = rule.jumpEveryFloor && rule.jumpIncrement && 
+                           ((floor - rule.startFloor) % rule.jumpEveryFloor === 0) && 
+                           floor > rule.startFloor;
+                           
+        // Add the regular increment
+        cumulativeAdjustment += rule.psfIncrement;
+        
+        // Add jump increment if applicable
+        if (isJumpFloor) {
+          cumulativeAdjustment += rule.jumpIncrement || 0;
+        }
+      }
       break;
     }
   }
@@ -114,7 +157,49 @@ const calculateAveragePsf = (
   
   // Calculate PSF for each unit with the test base PSF
   const psfValues = typeUnits.map(unit => {
-    const psf = calculateUnitPsf(unit, pricingConfig, testBasePsf);
+    const psf = calculateUnitPsf(unit, pricingConfig, { basePsf: testBasePsf });
+    const sellArea = parseFloat(unit.sellArea as string) || 0;
+    const totalPrice = psf * sellArea;
+    // Ceiling to nearest 1000
+    const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+    // Final PSF based on ceiled price
+    return sellArea > 0 ? finalTotalPrice / sellArea : 0;
+  });
+  
+  // Calculate average PSF
+  return psfValues.reduce((sum, psf) => sum + psf, 0) / psfValues.length;
+};
+
+/**
+ * Calculates the overall average PSF across all units
+ */
+const calculateOverallAveragePsf = (
+  units: Unit[], 
+  pricingConfig: PricingConfig,
+  overrideParams?: {
+    bedroomAdjustments?: Record<string, number>,
+    viewAdjustments?: Record<string, number>,
+    floorRules?: FloorRiseRule[]
+  }
+): number => {
+  if (units.length === 0) return 0;
+  
+  // Calculate PSF for each unit with the overrides
+  const psfValues = units.map(unit => {
+    // Find bedroom type for potential override
+    const unitType = unit.type as string;
+    let overrideBasePsf;
+    
+    if (overrideParams?.bedroomAdjustments && unitType in overrideParams.bedroomAdjustments) {
+      overrideBasePsf = overrideParams.bedroomAdjustments[unitType];
+    }
+    
+    const psf = calculateUnitPsf(unit, pricingConfig, {
+      basePsf: overrideBasePsf,
+      viewAdjustments: overrideParams?.viewAdjustments,
+      floorRules: overrideParams?.floorRules
+    });
+    
     const sellArea = parseFloat(unit.sellArea as string) || 0;
     const totalPrice = psf * sellArea;
     // Ceiling to nearest 1000
@@ -139,6 +224,49 @@ const costFunction = (
 ): number => {
   const avgPsf = calculateAveragePsf(units, pricingConfig, bedroomType, basePsf);
   return Math.pow(avgPsf - targetPsf, 2);
+};
+
+/**
+ * Cost function for mega optimization - optimizes across multiple parameters
+ */
+const megaCostFunction = (
+  params: number[],
+  units: Unit[],
+  pricingConfig: PricingConfig,
+  paramMap: {
+    bedroomTypes: string[],
+    views: string[]
+  },
+  targetPsf: number,
+  originalParams: number[]
+): number => {
+  // First N params are bedroom type adjustments
+  const bedroomAdjustments: Record<string, number> = {};
+  paramMap.bedroomTypes.forEach((type, index) => {
+    bedroomAdjustments[type] = params[index];
+  });
+  
+  // Next M params are view adjustments
+  const viewAdjustments: Record<string, number> = {};
+  paramMap.views.forEach((view, index) => {
+    viewAdjustments[view] = params[paramMap.bedroomTypes.length + index];
+  });
+  
+  // Calculate average PSF with these parameters
+  const avgPsf = calculateOverallAveragePsf(units, pricingConfig, {
+    bedroomAdjustments,
+    viewAdjustments
+  });
+  
+  // Add constraint penalty to avoid large changes
+  const constraintFactor = 0.5;
+  let constraintPenalty = 0;
+  
+  for (let i = 0; i < params.length; i++) {
+    constraintPenalty += constraintFactor * Math.pow(params[i] - originalParams[i], 2);
+  }
+  
+  return Math.pow(avgPsf - targetPsf, 2) + constraintPenalty;
 };
 
 /**
@@ -248,4 +376,169 @@ export const optimizeBasePsf = (
     iterations: iteration,
     initialAvgPsf
   };
+};
+
+/**
+ * Mega Optimization algorithm that adjusts all bedroom types and views
+ * to achieve a target overall PSF
+ */
+export const megaOptimizePsf = (
+  units: Unit[],
+  pricingConfig: PricingConfig,
+  targetOverallPsf: number,
+  options = {
+    learningRate: 0.05,
+    maxIterations: 200,
+    convergenceThreshold: 0.01,
+    epsilon: 0.1,
+    constraintFactor: 0.5
+  }
+): {
+  optimizedParams: {
+    bedroomAdjustments: Record<string, number>,
+    viewAdjustments: Record<string, number>
+  },
+  finalAvgPsf: number,
+  iterations: number,
+  initialAvgPsf: number
+} => {
+  const {
+    learningRate,
+    maxIterations,
+    convergenceThreshold,
+    epsilon,
+    constraintFactor
+  } = options;
+  
+  // Extract all bedroom types and views for optimization
+  const bedroomTypes = pricingConfig.bedroomTypePricing.map(b => b.type);
+  const views = pricingConfig.viewPricing.map(v => v.view);
+  
+  // Parameter mapping for optimization
+  const paramMap = {
+    bedroomTypes,
+    views
+  };
+  
+  // Initial parameter values
+  const initialParams: number[] = [
+    ...bedroomTypes.map(type => {
+      const pricing = pricingConfig.bedroomTypePricing.find(b => b.type === type);
+      return pricing?.basePsf || pricingConfig.basePsf;
+    }),
+    ...views.map(view => {
+      const pricing = pricingConfig.viewPricing.find(v => v.view === view);
+      return pricing?.psfAdjustment || 0;
+    })
+  ];
+  
+  // Current parameters (will be updated during optimization)
+  let currentParams = [...initialParams];
+  
+  // Iteration control
+  let iteration = 0;
+  let previousCost = Infinity;
+  
+  // Calculate initial average PSF
+  const initialAvgPsf = calculateOverallAveragePsf(units, pricingConfig);
+  
+  // Gradient descent loop
+  while (iteration < maxIterations) {
+    // Calculate current cost
+    const currentCost = megaCostFunction(
+      currentParams,
+      units,
+      pricingConfig,
+      paramMap,
+      targetOverallPsf,
+      initialParams
+    );
+    
+    // Check convergence
+    if (Math.abs(previousCost - currentCost) < convergenceThreshold) {
+      break;
+    }
+    
+    // Calculate gradient for each parameter
+    const gradient: number[] = [];
+    
+    for (let i = 0; i < currentParams.length; i++) {
+      // Create parameter vectors for numerical differentiation
+      const paramsPlus = [...currentParams];
+      paramsPlus[i] += epsilon;
+      
+      const paramsMinus = [...currentParams];
+      paramsMinus[i] -= epsilon;
+      
+      // Calculate costs for +/- epsilon
+      const costPlus = megaCostFunction(
+        paramsPlus,
+        units,
+        pricingConfig,
+        paramMap,
+        targetOverallPsf,
+        initialParams
+      );
+      
+      const costMinus = megaCostFunction(
+        paramsMinus,
+        units,
+        pricingConfig,
+        paramMap,
+        targetOverallPsf,
+        initialParams
+      );
+      
+      // Estimate gradient component using central difference
+      gradient.push((costPlus - costMinus) / (2 * epsilon));
+    }
+    
+    // Update parameters using gradient descent
+    for (let i = 0; i < currentParams.length; i++) {
+      currentParams[i] = currentParams[i] - learningRate * gradient[i];
+      
+      // Ensure values don't go negative
+      if (i < bedroomTypes.length) { // Bedroom PSF
+        currentParams[i] = Math.max(currentParams[i], 1);
+      }
+    }
+    
+    // Update previous cost
+    previousCost = currentCost;
+    iteration++;
+  }
+  
+  // Map optimized parameters back to bedroom types and views
+  const bedroomAdjustments: Record<string, number> = {};
+  bedroomTypes.forEach((type, index) => {
+    bedroomAdjustments[type] = currentParams[index];
+  });
+  
+  const viewAdjustments: Record<string, number> = {};
+  views.forEach((view, index) => {
+    viewAdjustments[view] = currentParams[bedroomTypes.length + index];
+  });
+  
+  // Calculate final average PSF
+  const finalAvgPsf = calculateOverallAveragePsf(units, pricingConfig, {
+    bedroomAdjustments,
+    viewAdjustments
+  });
+  
+  return {
+    optimizedParams: {
+      bedroomAdjustments,
+      viewAdjustments
+    },
+    finalAvgPsf,
+    iterations: iteration,
+    initialAvgPsf
+  };
+};
+
+// Export utility functions for use in components
+export {
+  calculateUnitPsf,
+  calculateAveragePsf,
+  calculateOverallAveragePsf
 };
