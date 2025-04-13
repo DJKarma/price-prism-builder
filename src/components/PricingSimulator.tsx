@@ -372,7 +372,7 @@ floorAdjustment = cumulativeAdjustment;
     
     setDetailedTypeSummary(detailedSummaries);
     
-  }, [data, pricingConfig,units]);
+  }, [data, pricingConfig]);
 
   // Apply filters
   useEffect(() => {
