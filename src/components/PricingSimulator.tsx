@@ -18,27 +18,15 @@ import {
   FixedHeaderTable
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   ArrowUpDown,
   Download,
   Filter,
   Table as TableIcon,
   Check,
-  Info,
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import BedroomTypeSelector from "./mega-optimize/BedroomTypeSelector";
 
 interface PricingSimulatorProps {
   data: any[];
@@ -58,6 +46,21 @@ interface UnitWithPricing extends Record<string, any> {
   isOptimized?: boolean; // Flag to indicate if this unit's price was optimized
 }
 
+// Format numbers for display (K/M for thousands/millions) but only for price values, not PSF
+const formatNumber = (num: number, isTotalPrice: boolean = false): string => {
+  if (!isFinite(num)) return "0";
+  
+  if (isTotalPrice) {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(2) + "M";
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(0) + "K";
+    }
+  }
+  
+  return num.toFixed(2);
+};
+
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
   pricingConfig,
@@ -69,21 +72,21 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     key: string;
     direction: "ascending" | "descending";
   }>({ key: "floor", direction: "ascending" }); // Set default sort to floor ascending
-  const [filters, setFilters] = useState<Record<string, string>>({
-    type: "",
-    view: "",
-    floor: "",
-  });
+  
+  // Multi-select filters
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedViews, setSelectedViews] = useState<string[]>([]);
+  const [selectedFloors, setSelectedFloors] = useState<string[]>([]);
 
   useEffect(() => {
-    if (pricingConfig?.optimizedTypes?.length && filters.type === "") {
+    if (pricingConfig?.optimizedTypes?.length && selectedTypes.length === 0) {
       const optimizedTypes = pricingConfig.optimizedTypes;
       if (optimizedTypes.length === 1) {
-        setFilters(prev => ({ ...prev, type: optimizedTypes[0] }));
+        setSelectedTypes([optimizedTypes[0]]);
         toast.info(`Filtered to show optimized bedroom type: ${optimizedTypes[0]}`);
       }
     }
-  }, [pricingConfig?.optimizedTypes, filters.type]);
+  }, [pricingConfig?.optimizedTypes, selectedTypes]);
 
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
@@ -185,15 +188,18 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
   useEffect(() => {
     let result = [...units];
-    if (filters.type) {
-      result = result.filter((unit) => unit.type === filters.type);
+    
+    // Apply multi-select filters
+    if (selectedTypes.length > 0) {
+      result = result.filter((unit) => selectedTypes.includes(unit.type));
     }
-    if (filters.view) {
-      result = result.filter((unit) => unit.view === filters.view);
+    if (selectedViews.length > 0) {
+      result = result.filter((unit) => selectedViews.includes(unit.view));
     }
-    if (filters.floor) {
-      result = result.filter((unit) => unit.floor === filters.floor);
+    if (selectedFloors.length > 0) {
+      result = result.filter((unit) => selectedFloors.includes(unit.floor));
     }
+    
     if (sortConfig) {
       result.sort((a, b) => {
         if (sortConfig.key === 'floor') {
@@ -211,19 +217,12 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       });
     }
     setFilteredUnits(result);
-  }, [units, filters, sortConfig]);
-
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    toast.info(`Filter applied: ${key} = ${value || 'All'}`);
-  };
+  }, [units, selectedTypes, selectedViews, selectedFloors, sortConfig]);
 
   const resetFilters = () => {
-    setFilters({
-      type: "",
-      view: "",
-      floor: "",
-    });
+    setSelectedTypes([]);
+    setSelectedViews([]);
+    setSelectedFloors([]);
     toast.success("Filters have been reset");
   };
 
@@ -300,6 +299,17 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     toast.success("CSV file downloaded successfully");
   };
 
+  // Get unique bedroom types, views, and floors for filters
+  const uniqueTypes = getUniqueValues("type");
+  const uniqueViews = getUniqueValues("view");
+  const uniqueFloors = getUniqueValues("floor");
+
+  // Calculate active filters count
+  const activeFiltersCount = 
+    (selectedTypes.length > 0 ? 1 : 0) +
+    (selectedViews.length > 0 ? 1 : 0) +
+    (selectedFloors.length > 0 ? 1 : 0);
+
   return (
     <Card className="w-full mb-6">
       <CardHeader>
@@ -312,80 +322,53 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <div>
-            <Select
-              value={filters.type}
-              onValueChange={(value) => handleFilterChange("type", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
-                {getUniqueValues("type").map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
+          <div className="md:col-span-3">
+            <BedroomTypeSelector
+              bedroomTypes={uniqueTypes}
+              selectedTypes={selectedTypes}
+              setSelectedTypes={setSelectedTypes}
+              label="Filter by Bedroom Types"
+              placeholder="Select bedroom types..."
+            />
           </div>
-          <div>
-            <Select
-              value={filters.view}
-              onValueChange={(value) => handleFilterChange("view", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Views" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Views</SelectItem>
-                {getUniqueValues("view").map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="md:col-span-3">
+            <BedroomTypeSelector
+              bedroomTypes={uniqueViews}
+              selectedTypes={selectedViews}
+              setSelectedTypes={setSelectedViews}
+              label="Filter by Views"
+              placeholder="Select views..."
+            />
           </div>
-          <div>
-            <Select
-              value={filters.floor}
-              onValueChange={(value) => handleFilterChange("floor", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Floors" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Floors</SelectItem>
-                {getUniqueValues("floor").map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="md:col-span-3">
+            <BedroomTypeSelector
+              bedroomTypes={uniqueFloors}
+              selectedTypes={selectedFloors}
+              setSelectedTypes={setSelectedFloors}
+              label="Filter by Floors"
+              placeholder="Select floors..."
+            />
           </div>
-          <div>
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={resetFilters}
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset Filters
-            </Button>
-          </div>
-          <div>
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={exportCSV}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Results
-            </Button>
+          <div className="md:col-span-3 flex flex-col justify-end gap-2">
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={resetFilters}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset Filters
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={exportCSV}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -522,10 +505,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     {unit.viewPsfAdjustment.toFixed(2)}
                   </TableCell>
                   <TableCell>
-                    {unit.finalTotalPrice.toLocaleString(undefined, {
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0,
-                    })}
+                    {formatNumber(unit.finalTotalPrice, true)}
                   </TableCell>
                   <TableCell>
                     {unit.finalPsf?.toFixed(2) || "0.00"}
@@ -549,7 +529,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         <div className="mt-4 flex items-center justify-end">
           <div className="text-sm text-muted-foreground flex items-center gap-2">
             <Filter className="h-4 w-4 mr-1" />
-            <span>{Object.values(filters).filter(Boolean).length} active filters</span>
+            <span>{activeFiltersCount} active filters</span>
             <span className="ml-2">Showing {filteredUnits.length} units</span>
           </div>
         </div>

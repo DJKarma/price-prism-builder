@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
@@ -45,13 +44,15 @@ const sortBedroomTypes = (a: any, b: any) => {
 };
 
 // Format numbers for display (K/M for thousands/millions)
-const formatNumber = (num: number, decimals = 2): string => {
+const formatNumber = (num: number, decimals = 2, formatAsCurrency = true): string => {
   if (!isFinite(num) || num === 0) return "0";
   
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(decimals) + "M";
-  } else if (num >= 1000) {
-    return (num / 1000).toFixed(0) + "K";
+  if (formatAsCurrency) {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(decimals) + "M";
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(0) + "K";
+    }
   }
   
   return num.toFixed(decimals);
@@ -61,11 +62,13 @@ const formatNumber = (num: number, decimals = 2): string => {
 const SlotMachineNumber = ({ 
   value, 
   decimals = 2, 
-  isAnimating = false 
+  isAnimating = false,
+  formatAsCurrency = true
 }: { 
   value: number, 
   decimals?: number,
-  isAnimating?: boolean
+  isAnimating?: boolean,
+  formatAsCurrency?: boolean
 }) => {
   const [displayValue, setDisplayValue] = useState(value);
   
@@ -98,8 +101,8 @@ const SlotMachineNumber = ({
     }
   }, [value, isAnimating]);
   
-  // Format the value for display (K/M for thousands/millions)
-  const formattedValue = formatNumber(displayValue, decimals);
+  // Format the value for display
+  const formattedValue = formatNumber(displayValue, decimals, formatAsCurrency);
   
   return (
     <span className={`transition-all duration-200 ${isAnimating ? 'scale-105' : ''}`}>
@@ -314,12 +317,16 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left column: Optimization controls */}
           <div className="lg:col-span-4 space-y-6">
-            {/* Display Current Overall PSF in an eye-catching way */}
+            {/* Display Current Overall PSF in an eye-catching way WITHOUT K/M formatting */}
             <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg p-4 text-center mb-4 transform transition-transform hover:scale-105 shadow-md">
               <h3 className="text-lg font-medium text-indigo-700">Current Overall PSF</h3>
               <p className="text-3xl font-bold text-indigo-900 flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-yellow-500 mr-2 animate-pulse" />
-                <SlotMachineNumber value={currentOverallPsf} isAnimating={isAnimating} />
+                <SlotMachineNumber 
+                  value={currentOverallPsf} 
+                  isAnimating={isAnimating} 
+                  formatAsCurrency={false} 
+                />
                 <Sparkles className="h-5 w-5 text-yellow-500 ml-2 animate-pulse" />
               </p>
               {isOptimized && (
@@ -347,6 +354,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                       <SlotMachineNumber 
                         value={getTargetPsfByType(type)} 
                         isAnimating={isAnimating && selectedTypes.includes(type)} 
+                        formatAsCurrency={false}
                       />
                     </span>
                   </div>

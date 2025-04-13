@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { X } from "lucide-react";
+import { X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,13 +10,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 interface BedroomTypeSelectorProps {
   bedroomTypes: string[];
   selectedTypes: string[];
   setSelectedTypes: (types: string[]) => void;
+  label?: string;
+  placeholder?: string;
+  className?: string;
 }
 
 // Helper function to sort bedroom types naturally
@@ -38,6 +40,9 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
   bedroomTypes,
   selectedTypes,
   setSelectedTypes,
+  label = "Select Bedroom Types to Optimize",
+  placeholder = "Select bedroom types...",
+  className = "",
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -57,8 +62,8 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
     }
   };
   
-  // Select all types
-  const handleSelectAll = () => {
+  // Toggle selection - if all selected, deselect all; otherwise select all
+  const handleToggleAll = () => {
     if (safeSelectedTypes.length === safeBedroomTypes.length) {
       setSelectedTypes([]);
     } else {
@@ -73,8 +78,8 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
   const allSelected = safeSelectedTypes.length === safeBedroomTypes.length && safeBedroomTypes.length > 0;
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium">Select Bedroom Types to Optimize</label>
+    <div className={`space-y-2 ${className}`}>
+      <label className="text-sm font-medium">{label}</label>
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           <Button
@@ -83,19 +88,19 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
           >
             {safeSelectedTypes.length > 0
               ? `${safeSelectedTypes.length} ${safeSelectedTypes.length === 1 ? "type" : "types"} selected`
-              : "Select bedroom types..."}
+              : placeholder}
             <span className="ml-2">▼</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-full min-w-[200px] bg-popover p-2">
+        <DropdownMenuContent className="w-full min-w-[200px] p-2 bg-background">
           <DropdownMenuLabel>Bedroom Types</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {/* Select All option */}
+          {/* Deselect All option */}
           <DropdownMenuCheckboxItem
             checked={allSelected}
             onSelect={(e) => {
               e.preventDefault();
-              handleSelectAll();
+              handleToggleAll();
             }}
             className="font-medium"
           >
