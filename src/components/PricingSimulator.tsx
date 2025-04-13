@@ -35,12 +35,12 @@ import {
   LabelList,
   Cell,
 } from "recharts";
-import {
-  ArrowUpDown,
-  Download,
-  Calculator,
-  Layers,
-  Filter,
+import { 
+  ArrowUpDown, 
+  Download, 
+  Calculator, 
+  Layers, 
+  Filter, 
   ChartBar,
   BedDouble,
   PieChart,
@@ -196,7 +196,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         ? optimizationInfo.optimizedBasePsf 
         : (bedroomType?.basePsf || pricingConfig.basePsf);
       
-      // Calculate floor adjustment using cumulative and jump logic
+      // Calculate floor adjustment - FIXED to be cumulative
       let floorAdjustment = 0;
       const floorLevel = parseInt(unit.floor) || 1;
       
@@ -205,35 +205,40 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         (a, b) => a.startFloor - b.startFloor
       );
       
-      // Calculate cumulative floor adjustment by iterating through each floor in the applicable range
+      // Calculate cumulative floor adjustment
       let cumulativeAdjustment = 0;
-      for (const rule of sortedFloorRules) {
-        const ruleEnd = rule.endFloor; // Already set or defaulted elsewhere
-        if (floorLevel > ruleEnd) {
-          // Process full range for this rule
-          for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
-            cumulativeAdjustment += rule.psfIncrement;
-            if (rule.jumpEveryFloor && rule.jumpIncrement) {
-              if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
-                cumulativeAdjustment += rule.jumpIncrement;
-              }
-            }
-          }
-        } else if (floorLevel >= rule.startFloor) {
-          // Process only up to the unit's floor in this rule
-          for (let floor = Math.max(rule.startFloor, 1); floor <= floorLevel; floor++) {
-            cumulativeAdjustment += rule.psfIncrement;
-            if (rule.jumpEveryFloor && rule.jumpIncrement) {
-              if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
-                cumulativeAdjustment += rule.jumpIncrement;
-              }
-            }
-          }
-          break;
+
+// Process each rule and iterate floor-by-floor for the applicable range
+for (const rule of sortedFloorRules) {
+  const ruleEnd = rule.endFloor; // Ensure this is already set (or defaulted to 99)
+  
+  if (floorLevel > ruleEnd) {
+    // Process full range for this rule
+    for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
+      cumulativeAdjustment += rule.psfIncrement;
+      if (rule.jumpEveryFloor && rule.jumpIncrement) {
+        // Check if this floor qualifies as a jump floor
+        if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+          cumulativeAdjustment += rule.jumpIncrement;
         }
       }
-      
-      floorAdjustment = cumulativeAdjustment;
+    }
+  } else if (floorLevel >= rule.startFloor) {
+    // Process only up to the unit's floor in this rule
+    for (let floor = Math.max(rule.startFloor, 1); floor <= floorLevel; floor++) {
+      cumulativeAdjustment += rule.psfIncrement;
+      if (rule.jumpEveryFloor && rule.jumpIncrement) {
+        if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+          cumulativeAdjustment += rule.jumpIncrement;
+        }
+      }
+    }
+    break;
+  }
+}
+
+floorAdjustment = cumulativeAdjustment;
+
       
       // Calculate view adjustment
       const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
@@ -247,16 +252,25 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       
       // Calculate balcony area and percentage
       let balconyArea = parseFloat(unit.balcony) || 0;
+      
+      // If balcony is not provided but sell area and AC area are available, calculate it
       if (sellArea > 0 && acArea > 0) {
+        // If balcony is provided, use it, otherwise calculate
         if (!unit.balcony || unit.balcony === '0') {
           balconyArea = sellArea - acArea;
         }
       }
+      
+      // Calculate balcony percentage
       const balconyPercentage = sellArea > 0 ? (balconyArea / sellArea) * 100 : 0;
       
-      // Calculate total and final prices
+      // Calculate total price
       const totalPrice = calculatedPsf * sellArea;
+      
+      // Calculate ceiled total price (to nearest 1000)
       const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+      
+      // Calculate final PSF based on ceiled price
       const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
       
       // Calculate price components
@@ -278,7 +292,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         basePsf,
         floorAdjustment,
         viewPsfAdjustment,
-        isOptimized: useOptimizedBasePsf,
+        isOptimized: useOptimizedBasePsf
       };
     });
 
@@ -289,44 +303,58 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     const typeGroups: Record<string, UnitWithPricing[]> = {};
     calculatedUnits.forEach(unit => {
       if (!unit.type) return;
+      
       if (!typeGroups[unit.type]) {
         typeGroups[unit.type] = [];
       }
+      
       typeGroups[unit.type].push(unit);
     });
     
     // Basic summary for chart
     const summaries = Object.entries(typeGroups).map(([type, unitGroup]) => {
+      // Use final PSF (after ceiling prices)
       const psfValues = unitGroup.map(u => u.finalPsf || 0);
+      
       const totalPsf = psfValues.reduce((sum, psf) => sum + psf, 0);
       const avgPsf = totalPsf / psfValues.length;
-      const targetConfig = pricingConfig.bedroomTypePricing.find((b) => b.type === type);
+      
+      const targetConfig = pricingConfig.bedroomTypePricing.find(
+        (b) => b.type === type
+      );
       const targetPsf = targetConfig?.targetAvgPsf || pricingConfig.basePsf;
+      
       return {
         type,
         avgPsf,
         targetPsf,
         units: unitGroup.length,
-        difference: avgPsf - targetPsf,
+        difference: avgPsf - targetPsf
       };
     });
     
     setTypeSummary(summaries);
     
-    // Detailed summary by bedroom type
+    // Detailed summary by bedroom type - use ceiled prices for calculations
     const detailedSummaries = Object.entries(typeGroups).map(([type, unitGroup]) => {
+      // Get PSF stats - use final PSF based on ceiled price
       const psfValues = unitGroup.map(u => u.finalPsf || 0);
       const minPsf = Math.min(...psfValues);
       const maxPsf = Math.max(...psfValues);
       const avgPsf = psfValues.reduce((sum, val) => sum + val, 0) / psfValues.length;
+      
+      // Get price stats - use ceiled total price
       const priceValues = unitGroup.map(u => u.finalTotalPrice);
       const minPrice = Math.min(...priceValues);
       const maxPrice = Math.max(...priceValues);
       const avgPrice = priceValues.reduce((sum, val) => sum + val, 0) / priceValues.length;
+      
+      // Get size stats
       const sizeValues = unitGroup.map(u => parseFloat(u.sellArea) || 0);
       const minSize = Math.min(...sizeValues);
       const maxSize = Math.max(...sizeValues);
       const avgSize = sizeValues.reduce((sum, val) => sum + val, 0) / sizeValues.length;
+      
       return {
         type,
         count: unitGroup.length,
@@ -338,33 +366,44 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         maxPrice,
         minSize,
         avgSize,
-        maxSize,
+        maxSize
       };
     });
     
     setDetailedTypeSummary(detailedSummaries);
     
-  }, [data, pricingConfig, units]); // Updated dependency array to include "units"
+  }, [data, pricingConfig]);
 
   // Apply filters
   useEffect(() => {
     let result = [...units];
+
     if (filters.type) {
       result = result.filter((unit) => unit.type === filters.type);
     }
+
     if (filters.view) {
       result = result.filter((unit) => unit.view === filters.view);
     }
+
     if (filters.floor) {
       result = result.filter((unit) => unit.floor === filters.floor);
     }
+
+    // Apply sorting with numeric handling for floors
     if (sortConfig) {
       result.sort((a, b) => {
+        // Special handling for floor field to sort numerically
         if (sortConfig.key === 'floor') {
           const floorA = parseInt(a.floor) || 0;
           const floorB = parseInt(b.floor) || 0;
-          return sortConfig.direction === "ascending" ? floorA - floorB : floorB - floorA;
+          
+          return sortConfig.direction === "ascending" 
+            ? floorA - floorB 
+            : floorB - floorA;
         }
+        
+        // Normal sorting for other fields
         if (a[sortConfig.key] < b[sortConfig.key]) {
           return sortConfig.direction === "ascending" ? -1 : 1;
         }
@@ -374,37 +413,49 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         return 0;
       });
     }
+
     setFilteredUnits(result);
   }, [units, filters, sortConfig]);
 
   const handleFilterChange = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
   const handleSort = (key: string) => {
     let direction: "ascending" | "descending" = "ascending";
+    
     if (sortConfig && sortConfig.key === key) {
       direction = sortConfig.direction === "ascending" ? "descending" : "ascending";
     }
+    
     setSortConfig({ key, direction });
   };
 
   const toggleSummaryStat = (id: string) => {
     setSummaryStats((prev) =>
-      prev.map((stat) => (stat.id === id ? { ...stat, enabled: !stat.enabled } : stat))
+      prev.map((stat) =>
+        stat.id === id ? { ...stat, enabled: !stat.enabled } : stat
+      )
     );
   };
 
   const getUniqueValues = (fieldName: string): string[] => {
     const values = new Set<string>();
+    
     units.forEach((unit) => {
       if (unit[fieldName]) {
         values.add(unit[fieldName]);
       }
     });
+    
+    // For floor field, sort numerically
     if (fieldName === 'floor') {
       return Array.from(values).sort((a, b) => parseInt(a) - parseInt(b));
     }
+    
     return Array.from(values).sort();
   };
 
@@ -412,15 +463,20 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     const total = filteredUnits.reduce(
       (acc, unit) => {
         const sellArea = parseFloat(unit.sellArea) || 0;
+        
         return {
           units: acc.units + 1,
           area: acc.area + sellArea,
-          value: acc.value + unit.finalTotalPrice,
+          value: acc.value + unit.finalTotalPrice, // Use ceiled price
         };
       },
       { units: 0, area: 0, value: 0 }
     );
-    return { ...total, avgPsf: total.area ? total.value / total.area : 0 };
+    
+    return {
+      ...total,
+      avgPsf: total.area ? total.value / total.area : 0,
+    };
   };
 
   const exportCSV = () => {
@@ -428,6 +484,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       toast.error("No data to export");
       return;
     }
+    
+    // Create CSV headers including all columns
     const headers = [
       "Unit",
       "Bedroom Type",
@@ -443,36 +501,44 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       "Total PSF",
       "Base Price",
       "Floor Premium",
-      "View Premium",
+      "View Premium", 
       "Total Price (Raw)",
       "Final Total Price",
       "Final PSF",
-      "Optimized",
+      "Optimized"
     ];
-    const rows = filteredUnits.map((unit) => [
-      unit.name,
-      unit.type,
-      unit.floor,
-      unit.view,
-      unit.sellArea,
-      unit.acArea || 0,
-      unit.balconyArea ? unit.balconyArea.toFixed(2) : 0,
-      unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : 0,
-      unit.basePsf.toFixed(2),
-      unit.floorAdjustment.toFixed(2),
-      unit.viewPsfAdjustment.toFixed(2),
-      unit.calculatedPsf.toFixed(2),
-      unit.basePriceComponent.toFixed(2),
-      unit.floorPriceComponent.toFixed(2),
-      unit.viewPriceComponent.toFixed(2),
-      unit.totalPrice.toFixed(2),
-      unit.finalTotalPrice.toFixed(2),
-      unit.finalPsf ? unit.finalPsf.toFixed(2) : "0",
-      unit.isOptimized ? "Yes" : "No",
-    ]);
+    
+    // Create CSV rows with all component values
+    const rows = filteredUnits.map((unit) => {
+      return [
+        unit.name,
+        unit.type,
+        unit.floor,
+        unit.view,
+        unit.sellArea,
+        unit.acArea || 0,
+        unit.balconyArea ? unit.balconyArea.toFixed(2) : 0,
+        unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : 0,
+        unit.basePsf.toFixed(2),
+        unit.floorAdjustment.toFixed(2),
+        unit.viewPsfAdjustment.toFixed(2),
+        unit.calculatedPsf.toFixed(2),
+        unit.basePriceComponent.toFixed(2),
+        unit.floorPriceComponent.toFixed(2),
+        unit.viewPriceComponent.toFixed(2),
+        unit.totalPrice.toFixed(2),
+        unit.finalTotalPrice.toFixed(2),
+        unit.finalPsf ? unit.finalPsf.toFixed(2) : "0",
+        unit.isOptimized ? "Yes" : "No"
+      ];
+    });
+    
+    // Combine headers and rows
     const csvContent =
       "data:text/csv;charset=utf-8," +
       [headers, ...rows].map((row) => row.join(",")).join("\n");
+    
+    // Create download link
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -480,61 +546,95 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
     toast.success("CSV file downloaded successfully");
   };
 
   // Optimization handlers
   const handleOptimizePsf = (bedroomType: string) => {
     setOptimizationInProgress(bedroomType);
+    
+    // Find target PSF from configuration
     const typeConfig = pricingConfig.bedroomTypePricing.find(
       (b) => b.type === bedroomType
     );
+    
     if (!typeConfig) {
       toast.error(`Configuration for ${bedroomType} not found`);
       setOptimizationInProgress(null);
       return;
     }
+    
     const targetPsf = typeConfig.targetAvgPsf;
-    const originalBasePsf =
-      optimizationState[bedroomType]?.originalBasePsf || typeConfig.basePsf;
+    const originalBasePsf = optimizationState[bedroomType]?.originalBasePsf || typeConfig.basePsf;
+    
+    // Run optimization algorithm
     try {
       const result = optimizeBasePsf(
-        data,
-        pricingConfig,
-        bedroomType,
+        data, 
+        pricingConfig, 
+        bedroomType, 
         targetPsf,
         originalBasePsf
       );
-      setOptimizationState((prev) => ({
+      
+      // Update optimization state
+      setOptimizationState(prev => ({
         ...prev,
         [bedroomType]: {
           originalBasePsf: originalBasePsf,
           optimizedBasePsf: result.optimizedBasePsf,
           isOptimized: true,
-        },
+        }
       }));
+      
+      // Create a modified pricingConfig with the optimized base PSF
       const updatedPricingConfig = {
         ...pricingConfig,
-        bedroomTypePricing: pricingConfig.bedroomTypePricing.map((type) =>
+        bedroomTypePricing: pricingConfig.bedroomTypePricing.map(type => 
           type.type === bedroomType
             ? { ...type, basePsf: result.optimizedBasePsf }
             : type
-        ),
+        )
       };
-      const updatedUnits = units.map((unit) => {
+      
+      // Recalculate units with the updated base PSF for this bedroom type
+      const updatedUnits = units.map(unit => {
         if (unit.type !== bedroomType) return unit;
+        
+        // Recalculate unit pricing with the optimized base PSF
         const viewAdjustment = pricingConfig.viewPricing.find(
           (v) => v.view === unit.view
         );
+        
+        // Use the optimized base PSF
         const basePsf = result.optimizedBasePsf;
+        
+        // Floor adjustment remains the same
         const floorAdjustment = unit.floorAdjustment;
+        
+        // View adjustment remains the same
         const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
+        
+        // Calculate new total PSF
         const calculatedPsf = basePsf + floorAdjustment + viewPsfAdjustment;
+        
+        // Calculate sell area
         const sellArea = parseFloat(unit.sellArea) || 0;
+        
+        // Calculate new total price
         const totalPrice = calculatedPsf * sellArea;
+        
+        // Calculate new ceiled total price
         const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+        
+        // Calculate new final PSF
         const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
+        
+        // Update price components
         const basePriceComponent = basePsf * sellArea;
+        
+        // Return updated unit
         return {
           ...unit,
           calculatedPsf,
@@ -543,60 +643,83 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           finalPsf,
           basePriceComponent,
           basePsf,
-          isOptimized: true,
+          isOptimized: true
         };
       });
+      
+      // Update units with the new calculations
       setUnits(updatedUnits);
+      
+      // Show success message with optimization details
       toast.success(
-        `Optimization successful for ${bedroomType}. Changed base PSF from ${originalBasePsf.toFixed(
-          2
-        )} to ${result.optimizedBasePsf.toFixed(
-          2
-        )}. Avg PSF moved from ${result.initialAvgPsf.toFixed(
-          2
-        )} to ${result.finalAvgPsf.toFixed(2)}.`,
+        `Optimization successful for ${bedroomType}. Changed base PSF from ${originalBasePsf.toFixed(2)} to ${result.optimizedBasePsf.toFixed(2)}. Avg PSF moved from ${result.initialAvgPsf.toFixed(2)} to ${result.finalAvgPsf.toFixed(2)}.`,
         { duration: 4000 }
       );
+      
     } catch (error) {
       console.error("Optimization error:", error);
-      toast.error(
-        `Optimization failed: ${
-          (error as Error).message || "Unknown error"
-        }`
-      );
+      toast.error(`Optimization failed: ${(error as Error).message || "Unknown error"}`);
     } finally {
       setOptimizationInProgress(null);
     }
   };
 
   const handleRevertOptimization = (bedroomType: string) => {
+    // Get original base PSF from state
     const { originalBasePsf } = optimizationState[bedroomType] || {};
+    
     if (originalBasePsf === undefined) {
       toast.error(`Original value for ${bedroomType} not found`);
       return;
     }
-    setOptimizationState((prev) => ({
+    
+    // Update optimization state
+    setOptimizationState(prev => ({
       ...prev,
       [bedroomType]: {
         ...prev[bedroomType],
         optimizedBasePsf: originalBasePsf,
         isOptimized: false,
-      },
+      }
     }));
-    const updatedUnits = units.map((unit) => {
+    
+    // Recalculate units with the original base PSF for this bedroom type
+    const updatedUnits = units.map(unit => {
       if (unit.type !== bedroomType) return unit;
+      
+      // Recalculate unit pricing with the original base PSF
       const viewAdjustment = pricingConfig.viewPricing.find(
         (v) => v.view === unit.view
       );
+      
+      // Use the original base PSF
       const basePsf = originalBasePsf;
+      
+      // Floor adjustment remains the same
       const floorAdjustment = unit.floorAdjustment;
+      
+      // View adjustment remains the same
       const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
+      
+      // Calculate new total PSF
       const calculatedPsf = basePsf + floorAdjustment + viewPsfAdjustment;
+      
+      // Calculate sell area
       const sellArea = parseFloat(unit.sellArea) || 0;
+      
+      // Calculate new total price
       const totalPrice = calculatedPsf * sellArea;
+      
+      // Calculate new ceiled total price
       const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+      
+      // Calculate new final PSF
       const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
+      
+      // Update price components
       const basePriceComponent = basePsf * sellArea;
+      
+      // Return updated unit
       return {
         ...unit,
         calculatedPsf,
@@ -605,25 +728,27 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         finalPsf,
         basePriceComponent,
         basePsf,
-        isOptimized: false,
+        isOptimized: false
       };
     });
+    
+    // Update units with the new calculations
     setUnits(updatedUnits);
-    toast.success(
-      `Reverted ${bedroomType} to original base PSF: ${originalBasePsf.toFixed(
-        2
-      )}`
-    );
+    
+    // Show success message
+    toast.success(`Reverted ${bedroomType} to original base PSF: ${originalBasePsf.toFixed(2)}`);
   };
 
   const totals = calculateTotals();
 
+  // Generate custom colors for the bar chart based on how close values are to targets
   const getChartBarColor = (difference: number) => {
-    if (Math.abs(difference) < 1) return "#22c55e";
-    if (Math.abs(difference) < 5) return "#16a34a";
-    if (Math.abs(difference) < 10) return "#eab308";
-    if (difference < 0) return "#f97316";
-    return "#ef4444";
+    // Color based on difference between achieved and target
+    if (Math.abs(difference) < 1) return "#22c55e"; // Green - very close match
+    if (Math.abs(difference) < 5) return "#16a34a"; // Light green - close match
+    if (Math.abs(difference) < 10) return "#eab308"; // Yellow - moderate difference
+    if (difference < 0) return "#f97316"; // Orange - under target
+    return "#ef4444"; // Red - significantly over target
   };
 
   return (
@@ -637,8 +762,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               Pricing Simulation Results
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Button
-                variant={summaryCardView === "compact" ? "default" : "outline"}
+              <Button 
+                variant={summaryCardView === "compact" ? "default" : "outline"} 
                 size="sm"
                 className="h-8"
                 onClick={() => setSummaryCardView("compact")}
@@ -646,8 +771,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                 <Minimize2 className="h-4 w-4 mr-1" />
                 Compact
               </Button>
-              <Button
-                variant={summaryCardView === "detailed" ? "default" : "outline"}
+              <Button 
+                variant={summaryCardView === "detailed" ? "default" : "outline"} 
                 size="sm"
                 className="h-8"
                 onClick={() => setSummaryCardView("detailed")}
@@ -729,13 +854,18 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               {summaryCardView === "compact" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {detailedTypeSummary.map((summary) => {
+                    // Find target PSF for this type
                     const typeConfig = pricingConfig.bedroomTypePricing.find(
                       (b) => b.type === summary.type
                     );
                     const targetPsf = typeConfig?.targetAvgPsf || 0;
+                    
+                    // Get optimization state for this type
                     const optimized = optimizationState[summary.type]?.isOptimized || false;
                     const originalBasePsf = optimizationState[summary.type]?.originalBasePsf || 0;
                     const optimizedBasePsf = optimizationState[summary.type]?.optimizedBasePsf || 0;
+                    
+                    // Calculate PSF difference
                     const psfDifference = summary.avgPsf - targetPsf;
                     const psfDifferenceClass = 
                       Math.abs(psfDifference) < 1 ? "text-green-500" :
@@ -839,7 +969,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                               </TooltipTrigger>
                               <TooltipContent side="bottom" className="max-w-xs">
                                 <p className="text-xs">
-                                  Adjusts the base premium for this bedroom type using gradient descent
+                                  Adjusts the base premium for this bedroom type using gradient descent 
                                   optimization to bring the average PSF closer to the target value.
                                 </p>
                               </TooltipContent>
@@ -902,7 +1032,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                                 <div className="bg-muted/30 p-2 rounded">
                                   <p className="text-xs text-muted-foreground">Price Range</p>
                                   <p className="text-xs font-medium mt-1">
-                                    {summary.minPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} - {summary.maxPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                    {summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})} - {summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}
                                   </p>
                                 </div>
                               </div>
@@ -919,13 +1049,18 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               {summaryCardView === "detailed" && (
                 <div className="grid grid-cols-1 gap-4">
                   {detailedTypeSummary.map((summary) => {
+                    // Find target PSF for this type
                     const typeConfig = pricingConfig.bedroomTypePricing.find(
                       (b) => b.type === summary.type
                     );
                     const targetPsf = typeConfig?.targetAvgPsf || 0;
+                    
+                    // Get optimization state for this type
                     const optimized = optimizationState[summary.type]?.isOptimized || false;
                     const originalBasePsf = optimizationState[summary.type]?.originalBasePsf || 0;
                     const optimizedBasePsf = optimizationState[summary.type]?.optimizedBasePsf || 0;
+                    
+                    // Calculate PSF difference
                     const psfDifference = summary.avgPsf - targetPsf;
                     const psfDifferenceClass = 
                       Math.abs(psfDifference) < 1 ? "text-green-500" :
@@ -974,7 +1109,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom" className="max-w-xs">
                                   <p className="text-xs">
-                                    Adjusts the base premium for this bedroom type using gradient descent
+                                    Adjusts the base premium for this bedroom type using gradient descent 
                                     optimization to bring the average PSF closer to the target value.
                                   </p>
                                 </TooltipContent>
@@ -1003,6 +1138,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                             </div>
                           </div>
                           
+                          {/* Target & Optimization info */}
                           <div className="flex flex-wrap gap-4 mt-2">
                             <div className="flex items-center gap-2">
                               <span className="text-sm text-muted-foreground">Target PSF:</span>
@@ -1050,6 +1186,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                         </CardHeader>
                         
                         <div className="grid grid-cols-1 divide-y md:divide-y-0 md:divide-x md:grid-cols-4">
+                          {/* Unit Count - Always show */}
                           {summaryStats.find(s => s.id === "count")?.enabled && (
                             <div className="p-4">
                               <h4 className="text-sm font-medium mb-2">Unit Count</h4>
@@ -1057,6 +1194,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                             </div>
                           )}
                           
+                          {/* PSF Stats */}
                           {summaryStats.find(s => s.id === "psf")?.enabled && (
                             <div className="p-4">
                               <h4 className="text-sm font-medium mb-2">Price Per Square Foot</h4>
@@ -1077,6 +1215,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                             </div>
                           )}
                           
+                          {/* Price Stats */}
                           {summaryStats.find(s => s.id === "price")?.enabled && (
                             <div className="p-4">
                               <h4 className="text-sm font-medium mb-2">Total Price</h4>
@@ -1097,6 +1236,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                             </div>
                           )}
                           
+                          {/* Size Stats */}
                           {summaryStats.find(s => s.id === "size")?.enabled && (
                             <div className="p-4">
                               <h4 className="text-sm font-medium mb-2">Unit Size (sqft)</h4>
@@ -1171,6 +1311,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                           formatter={(value) => parseFloat(value).toFixed(0)}
                           style={{ fontSize: '11px' }}
                         />
+                        {/* Custom color for each bar based on difference */}
                         {typeSummary.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={getChartBarColor(entry.difference)} />
                         ))}
@@ -1219,9 +1360,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </div>
           )}
         </CardContent>
-        <CardFooter className="text-sm text-muted-foreground">
-          Showing {filteredUnits.length} of {units.length} units
-        </CardFooter>
       </Card>
 
       {/* Detailed Unit Pricing */}
@@ -1236,6 +1374,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Filters */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <div>
               <Select
@@ -1299,6 +1438,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </div>
           </div>
 
+          {/* Results Table with Improved Structure */}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
