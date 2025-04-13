@@ -36,7 +36,7 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
   const psfDifferencePercentage = (psfDifference / currentOverallPsf) * 100;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="current-psf">Current Overall PSF</Label>
         <div className="flex items-center gap-2">
@@ -87,7 +87,7 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
         </div>
       </div>
       
-      <div className="flex items-end">
+      <div className="flex items-end pt-2">
         <div className="flex gap-2 w-full">
           <Button
             onClick={onOptimize}

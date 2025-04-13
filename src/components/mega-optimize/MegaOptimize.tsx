@@ -53,10 +53,10 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
           <div>
             <CardTitle className="flex items-center gap-2 text-xl">
               <Sparkles className="h-6 w-6 text-indigo-500" />
-              Mega Optimization
+              Pricing Optimization & Summary
             </CardTitle>
             <CardDescription className="text-indigo-700">
-              Optimize premium values to achieve your target overall PSF
+              Configure optimization targets and view property type breakdown
             </CardDescription>
           </div>
           
@@ -90,27 +90,35 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       </CardHeader>
       
       <CardContent className="pt-6">
-        <OptimizationControls
-          currentOverallPsf={currentOverallPsf}
-          targetPsf={targetPsf}
-          isOptimizing={isOptimizing}
-          isOptimized={isOptimized}
-          onTargetPsfChange={handleTargetPsfChange}
-          onOptimize={runMegaOptimization}
-          onRevert={revertOptimization}
-        />
-        
-        <OptimizationModeSelector
-          optimizationMode={optimizationMode}
-          onModeChange={setOptimizationMode}
-        />
-        
-        <BedroomTypeSummary 
-          bedroomTypes={pricingConfig.bedroomTypePricing}
-          isOptimized={isOptimized}
-        />
-        
-        <OptimizationImpact pricingConfig={pricingConfig} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left column: Optimization controls */}
+          <div className="lg:col-span-1 space-y-6">
+            <OptimizationControls
+              currentOverallPsf={currentOverallPsf}
+              targetPsf={targetPsf}
+              isOptimizing={isOptimizing}
+              isOptimized={isOptimized}
+              onTargetPsfChange={handleTargetPsfChange}
+              onOptimize={runMegaOptimization}
+              onRevert={revertOptimization}
+            />
+            
+            <OptimizationModeSelector
+              optimizationMode={optimizationMode}
+              onModeChange={setOptimizationMode}
+            />
+            
+            <OptimizationImpact pricingConfig={pricingConfig} />
+          </div>
+          
+          {/* Right column: Bedroom Type Summary */}
+          <div className="lg:col-span-2">
+            <BedroomTypeSummary 
+              bedroomTypes={pricingConfig.bedroomTypePricing}
+              isOptimized={isOptimized}
+            />
+          </div>
+        </div>
       </CardContent>
       
       <CardFooter className="flex flex-col items-start text-sm text-muted-foreground bg-gradient-to-r from-indigo-50/50 to-blue-50/50 rounded-b">

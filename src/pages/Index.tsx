@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVUploader from "@/components/CSVUploader";
@@ -124,16 +125,19 @@ const Index = () => {
           <TabsContent value="simulate" className="mt-0">
             {pricingConfig && (
               <>
+                {/* MegaOptimize component now appears first */}
+                <MegaOptimize 
+                  data={mappedData} 
+                  pricingConfig={pricingConfig} 
+                  onOptimized={handleConfigUpdate}
+                />
+                
+                {/* PricingSimulator appears after MegaOptimize */}
                 <PricingSimulator 
                   data={mappedData} 
                   pricingConfig={pricingConfig} 
                   onConfigUpdate={handleConfigUpdate}
                   key={`simulator-${forceUpdate}`}
-                />
-                <MegaOptimize 
-                  data={mappedData} 
-                  pricingConfig={pricingConfig} 
-                  onOptimized={handleConfigUpdate}
                 />
               </>
             )}
