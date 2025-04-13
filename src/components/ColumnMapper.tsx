@@ -87,24 +87,50 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   };
 
   const handleSubmit = () => {
-    // Validate required fields
-    const missingFields = requiredFields.filter(field => !mapping[field.id]);
-    
-    if (missingFields.length > 0) {
-      toast.error(`Please map these required fields: ${missingFields.map(f => f.label).join(", ")}`);
-      return;
-    }
-    
-    // Transform data based on mapping
+    // Instead of validating required fields, use default values for unmapped fields
+    // Transform data based on mapping, with default values for unmapped fields
     const transformedData = data.map(row => {
       const transformedRow: Record<string, any> = {};
       
-      Object.entries(mapping).forEach(([fieldId, headerName]) => {
-        transformedRow[fieldId] = row[headerName] || "";
+      // Include default values for all fields, even if not mapped
+      allFields.forEach(field => {
+        // Use the mapped column value if available, otherwise use default values
+        if (mapping[field.id]) {
+          transformedRow[field.id] = row[mapping[field.id]] || "";
+        } else {
+          // Default values for unmapped fields
+          switch (field.id) {
+            case "name":
+              transformedRow[field.id] = `Unit ${Object.values(transformedRow).length + 1}`;
+              break;
+            case "sellArea":
+            case "acArea":
+            case "balcony":
+              transformedRow[field.id] = "0";
+              break;
+            case "floor":
+              transformedRow[field.id] = "1";
+              break;
+            case "type":
+              transformedRow[field.id] = "Standard";
+              break;
+            case "view":
+              transformedRow[field.id] = "Normal";
+              break;
+            default:
+              transformedRow[field.id] = "";
+          }
+        }
       });
       
       return transformedRow;
     });
+    
+    // Show a toast if some required fields were not mapped
+    const missingFields = requiredFields.filter(field => !mapping[field.id]);
+    if (missingFields.length > 0) {
+      toast(`Using default values for: ${missingFields.map(f => f.label).join(", ")}`);
+    }
     
     onMappingComplete(mapping, transformedData);
   };
@@ -119,6 +145,40 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     );
   };
 
+  // Helper to render default value preview for unmapped fields
+  const renderDefaultPreview = (fieldId: string) => {
+    if (mapping[fieldId] || !data.length) return null;
+    
+    let defaultValue;
+    switch (fieldId) {
+      case "name":
+        defaultValue = "Unit 1";
+        break;
+      case "sellArea":
+      case "acArea":
+      case "balcony":
+        defaultValue = "0";
+        break;
+      case "floor":
+        defaultValue = "1";
+        break;
+      case "type":
+        defaultValue = "Standard";
+        break;
+      case "view":
+        defaultValue = "Normal";
+        break;
+      default:
+        defaultValue = "";
+    }
+    
+    return (
+      <div className="text-xs text-muted-foreground mt-1 bg-amber-100 p-1 rounded overflow-hidden text-ellipsis max-w-xs">
+        Default: <span className="font-mono">{defaultValue}</span>
+      </div>
+    );
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -127,7 +187,8 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
           Map Your CSV Columns
         </CardTitle>
         <CardDescription>
-          Match each property attribute to the corresponding column in your CSV file
+          Match each property attribute to the corresponding column in your CSV file.
+          Unmapped fields will use default values.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -138,10 +199,10 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
               {requiredFields.map((field) => (
                 <div key={field.id} className="space-y-1">
                   <label className="text-sm font-medium flex items-center gap-1">
-                    {field.label} <span className="text-red-500">*</span>
+                    {field.label} <span className="text-amber-500">*</span>
                   </label>
                   <Select
-                    value={mapping[field.id] || ""}
+                    value={mapping[field.id] || undefined}
                     onValueChange={(value) => handleMappingChange(field.id, value)}
                   >
                     <SelectTrigger>
@@ -156,6 +217,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                     </SelectContent>
                   </Select>
                   {renderColumnPreview(field.id)}
+                  {renderDefaultPreview(field.id)}
                 </div>
               ))}
             </div>
@@ -183,6 +245,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                     </SelectContent>
                   </Select>
                   {renderColumnPreview(field.id)}
+                  {renderDefaultPreview(field.id)}
                 </div>
               ))}
             </div>
