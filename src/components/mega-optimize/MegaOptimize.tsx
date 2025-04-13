@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
@@ -26,29 +27,31 @@ import BedroomTypeSelector from "./BedroomTypeSelector";
 
 // Helper function to sort bedroom types naturally
 const sortBedroomTypes = (a: any, b: any) => {
+  // Extract the 'type' property
   const aType = a.type || '';
   const bType = b.type || '';
   
+  // Extract numeric parts (if any) from bedroom type strings
   const aMatch = aType.match(/(\d+)/);
   const bMatch = bType.match(/(\d+)/);
   
+  // If both have numbers, sort numerically
   if (aMatch && bMatch) {
     return parseInt(aMatch[0], 10) - parseInt(bMatch[0], 10);
   }
   
+  // If only one has a number or neither has numbers, sort alphabetically
   return aType.localeCompare(bType);
 };
 
 // Format numbers for display (K/M for thousands/millions)
-const formatNumber = (num: number, decimals = 2, formatShort = true): string => {
+const formatNumber = (num: number, decimals = 2): string => {
   if (!isFinite(num) || num === 0) return "0";
   
-  if (formatShort) {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(decimals) + "M";
-    } else if (num >= 1000) {
-      return (num / 1000).toFixed(0) + "K";
-    }
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(decimals) + "M";
+  } else if (num >= 1000) {
+    return (num / 1000).toFixed(0) + "K";
   }
   
   return num.toFixed(decimals);
@@ -58,26 +61,26 @@ const formatNumber = (num: number, decimals = 2, formatShort = true): string => 
 const SlotMachineNumber = ({ 
   value, 
   decimals = 2, 
-  isAnimating = false,
-  formatShort = true
+  isAnimating = false 
 }: { 
   value: number, 
   decimals?: number,
-  isAnimating?: boolean,
-  formatShort?: boolean
+  isAnimating?: boolean
 }) => {
   const [displayValue, setDisplayValue] = useState(value);
   
   useEffect(() => {
     if (isAnimating && Math.abs(value - displayValue) > 0.01) {
       let iterations = 0;
-      const maxIterations = 5;
+      const maxIterations = 5; // Reduced for shorter animation
       const interval = setInterval(() => {
         if (iterations < maxIterations) {
+          // Create a slowing down animation effect
           const progress = iterations / maxIterations;
-          const easingFactor = 1 - Math.pow(1 - progress, 3);
+          const easingFactor = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
           const intermediateValue = displayValue + (value - displayValue) * easingFactor;
           
+          // Add some randomness for slot machine feel
           const randomness = (1 - progress) * Math.abs(value - displayValue) * 0.15;
           const randomAdjustment = (Math.random() - 0.5) * randomness;
           
@@ -95,7 +98,8 @@ const SlotMachineNumber = ({
     }
   }, [value, isAnimating]);
   
-  const formattedValue = formatNumber(displayValue, decimals, formatShort);
+  // Format the value for display (K/M for thousands/millions)
+  const formattedValue = formatNumber(displayValue, decimals);
   
   return (
     <span className={`transition-all duration-200 ${isAnimating ? 'scale-105' : ''}`}>
@@ -109,6 +113,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   pricingConfig, 
   onOptimized 
 }) => {
+  // Sort bedroom types for consistency
   const sortedBedroomTypes = React.useMemo(() => {
     if (!pricingConfig?.bedroomTypePricing) return [];
     return [...pricingConfig.bedroomTypePricing].sort(sortBedroomTypes);
@@ -133,14 +138,17 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     revertOptimization
   } = useOptimizer(data, pricingConfig, onOptimized);
   
+  // Process data to ensure all units have finalPsf and finalTotalPrice
   useEffect(() => {
     if (!data || !data.length || !pricingConfig) return;
     
     const processed = data.map((unit) => {
+      // Find the bedroom type config for this unit
       const bedroomType = pricingConfig.bedroomTypePricing.find(
         (b: any) => b.type === unit.type
       );
       
+      // Find view adjustment for this unit
       const viewAdjustment = pricingConfig.viewPricing.find(
         (v: any) => v.view === unit.view
       );
@@ -148,6 +156,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       const basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
       const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
       
+      // Calculate floor adjustment based on rules
       let floorAdjustment = 0;
       const floorLevel = parseInt(unit.floor) || 1;
       
@@ -182,14 +191,17 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       
       floorAdjustment = cumulativeAdjustment;
       
+      // Calculate base PSF with all adjustments
       const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment;
       
       const sellArea = parseFloat(unit.sellArea) || 0;
       
+      // Calculate total price and final PSF
       const totalPrice = basePsfWithAdjustments * sellArea;
       const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
       const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
       
+      // Create a processed unit with all required fields
       const processedUnit = {
         ...unit,
         basePsf,
@@ -206,22 +218,25 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     setProcessedData(processed);
   }, [data, pricingConfig]);
 
+  // Run optimization with selected types and update pricingConfig with optimizedTypes
   const handleRunOptimization = () => {
     if (selectedTypes.length === 0) {
       toast.error("Please select at least one bedroom type to optimize");
       return;
     }
     
-    setIsAnimating(true);
+    setIsAnimating(true); // Start animation for slot machine effect
     
     toast.promise(
       new Promise(resolve => {
         runMegaOptimization(selectedTypes);
+        // Highlight the selected types for 3 seconds only
         setHighlightedTypes([...selectedTypes]);
         setTimeout(() => {
           setHighlightedTypes([]);
           setIsAnimating(false);
-        }, 3000);
+        }, 3000); // Exactly 3 seconds as requested
+        // Simulate promise for toast
         setTimeout(resolve, 1000);
       }),
       {
@@ -232,11 +247,13 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     );
   };
 
+  // Handle revert with toast
   const handleRevert = () => {
     revertOptimization();
     toast.success("Optimization reverted successfully");
   };
   
+  // Get available bedroom types from pricing config (sorted)
   const bedroomTypes = React.useMemo(() => {
     if (!pricingConfig?.bedroomTypePricing) return [];
     return [...pricingConfig.bedroomTypePricing]
@@ -244,6 +261,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       .map((type: any) => type.type);
   }, [pricingConfig]);
   
+  // Get target PSF by bedroom type
   const getTargetPsfByType = (type: string) => {
     const bedroomConfig = pricingConfig.bedroomTypePricing.find((t: any) => t.type === type);
     return bedroomConfig?.targetAvgPsf || 0;
@@ -294,12 +312,14 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left column: Optimization controls */}
           <div className="lg:col-span-4 space-y-6">
+            {/* Display Current Overall PSF in an eye-catching way */}
             <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg p-4 text-center mb-4 transform transition-transform hover:scale-105 shadow-md">
               <h3 className="text-lg font-medium text-indigo-700">Current Overall PSF</h3>
               <p className="text-3xl font-bold text-indigo-900 flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-yellow-500 mr-2 animate-pulse" />
-                <SlotMachineNumber value={currentOverallPsf} isAnimating={isAnimating} formatShort={false} />
+                <SlotMachineNumber value={currentOverallPsf} isAnimating={isAnimating} />
                 <Sparkles className="h-5 w-5 text-yellow-500 ml-2 animate-pulse" />
               </p>
               {isOptimized && (
@@ -309,6 +329,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               )}
             </div>
             
+            {/* Target PSF by Bedroom Type */}
             <div className="bg-white rounded-lg border border-indigo-100 p-4">
               <h3 className="text-sm font-medium mb-3 text-indigo-700">Target PSF by Bedroom Type</h3>
               <div className="grid grid-cols-2 gap-2">
@@ -326,7 +347,6 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                       <SlotMachineNumber 
                         value={getTargetPsfByType(type)} 
                         isAnimating={isAnimating && selectedTypes.includes(type)} 
-                        formatShort={false}
                       />
                     </span>
                   </div>
@@ -334,6 +354,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               </div>
             </div>
             
+            {/* Bedroom Type Selector */}
             <BedroomTypeSelector 
               bedroomTypes={bedroomTypes}
               selectedTypes={selectedTypes}
@@ -356,7 +377,9 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
             />
           </div>
           
+          {/* Right column: Pricing Summary */}
           <div className="lg:col-span-8">
+            {/* Use the processed data for PricingSummary instead of raw data */}
             <PricingSummary 
               data={processedData.length > 0 ? processedData : data} 
               showDollarSign={false} 
