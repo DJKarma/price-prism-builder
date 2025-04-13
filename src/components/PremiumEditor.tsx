@@ -142,9 +142,8 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
     };
     
     onPricingConfigChange(processedConfig);
-    toast({
-      title: "Changes Applied",
-      description: "Premium values have been updated and prices recalculated.",
+    toast.success("Changes Applied", {
+      description: "Premium values have been updated and prices recalculated."
     });
   };
   
