@@ -28,10 +28,6 @@ import {
   Minimize2 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group";
 
 interface BedroomTypeStats {
   type: string;
@@ -51,11 +47,8 @@ interface PricingSummaryProps {
   data: any[];
 }
 
-type DisplayMode = "all" | "min" | "avg" | "max";
-
 const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
   const [isOpen, setIsOpen] = useState(true);
-  const [displayMode, setDisplayMode] = useState<DisplayMode>("all");
 
   const bedroomTypeStats = useMemo(() => {
     if (!data || !data.length) return [];
@@ -125,68 +118,36 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
         
         <CollapsibleContent>
           <CardContent className="p-0">
-            <div className="flex justify-end p-2 bg-purple-50">
-              <ToggleGroup type="single" value={displayMode} onValueChange={(value) => value && setDisplayMode(value as DisplayMode)}>
-                <ToggleGroupItem value="all" aria-label="Show all values" className="text-xs">
-                  All
-                </ToggleGroupItem>
-                <ToggleGroupItem value="min" aria-label="Show minimum values" className="text-xs">
-                  Min
-                </ToggleGroupItem>
-                <ToggleGroupItem value="avg" aria-label="Show average values" className="text-xs">
-                  Avg
-                </ToggleGroupItem>
-                <ToggleGroupItem value="max" aria-label="Show maximum values" className="text-xs">
-                  Max
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-purple-50">
                   <TableRow>
                     <TableHead className="font-semibold text-purple-700">Bedroom Type</TableHead>
                     <TableHead className="font-semibold text-purple-700">Unit Count</TableHead>
-                    {displayMode === "all" ? (
-                      <>
-                        <TableHead className="text-center">
-                          <div className="text-purple-700 font-semibold">PSF (per sqft)</div>
-                          <div className="grid grid-cols-3 gap-1 text-xs mt-1">
-                            <span className="text-purple-600">Min</span>
-                            <span className="text-purple-600">Avg</span>
-                            <span className="text-purple-600">Max</span>
-                          </div>
-                        </TableHead>
-                        <TableHead className="text-center">
-                          <div className="text-purple-700 font-semibold">Price</div>
-                          <div className="grid grid-cols-3 gap-1 text-xs mt-1">
-                            <span className="text-purple-600">Min</span>
-                            <span className="text-purple-600">Avg</span>
-                            <span className="text-purple-600">Max</span>
-                          </div>
-                        </TableHead>
-                        <TableHead className="text-center">
-                          <div className="text-purple-700 font-semibold">Size (sqft)</div>
-                          <div className="grid grid-cols-3 gap-1 text-xs mt-1">
-                            <span className="text-purple-600">Min</span>
-                            <span className="text-purple-600">Avg</span>
-                            <span className="text-purple-600">Max</span>
-                          </div>
-                        </TableHead>
-                      </>
-                    ) : (
-                      <>
-                        <TableHead className="text-center">
-                          <div className="text-purple-700 font-semibold">PSF (per sqft)</div>
-                        </TableHead>
-                        <TableHead className="text-center">
-                          <div className="text-purple-700 font-semibold">Price</div>
-                        </TableHead>
-                        <TableHead className="text-center">
-                          <div className="text-purple-700 font-semibold">Size (sqft)</div>
-                        </TableHead>
-                      </>
-                    )}
+                    <TableHead className="text-center">
+                      <div className="text-purple-700 font-semibold">PSF ($ per sqft)</div>
+                      <div className="grid grid-cols-3 gap-1 text-xs mt-1">
+                        <span className="text-purple-600">Min</span>
+                        <span className="text-purple-600">Avg</span>
+                        <span className="text-purple-600">Max</span>
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-center">
+                      <div className="text-purple-700 font-semibold">Final Price ($)</div>
+                      <div className="grid grid-cols-3 gap-1 text-xs mt-1">
+                        <span className="text-purple-600">Min</span>
+                        <span className="text-purple-600">Avg</span>
+                        <span className="text-purple-600">Max</span>
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-center">
+                      <div className="text-purple-700 font-semibold">Size (sqft)</div>
+                      <div className="grid grid-cols-3 gap-1 text-xs mt-1">
+                        <span className="text-purple-600">Min</span>
+                        <span className="text-purple-600">Avg</span>
+                        <span className="text-purple-600">Max</span>
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -198,89 +159,45 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data }) => {
                       >
                         <TableCell className="font-medium text-purple-800">{stat.type}</TableCell>
                         <TableCell className="font-medium">{stat.count}</TableCell>
-                        
-                        {displayMode === "all" ? (
-                          <>
-                            <TableCell>
-                              <div className="grid grid-cols-3 gap-2">
-                                <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                  {stat.minPsf.toFixed(2)}
-                                </div>
-                                <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                                  {stat.avgPsf.toFixed(2)}
-                                </div>
-                                <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                  {stat.maxPsf.toFixed(2)}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="grid grid-cols-3 gap-2">
-                                <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                  {stat.minPrice.toLocaleString()}
-                                </div>
-                                <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                                  {Math.round(stat.avgPrice).toLocaleString()}
-                                </div>
-                                <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                  {stat.maxPrice.toLocaleString()}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="grid grid-cols-3 gap-2">
-                                <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
-                                  {stat.minSize.toFixed(0)}
-                                </div>
-                                <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
-                                  {stat.avgSize.toFixed(0)}
-                                </div>
-                                <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
-                                  {stat.maxSize.toFixed(0)}
-                                </div>
-                              </div>
-                            </TableCell>
-                          </>
-                        ) : (
-                          <>
-                            <TableCell>
-                              <div className="text-center px-2 py-1 rounded-md font-medium
-                                ${displayMode === 'min' ? 'bg-red-50 text-red-600' : 
-                                displayMode === 'avg' ? 'bg-purple-50 text-purple-600' : 
-                                'bg-green-50 text-green-600'}">
-                                {displayMode === "min" 
-                                  ? stat.minPsf.toFixed(2)
-                                  : displayMode === "avg" 
-                                    ? stat.avgPsf.toFixed(2)
-                                    : stat.maxPsf.toFixed(2)}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-center px-2 py-1 rounded-md font-medium
-                                ${displayMode === 'min' ? 'bg-red-50 text-red-600' : 
-                                displayMode === 'avg' ? 'bg-purple-50 text-purple-600' : 
-                                'bg-green-50 text-green-600'}">
-                                {displayMode === "min" 
-                                  ? stat.minPrice.toLocaleString()
-                                  : displayMode === "avg" 
-                                    ? Math.round(stat.avgPrice).toLocaleString()
-                                    : stat.maxPrice.toLocaleString()}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-center px-2 py-1 rounded-md font-medium
-                                ${displayMode === 'min' ? 'bg-red-50 text-red-600' : 
-                                displayMode === 'avg' ? 'bg-purple-50 text-purple-600' : 
-                                'bg-green-50 text-green-600'}">
-                                {displayMode === "min" 
-                                  ? stat.minSize.toFixed(0)
-                                  : displayMode === "avg" 
-                                    ? stat.avgSize.toFixed(0)
-                                    : stat.maxSize.toFixed(0)}
-                              </div>
-                            </TableCell>
-                          </>
-                        )}
+                        <TableCell>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
+                              {stat.minPsf.toFixed(2)}
+                            </div>
+                            <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
+                              {stat.avgPsf.toFixed(2)}
+                            </div>
+                            <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
+                              {stat.maxPsf.toFixed(2)}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
+                              {stat.minPrice.toLocaleString()}
+                            </div>
+                            <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
+                              {Math.round(stat.avgPrice).toLocaleString()}
+                            </div>
+                            <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
+                              {stat.maxPrice.toLocaleString()}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="text-center px-2 py-1 bg-red-50 rounded-md text-red-600 font-medium">
+                              {stat.minSize.toFixed(0)}
+                            </div>
+                            <div className="text-center px-2 py-1 bg-purple-50 rounded-md text-purple-600 font-medium">
+                              {stat.avgSize.toFixed(0)}
+                            </div>
+                            <div className="text-center px-2 py-1 bg-green-50 rounded-md text-green-600 font-medium">
+                              {stat.maxSize.toFixed(0)}
+                            </div>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
