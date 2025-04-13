@@ -114,7 +114,7 @@ TableCaption.displayName = "TableCaption"
 const FixedHeaderTable = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { maxHeight?: string }
->(({ className, maxHeight = "600px", ...props }, ref) => (
+>(({ className, maxHeight = "780px", ...props }, ref) => (
   <div
     ref={ref}
     className={cn("w-full overflow-auto border rounded-md", className)}

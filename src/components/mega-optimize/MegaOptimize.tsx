@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
@@ -123,7 +124,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     toast.info(`Selected ${types.length} bedroom types for optimization`);
   };
   
-  // Run optimization with selected types
+  // Run optimization with selected types and update pricingConfig with optimizedTypes
   const handleRunOptimization = () => {
     toast.promise(
       new Promise(resolve => {

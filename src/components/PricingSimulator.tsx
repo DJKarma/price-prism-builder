@@ -31,8 +31,6 @@ import {
   Check,
   Info,
   RotateCcw,
-  ChevronLeft,
-  ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -60,8 +58,6 @@ interface UnitWithPricing extends Record<string, any> {
   isOptimized?: boolean; // Flag to indicate if this unit's price was optimized
 }
 
-const ITEMS_PER_PAGE = 10;
-
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
   pricingConfig,
@@ -78,7 +74,16 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     view: "",
     floor: "",
   });
-  const [currentPage, setCurrentPage] = useState(0);
+
+  useEffect(() => {
+    if (pricingConfig?.optimizedTypes?.length && filters.type === "") {
+      const optimizedTypes = pricingConfig.optimizedTypes;
+      if (optimizedTypes.length === 1) {
+        setFilters(prev => ({ ...prev, type: optimizedTypes[0] }));
+        toast.info(`Filtered to show optimized bedroom type: ${optimizedTypes[0]}`);
+      }
+    }
+  }, [pricingConfig?.optimizedTypes, filters.type]);
 
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
@@ -91,7 +96,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         (v: any) => v.view === unit.view
       );
       
-      // Check if this type was optimized
       const isBedroomTypeOptimized = bedroomType?.isOptimized || false;
       const optimizedTypes = pricingConfig.optimizedTypes || [];
       const isTypeOptimized = optimizedTypes.includes(unit.type);
@@ -175,7 +179,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
     setUnits(calculatedUnits);
     setFilteredUnits(calculatedUnits);
-    setCurrentPage(0); // Reset to first page when data changes
   }, [data, pricingConfig]);
 
   useEffect(() => {
@@ -206,7 +209,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       });
     }
     setFilteredUnits(result);
-    setCurrentPage(0); // Reset to first page when filters change
   }, [units, filters, sortConfig]);
 
   const handleFilterChange = (key: string, value: string) => {
@@ -304,19 +306,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     toast.success("CSV file downloaded successfully");
   };
 
-  const totalPages = Math.ceil(filteredUnits.length / ITEMS_PER_PAGE);
-  const pageStart = currentPage * ITEMS_PER_PAGE;
-  const pageEnd = Math.min(pageStart + ITEMS_PER_PAGE, filteredUnits.length);
-  const currentPageData = filteredUnits.slice(pageStart, pageEnd);
-
-  const handlePrevPage = () => {
-    setCurrentPage((prev) => Math.max(0, prev - 1));
-  };
-
-  const handleNextPage = () => {
-    setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1));
-  };
-
   return (
     <Card className="w-full mb-6">
       <CardHeader>
@@ -406,7 +395,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           </div>
         </div>
 
-        <FixedHeaderTable maxHeight="400px">
+        <FixedHeaderTable maxHeight="520px">
           <Table>
             <TableHeader>
               <TableRow>
@@ -523,7 +512,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentPageData.map((unit, index) => (
+              {filteredUnits.map((unit, index) => (
                 <TableRow key={index} className={unit.isOptimized ? "bg-green-50 dark:bg-green-950/20" : ""}>
                   <TableCell className="font-medium">{unit.name}</TableCell>
                   <TableCell>{unit.type || "—"}</TableCell>
@@ -574,39 +563,11 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           </Table>
         </FixedHeaderTable>
 
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-end">
           <div className="text-sm text-muted-foreground flex items-center gap-2">
             <Filter className="h-4 w-4 mr-1" />
             <span>{Object.values(filters).filter(Boolean).length} active filters</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              Showing {pageStart + 1}-{pageEnd} of {filteredUnits.length} units
-            </span>
-            <div className="flex items-center">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handlePrevPage}
-                disabled={currentPage === 0}
-                className="h-8 w-8"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="mx-2 text-sm">
-                Page {currentPage + 1} of {totalPages || 1}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleNextPage}
-                disabled={currentPage >= totalPages - 1}
-                className="h-8 w-8"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            <span className="ml-2">Showing {filteredUnits.length} units</span>
           </div>
         </div>
       </CardContent>
