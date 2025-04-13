@@ -6,6 +6,7 @@ import { toast } from "@/components/ui/use-toast";
 export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (optimizedConfig: any) => void) => {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isOptimized, setIsOptimized] = useState(false);
+  const [currentOverallPsf, setCurrentOverallPsf] = useState(calculateOverallAveragePsf(data, pricingConfig));
   const [targetPsf, setTargetPsf] = useState(
     pricingConfig.targetOverallPsf || 
     pricingConfig.bedroomTypePricing.reduce(
@@ -15,12 +16,11 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
   );
   const [optimizationMode, setOptimizationMode] = useState<"basePsf" | "allParams">("basePsf");
   
-  // Update the isOptimized state when config changes
+  // Recalculate current PSF whenever pricingConfig changes
   useEffect(() => {
+    setCurrentOverallPsf(calculateOverallAveragePsf(data, pricingConfig));
     setIsOptimized(!!pricingConfig.isOptimized);
-  }, [pricingConfig]);
-  
-  const currentOverallPsf = calculateOverallAveragePsf(data, pricingConfig);
+  }, [data, pricingConfig]);
   
   const runMegaOptimization = async () => {
     setIsOptimizing(true);
@@ -91,8 +91,9 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         };
       }
       
-      // Update UI
+      // Update UI and recalculate current PSF
       onOptimized(optimizedConfig);
+      setCurrentOverallPsf(calculateOverallAveragePsf(data, optimizedConfig));
       setIsOptimized(true);
       
       toast({
@@ -128,8 +129,9 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       isOptimized: false
     };
     
-    // Update UI
+    // Update UI and recalculate current PSF
     onOptimized(revertedConfig);
+    setCurrentOverallPsf(calculateOverallAveragePsf(data, revertedConfig));
     setIsOptimized(false);
     
     toast({

@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVUploader from "@/components/CSVUploader";
@@ -13,10 +12,8 @@ const Index = () => {
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [mappedData, setMappedData] = useState<any[]>([]);
   const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null);
-  // Force re-render state for component refresh
   const [forceUpdate, setForceUpdate] = useState<number>(0);
 
-  // Find max floor in the data for floor calculations
   const maxFloor = useMemo(() => {
     if (!mappedData.length) return 50; // Default
     
@@ -26,7 +23,6 @@ const Index = () => {
       if (floorNum > highest) highest = floorNum;
     });
     
-    // Add a buffer to ensure we have room for future floors
     return Math.max(highest + 5, 50);
   }, [mappedData]);
 
@@ -42,31 +38,25 @@ const Index = () => {
   };
 
   const handleConfigurationComplete = useCallback((config: PricingConfig) => {
-    // Calculate the targetOverallPsf as average of all bedroom type target PSFs
     const targetOverallPsf = config.bedroomTypePricing.reduce(
       (sum, type) => sum + type.targetAvgPsf, 
       0
     ) / config.bedroomTypePricing.length;
     
-    // Update floor rules to use max floor from data
     const updatedConfig = {
       ...config,
       targetOverallPsf,
-      // Add maxFloor to configuration for use in calculations
       maxFloor: maxFloor
     };
     
     setPricingConfig(updatedConfig);
     
-    // Force a re-render to ensure all UI elements reflect changes
     setForceUpdate(prev => prev + 1);
     setActiveTab("simulate");
   }, [maxFloor]);
 
-  // Handler for config updates during simulation
   const handleConfigUpdate = useCallback((updatedConfig: PricingConfig) => {
     setPricingConfig(updatedConfig);
-    // Force a re-render to ensure all UI elements reflect changes
     setForceUpdate(prev => prev + 1);
   }, []);
 
@@ -138,12 +128,12 @@ const Index = () => {
                   data={mappedData} 
                   pricingConfig={pricingConfig} 
                   onConfigUpdate={handleConfigUpdate}
-                  key={`simulator-${forceUpdate}`} // Force re-render when config changes
+                  key={`simulator-${forceUpdate}`}
                 />
                 <MegaOptimize 
                   data={mappedData} 
                   pricingConfig={pricingConfig} 
-                  onOptimized={handleConfigUpdate} 
+                  onOptimized={handleConfigUpdate}
                 />
               </>
             )}

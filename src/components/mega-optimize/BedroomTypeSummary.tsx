@@ -1,6 +1,5 @@
-
-import React, { useState } from "react";
-import { Building2, Check } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Building2, Check, ArrowUp, ArrowDown } from "lucide-react";
 import { 
   Card, 
   CardContent,
@@ -36,6 +35,14 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
   const [selectedTypes, setSelectedTypes] = useState<string[]>(
     bedroomTypes.map(type => type.type)
   );
+  
+  useEffect(() => {
+    const allTypes = bedroomTypes.map(type => type.type);
+    setSelectedTypes(prev => {
+      const filteredTypes = prev.filter(type => allTypes.includes(type));
+      return filteredTypes.length ? filteredTypes : allTypes;
+    });
+  }, [bedroomTypes]);
 
   const handleTypeToggle = (type: string) => {
     setSelectedTypes(prev => 
@@ -46,13 +53,13 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 mt-6 mb-6">
       <div className="flex justify-between items-center">
         <h4 className="font-medium text-lg">Bedroom Type Summary</h4>
         
         <Select>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select bedroom types" />
+            <SelectValue placeholder={`${selectedTypes.length} types selected`} />
           </SelectTrigger>
           <SelectContent>
             <div className="p-2">
@@ -79,48 +86,69 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {bedroomTypes
           .filter(type => selectedTypes.includes(type.type))
-          .map(type => (
-            <Card key={type.type} className="border-indigo-100 hover:border-indigo-300 transition-all">
-              <CardHeader className="pb-2 pt-4 px-4 bg-gradient-to-r from-indigo-50 to-blue-50">
-                <CardTitle className="text-base flex justify-between items-center">
-                  <span className="flex items-center">
-                    <Building2 className="h-4 w-4 mr-2 text-indigo-600" />
-                    {type.type}
-                  </span>
-                  {isOptimized && type.originalBasePsf !== undefined && (
-                    <Badge 
-                      variant="outline" 
-                      className={type.basePsf > type.originalBasePsf 
-                        ? "bg-green-50 text-green-700 border-green-200" 
-                        : "bg-amber-50 text-amber-700 border-amber-200"
-                      }
-                    >
-                      {type.basePsf > type.originalBasePsf ? "↑" : "↓"} 
-                      {Math.abs(((type.basePsf - type.originalBasePsf) / type.originalBasePsf) * 100).toFixed(1)}%
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 pb-4 px-4">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Base PSF</p>
-                    <p className="font-medium">${type.basePsf.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Target Avg PSF</p>
-                    <p className="font-medium">${type.targetAvgPsf.toFixed(2)}</p>
-                  </div>
-                  {isOptimized && type.originalBasePsf !== undefined && (
-                    <div className="col-span-2 mt-2 pt-2 border-t">
-                      <p className="text-muted-foreground">Original Base PSF</p>
-                      <p className="font-medium">${type.originalBasePsf.toFixed(2)}</p>
+          .map(type => {
+            const hasChanged = isOptimized && type.originalBasePsf !== undefined;
+            const changePercent = hasChanged 
+              ? ((type.basePsf - (type.originalBasePsf || 0)) / (type.originalBasePsf || 1)) * 100 
+              : 0;
+            const isIncrease = changePercent > 0;
+            
+            return (
+              <Card 
+                key={type.type} 
+                className={`border hover:shadow-md transition-all ${
+                  hasChanged 
+                    ? isIncrease 
+                      ? 'border-green-200' 
+                      : 'border-amber-200'
+                    : 'border-indigo-100'
+                }`}
+              >
+                <CardHeader className="pb-2 pt-4 px-4 bg-gradient-to-r from-indigo-50 to-blue-50">
+                  <CardTitle className="text-base flex justify-between items-center">
+                    <span className="flex items-center">
+                      <Building2 className="h-4 w-4 mr-2 text-indigo-600" />
+                      {type.type}
+                    </span>
+                    {hasChanged && (
+                      <Badge 
+                        variant="outline" 
+                        className={isIncrease 
+                          ? "bg-green-50 text-green-700 border-green-200" 
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                        }
+                      >
+                        {isIncrease ? (
+                          <ArrowUp className="h-3 w-3 mr-1 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 mr-1 inline" />
+                        )}
+                        {Math.abs(changePercent).toFixed(1)}%
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4 pb-4 px-4">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Base PSF</p>
+                      <p className="font-medium">${type.basePsf.toFixed(2)}</p>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-        ))}
+                    <div>
+                      <p className="text-muted-foreground">Target Avg PSF</p>
+                      <p className="font-medium">${type.targetAvgPsf.toFixed(2)}</p>
+                    </div>
+                    {hasChanged && (
+                      <div className="col-span-2 mt-2 pt-2 border-t">
+                        <p className="text-muted-foreground">Original Base PSF</p>
+                        <p className="font-medium">${type.originalBasePsf?.toFixed(2)}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
       </div>
     </div>
   );

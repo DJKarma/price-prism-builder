@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
   Card, 
@@ -22,6 +22,7 @@ import { useOptimizer } from "./useOptimizer";
 import OptimizationControls from "./OptimizationControls";
 import OptimizationModeSelector from "./OptimizationModeSelector";
 import OptimizationImpact from "./OptimizationImpact";
+import BedroomTypeSummary from "./BedroomTypeSummary";
 
 const MegaOptimize: React.FC<MegaOptimizeProps> = ({ 
   data, 
@@ -39,6 +40,11 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     runMegaOptimization,
     revertOptimization
   } = useOptimizer(data, pricingConfig, onOptimized);
+  
+  // Effect to immediately recalculate values whenever pricingConfig changes
+  useEffect(() => {
+    // The useOptimizer hook now handles this automatically
+  }, [pricingConfig]);
   
   return (
     <Card className="mb-6 border-2 border-indigo-100">
@@ -97,6 +103,11 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         <OptimizationModeSelector
           optimizationMode={optimizationMode}
           onModeChange={setOptimizationMode}
+        />
+        
+        <BedroomTypeSummary 
+          bedroomTypes={pricingConfig.bedroomTypePricing}
+          isOptimized={isOptimized}
         />
         
         <OptimizationImpact pricingConfig={pricingConfig} />
