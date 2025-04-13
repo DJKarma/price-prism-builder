@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -29,6 +29,9 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
   setSelectedTypes,
 }) => {
   const [open, setOpen] = React.useState(false);
+
+  // Ensure bedroomTypes is always an array, even if it's undefined
+  const safeBedroomTypes = Array.isArray(bedroomTypes) ? bedroomTypes : [];
 
   const handleTypeSelection = (type: string) => {
     if (selectedTypes.includes(type)) {
@@ -60,7 +63,7 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
             <CommandInput placeholder="Search bedroom types..." />
             <CommandEmpty>No bedroom type found.</CommandEmpty>
             <CommandGroup>
-              {bedroomTypes.map((type) => (
+              {safeBedroomTypes.map((type) => (
                 <CommandItem
                   key={type}
                   value={type}
@@ -93,7 +96,7 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
                 className="ml-1 rounded-full outline-none focus:ring-2 focus:ring-offset-1"
                 onClick={() => handleTypeSelection(type)}
               >
-                <Check className="h-3 w-3" />
+                <X className="h-3 w-3" />
               </button>
             </Badge>
           ))}
