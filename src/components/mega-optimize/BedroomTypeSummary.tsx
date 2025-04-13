@@ -105,7 +105,7 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
               : 0;
             const isIncrease = changePercent > 0;
             
-            // Use provided values or fallback to computed values
+            // Use provided values with proper defaults
             const unitCount = type.unitCount || 0;
             const avgSize = type.avgSize || 0;
             const avgPsf = type.avgPsf || 0;
@@ -182,7 +182,9 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                           <span className="text-xs font-medium text-blue-700">Avg Size</span>
                           <Ruler className="h-3.5 w-3.5 text-blue-600" />
                         </div>
-                        <p className="font-semibold text-sm text-blue-900 mt-1">{avgSize.toFixed(0)} sf</p>
+                        <p className="font-semibold text-sm text-blue-900 mt-1">
+                          {avgSize > 0 ? avgSize.toFixed(0) : "0"} sf
+                        </p>
                       </div>
                       
                       {/* Average PSF mini-card */}
@@ -190,7 +192,9 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-medium text-green-700">Avg PSF</span>
                         </div>
-                        <p className="font-semibold text-sm text-green-900 mt-1">{avgPsf.toFixed(2)}</p>
+                        <p className="font-semibold text-sm text-green-900 mt-1">
+                          {avgPsf > 0 ? avgPsf.toFixed(2) : "0.00"}
+                        </p>
                       </div>
                     </div>
                   </div>

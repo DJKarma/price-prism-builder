@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -36,7 +35,6 @@ import {
   ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
-import { PricingConfig } from "./PricingConfiguration";
 import {
   Tooltip,
   TooltipContent,
@@ -45,8 +43,8 @@ import {
 
 interface PricingSimulatorProps {
   data: any[];
-  pricingConfig: PricingConfig;
-  onConfigUpdate?: (updatedConfig: PricingConfig) => void;
+  pricingConfig: any;
+  onConfigUpdate?: (updatedConfig: any) => void;
 }
 
 interface UnitWithPricing extends Record<string, any> {
@@ -60,14 +58,6 @@ interface UnitWithPricing extends Record<string, any> {
   viewPriceComponent?: number;
   finalPsf?: number; // Added for clarity
   isOptimized?: boolean; // Flag to indicate if this unit's price was optimized
-}
-
-interface OptimizationState {
-  [bedroomType: string]: {
-    originalBasePsf: number;
-    optimizedBasePsf: number;
-    isOptimized: boolean;
-  };
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -89,27 +79,16 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     floor: "",
   });
   const [currentPage, setCurrentPage] = useState(0);
-  const [optimizationState, setOptimizationState] = useState<OptimizationState>({});
 
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
 
-    const initialOptimizationState: OptimizationState = {};
-    pricingConfig.bedroomTypePricing.forEach((typeConfig) => {
-      initialOptimizationState[typeConfig.type] = {
-        originalBasePsf: typeConfig.basePsf,
-        optimizedBasePsf: typeConfig.basePsf,
-        isOptimized: typeConfig.isOptimized || false,
-      };
-    });
-    setOptimizationState(initialOptimizationState);
-
     const calculatedUnits = data.map((unit) => {
       const bedroomType = pricingConfig.bedroomTypePricing.find(
-        (b) => b.type === unit.type
+        (b: any) => b.type === unit.type
       );
       const viewAdjustment = pricingConfig.viewPricing.find(
-        (v) => v.view === unit.view
+        (v: any) => v.view === unit.view
       );
       
       // Check if this type was optimized
@@ -123,7 +102,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       const floorLevel = parseInt(unit.floor) || 1;
       
       const sortedFloorRules = [...pricingConfig.floorRiseRules].sort(
-        (a, b) => a.startFloor - b.startFloor
+        (a: any, b: any) => a.startFloor - b.startFloor
       );
       
       let cumulativeAdjustment = 0;
@@ -325,7 +304,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     toast.success("CSV file downloaded successfully");
   };
 
-  // Pagination logic
   const totalPages = Math.ceil(filteredUnits.length / ITEMS_PER_PAGE);
   const pageStart = currentPage * ITEMS_PER_PAGE;
   const pageEnd = Math.min(pageStart + ITEMS_PER_PAGE, filteredUnits.length);
@@ -596,7 +574,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           </Table>
         </FixedHeaderTable>
 
-        {/* Pagination controls */}
         <div className="mt-4 flex items-center justify-between">
           <div className="text-sm text-muted-foreground flex items-center gap-2">
             <Filter className="h-4 w-4 mr-1" />

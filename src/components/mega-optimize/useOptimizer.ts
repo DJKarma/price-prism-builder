@@ -33,16 +33,23 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       typeGroups[unit.type].push(unit);
     });
     
-    // For each bedroom type, calculate average PSF
-    const bedroomAvgPsf: Record<string, number> = {};
+    // For each bedroom type, calculate average PSF and average size
+    const bedroomAvgData: Record<string, { avgPsf: number, avgSize: number, unitCount: number }> = {};
     
     config.bedroomTypePricing.forEach((typeConfig: any) => {
       const unitsOfType = typeGroups[typeConfig.type] || [];
-      if (unitsOfType.length === 0) return;
+      if (unitsOfType.length === 0) {
+        bedroomAvgData[typeConfig.type] = { avgPsf: 0, avgSize: 0, unitCount: 0 };
+        return;
+      }
       
       let totalPsf = 0;
+      let totalArea = 0;
       
       unitsOfType.forEach((unit: any) => {
+        const area = parseFloat(unit.sellArea) || 0;
+        totalArea += area;
+        
         const floorNum = parseInt(unit.floor) || 0;
         const viewPremium = config.viewPricing.find((v: any) => v.view === unit.view)?.psfAdjustment || 0;
         
@@ -70,10 +77,17 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         totalPsf += unitPsf;
       });
       
-      bedroomAvgPsf[typeConfig.type] = totalPsf / unitsOfType.length;
+      const avgPsf = totalPsf / unitsOfType.length;
+      const avgSize = totalArea / unitsOfType.length;
+      
+      bedroomAvgData[typeConfig.type] = { 
+        avgPsf, 
+        avgSize,
+        unitCount: unitsOfType.length
+      };
     });
     
-    return bedroomAvgPsf;
+    return bedroomAvgData;
   };
   
   const runMegaOptimization = async (selectedTypes: string[] = []) => {
@@ -181,14 +195,19 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         };
       }
       
-      // Calculate average PSF values for each bedroom type after optimization
-      const avgPsfByType = calculateBedroomTypesAvgPsf(optimizedConfig);
+      // Calculate average PSF and size values for each bedroom type after optimization
+      const avgDataByType = calculateBedroomTypesAvgPsf(optimizedConfig);
       
-      // Add avgPsf to bedroom types in the optimized config
-      optimizedConfig.bedroomTypePricing = optimizedConfig.bedroomTypePricing.map((type: any) => ({
-        ...type,
-        avgPsf: avgPsfByType[type.type] || 0
-      }));
+      // Add avgPsf and avgSize to bedroom types in the optimized config
+      optimizedConfig.bedroomTypePricing = optimizedConfig.bedroomTypePricing.map((type: any) => {
+        const typeData = avgDataByType[type.type] || { avgPsf: 0, avgSize: 0, unitCount: 0 };
+        return {
+          ...type,
+          avgPsf: typeData.avgPsf,
+          avgSize: typeData.avgSize,
+          unitCount: typeData.unitCount
+        };
+      });
       
       // Update UI and recalculate current PSF
       onOptimized(optimizedConfig);
@@ -231,14 +250,19 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       optimizedTypes: []
     };
     
-    // Calculate average PSF values for each bedroom type after reversion
-    const avgPsfByType = calculateBedroomTypesAvgPsf(revertedConfig);
+    // Calculate average PSF and size values for each bedroom type after reversion
+    const avgDataByType = calculateBedroomTypesAvgPsf(revertedConfig);
     
-    // Add avgPsf to bedroom types in the reverted config
-    revertedConfig.bedroomTypePricing = revertedConfig.bedroomTypePricing.map((type: any) => ({
-      ...type,
-      avgPsf: avgPsfByType[type.type] || 0
-    }));
+    // Add avgPsf and avgSize to bedroom types in the reverted config
+    revertedConfig.bedroomTypePricing = revertedConfig.bedroomTypePricing.map((type: any) => {
+      const typeData = avgDataByType[type.type] || { avgPsf: 0, avgSize: 0, unitCount: 0 };
+      return {
+        ...type,
+        avgPsf: typeData.avgPsf,
+        avgSize: typeData.avgSize,
+        unitCount: typeData.unitCount
+      };
+    });
     
     // Update UI and recalculate current PSF
     onOptimized(revertedConfig);
