@@ -48,6 +48,8 @@ import {
   CheckCheck,
   Maximize2,
   Minimize2,
+  RefreshCcw,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PricingConfig } from "./PricingConfiguration";
@@ -64,6 +66,12 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import {
+  Tooltip as TooltipComponent,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { optimizeBasePsf } from "@/utils/psfOptimizer";
 
 interface PricingSimulatorProps {
   data: any[];
@@ -102,6 +110,15 @@ interface SummaryStatConfig {
   enabled: boolean;
 }
 
+// Optimization state to track original and optimized values
+interface OptimizationState {
+  [bedroomType: string]: {
+    originalBasePsf: number;
+    optimizedBasePsf: number;
+    isOptimized: boolean;
+  };
+}
+
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
   pricingConfig,
@@ -132,10 +149,25 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   
   // Card view control
   const [summaryCardView, setSummaryCardView] = useState<"compact" | "detailed">("compact");
+  
+  // Optimization state
+  const [optimizationState, setOptimizationState] = useState<OptimizationState>({});
+  const [optimizationInProgress, setOptimizationInProgress] = useState<string | null>(null);
 
   // Process the data with pricing calculations
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
+
+    // Initialize optimization state with original base PSF values
+    const initialOptimizationState: OptimizationState = {};
+    pricingConfig.bedroomTypePricing.forEach((typeConfig) => {
+      initialOptimizationState[typeConfig.type] = {
+        originalBasePsf: typeConfig.basePsf,
+        optimizedBasePsf: typeConfig.basePsf,
+        isOptimized: false,
+      };
+    });
+    setOptimizationState(initialOptimizationState);
 
     const calculatedUnits = data.map((unit) => {
       // Base calculation
@@ -146,8 +178,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         (v) => v.view === unit.view
       );
       
+      // Check if this unit type has an optimized base PSF
+      const optimizationInfo = initialOptimizationState[unit.type];
+      const useOptimizedBasePsf = optimizationInfo?.isOptimized && optimizationInfo?.optimizedBasePsf;
+      
       // Base price from unit type or default base
-      const basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
+      const basePsf = useOptimizedBasePsf 
+        ? optimizationInfo.optimizedBasePsf 
+        : (bedroomType?.basePsf || pricingConfig.basePsf);
       
       // Calculate floor adjustment - FIXED to be cumulative
       let floorAdjustment = 0;
@@ -249,8 +287,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     
     // Basic summary for chart
     const summaries = Object.entries(typeGroups).map(([type, unitGroup]) => {
-      const totalPsf = unitGroup.reduce((sum, unit) => sum + unit.calculatedPsf, 0);
-      const avgPsf = totalPsf / unitGroup.length;
+      // Use final PSF (after ceiling prices)
+      const psfValues = unitGroup.map(u => {
+        const sellArea = parseFloat(u.sellArea) || 0;
+        return sellArea > 0 ? u.finalTotalPrice / sellArea : 0;
+      });
+      
+      const totalPsf = psfValues.reduce((sum, psf) => sum + psf, 0);
+      const avgPsf = totalPsf / psfValues.length;
       
       const targetConfig = pricingConfig.bedroomTypePricing.find(
         (b) => b.type === type
@@ -482,6 +526,95 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     toast.success("CSV file downloaded successfully");
   };
 
+  // Optimization handlers
+  const handleOptimizePsf = (bedroomType: string) => {
+    setOptimizationInProgress(bedroomType);
+    
+    // Find target PSF from configuration
+    const typeConfig = pricingConfig.bedroomTypePricing.find(
+      (b) => b.type === bedroomType
+    );
+    
+    if (!typeConfig) {
+      toast.error(`Configuration for ${bedroomType} not found`);
+      setOptimizationInProgress(null);
+      return;
+    }
+    
+    const targetPsf = typeConfig.targetAvgPsf;
+    const originalBasePsf = optimizationState[bedroomType]?.originalBasePsf || typeConfig.basePsf;
+    
+    // Run optimization algorithm
+    try {
+      const result = optimizeBasePsf(
+        data, 
+        pricingConfig, 
+        bedroomType, 
+        targetPsf,
+        originalBasePsf
+      );
+      
+      // Update optimization state
+      setOptimizationState(prev => ({
+        ...prev,
+        [bedroomType]: {
+          originalBasePsf: originalBasePsf,
+          optimizedBasePsf: result.optimizedBasePsf,
+          isOptimized: true,
+        }
+      }));
+      
+      // Create a modified pricingConfig with the optimized base PSF
+      const updatedPricingConfig = {
+        ...pricingConfig,
+        bedroomTypePricing: pricingConfig.bedroomTypePricing.map(type => 
+          type.type === bedroomType
+            ? { ...type, basePsf: result.optimizedBasePsf }
+            : type
+        )
+      };
+      
+      // Re-run the pricing simulation with the updated pricingConfig
+      // This is done by passing the updated config back to the parent
+      // or by recalculating the units directly here
+      
+      // Show success message with optimization details
+      toast.success(
+        `Optimization successful for ${bedroomType}. Changed base PSF from ${originalBasePsf.toFixed(2)} to ${result.optimizedBasePsf.toFixed(2)}. Avg PSF moved from ${result.initialAvgPsf.toFixed(2)} to ${result.finalAvgPsf.toFixed(2)}.`,
+        { duration: 4000 }
+      );
+      
+    } catch (error) {
+      console.error("Optimization error:", error);
+      toast.error(`Optimization failed: ${(error as Error).message || "Unknown error"}`);
+    } finally {
+      setOptimizationInProgress(null);
+    }
+  };
+
+  const handleRevertOptimization = (bedroomType: string) => {
+    // Get original base PSF from state
+    const { originalBasePsf } = optimizationState[bedroomType] || {};
+    
+    if (originalBasePsf === undefined) {
+      toast.error(`Original value for ${bedroomType} not found`);
+      return;
+    }
+    
+    // Update optimization state
+    setOptimizationState(prev => ({
+      ...prev,
+      [bedroomType]: {
+        ...prev[bedroomType],
+        optimizedBasePsf: originalBasePsf,
+        isOptimized: false,
+      }
+    }));
+    
+    // Show success message
+    toast.success(`Reverted ${bedroomType} to original base PSF: ${originalBasePsf.toFixed(2)}`);
+  };
+
   const totals = calculateTotals();
 
   return (
@@ -586,151 +719,347 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               {/* Compact Summary Cards */}
               {summaryCardView === "compact" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {detailedTypeSummary.map((summary) => (
-                    <Card key={summary.type} className="border border-muted">
-                      <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-md font-semibold">
-                          {summary.type}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-0">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Units</p>
-                            <p className="font-medium">{summary.count}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Avg Size</p>
-                            <p className="font-medium">{summary.avgSize.toFixed(1)} sqft</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Avg PSF</p>
-                            <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Avg Price</p>
-                            <p className="font-medium">{summary.avgPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                          </div>
-                        </div>
-                        
-                        <HoverCard>
-                          <HoverCardTrigger asChild>
-                            <Button variant="ghost" size="sm" className="mt-2 w-full text-xs">
-                              View More Details
-                            </Button>
-                          </HoverCardTrigger>
-                          <HoverCardContent className="w-80 p-3">
-                            <div className="grid grid-cols-3 gap-2 text-sm">
-                              <div className="col-span-3">
-                                <p className="text-sm font-semibold mb-1">{summary.type} - {summary.count} units</p>
-                              </div>
-                              <div className="bg-muted/30 p-2 rounded">
-                                <p className="text-xs text-muted-foreground">PSF Range</p>
-                                <p className="text-xs font-medium mt-1">{summary.minPsf.toFixed(2)} - {summary.maxPsf.toFixed(2)}</p>
-                              </div>
-                              <div className="bg-muted/30 p-2 rounded">
-                                <p className="text-xs text-muted-foreground">Size Range</p>
-                                <p className="text-xs font-medium mt-1">{summary.minSize.toFixed(1)} - {summary.maxSize.toFixed(1)}</p>
-                              </div>
-                              <div className="bg-muted/30 p-2 rounded">
-                                <p className="text-xs text-muted-foreground">Price Range</p>
-                                <p className="text-xs font-medium mt-1">
-                                  {summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})} - {summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}
-                                </p>
+                  {detailedTypeSummary.map((summary) => {
+                    // Find target PSF for this type
+                    const typeConfig = pricingConfig.bedroomTypePricing.find(
+                      (b) => b.type === summary.type
+                    );
+                    const targetPsf = typeConfig?.targetAvgPsf || 0;
+                    
+                    // Get optimization state for this type
+                    const optimized = optimizationState[summary.type]?.isOptimized || false;
+                    const originalBasePsf = optimizationState[summary.type]?.originalBasePsf || 0;
+                    const optimizedBasePsf = optimizationState[summary.type]?.optimizedBasePsf || 0;
+                    
+                    // Calculate PSF difference
+                    const psfDifference = summary.avgPsf - targetPsf;
+                    const psfDifferenceClass = 
+                      Math.abs(psfDifference) < 1 ? "text-green-500" :
+                      psfDifference < 0 ? "text-amber-500" : "text-red-500";
+                    
+                    return (
+                      <Card key={summary.type} className="border border-muted">
+                        <CardHeader className="p-4 pb-2">
+                          <CardTitle className="text-md font-semibold flex items-center justify-between">
+                            <span>{summary.type}</span>
+                            {optimized && (
+                              <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 px-2 py-1 rounded-full">
+                                Optimized
+                              </span>
+                            )}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <p className="text-sm text-muted-foreground">Units</p>
+                              <p className="font-medium">{summary.count}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Avg Size</p>
+                              <p className="font-medium">{summary.avgSize.toFixed(1)} sqft</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Avg PSF</p>
+                              <div className="flex items-center gap-1">
+                                <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
+                                {targetPsf > 0 && (
+                                  <span className={`text-xs ${psfDifferenceClass}`}>
+                                    ({psfDifference > 0 ? "+" : ""}{psfDifference.toFixed(2)})
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          </HoverCardContent>
-                        </HoverCard>
-                      </CardContent>
-                    </Card>
-                  ))}
+                            <div>
+                              <p className="text-sm text-muted-foreground">Target PSF</p>
+                              <p className="font-medium">{targetPsf.toFixed(2)}</p>
+                            </div>
+                          </div>
+                          
+                          {/* Optimization controls */}
+                          <div className="mt-3 flex gap-2">
+                            <TooltipComponent>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full flex items-center text-xs"
+                                  onClick={() => handleOptimizePsf(summary.type)}
+                                  disabled={optimizationInProgress === summary.type}
+                                >
+                                  <Wand2 className="h-3.5 w-3.5 mr-1" />
+                                  {optimizationInProgress === summary.type 
+                                    ? "Optimizing..." 
+                                    : optimized 
+                                      ? "Re-optimize PSF" 
+                                      : "Optimize PSF"}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-xs">
+                                <p className="text-xs">
+                                  Adjusts the base premium for this bedroom type using gradient descent 
+                                  optimization to bring the average PSF closer to the target value.
+                                </p>
+                              </TooltipContent>
+                            </TooltipComponent>
+                            
+                            {optimized && (
+                              <TooltipComponent>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="w-1/3 flex items-center text-xs"
+                                    onClick={() => handleRevertOptimization(summary.type)}
+                                  >
+                                    <RefreshCcw className="h-3.5 w-3.5 mr-1" />
+                                    Revert
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                  <p className="text-xs">
+                                    Restore original base PSF value of {originalBasePsf.toFixed(2)}
+                                  </p>
+                                </TooltipContent>
+                              </TooltipComponent>
+                            )}
+                          </div>
+                          
+                          {/* Base PSF display */}
+                          {optimized && (
+                            <div className="mt-2 text-xs p-2 bg-muted/40 rounded flex items-center justify-between">
+                              <div>
+                                <span className="text-muted-foreground">Base PSF: </span>
+                                <span className="font-medium">{optimizedBasePsf.toFixed(2)}</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                (Original: {originalBasePsf.toFixed(2)})
+                              </div>
+                            </div>
+                          )}
+                          
+                          <HoverCard>
+                            <HoverCardTrigger asChild>
+                              <Button variant="ghost" size="sm" className="mt-2 w-full text-xs">
+                                View More Details
+                              </Button>
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-80 p-3">
+                              <div className="grid grid-cols-3 gap-2 text-sm">
+                                <div className="col-span-3">
+                                  <p className="text-sm font-semibold mb-1">{summary.type} - {summary.count} units</p>
+                                </div>
+                                <div className="bg-muted/30 p-2 rounded">
+                                  <p className="text-xs text-muted-foreground">PSF Range</p>
+                                  <p className="text-xs font-medium mt-1">{summary.minPsf.toFixed(2)} - {summary.maxPsf.toFixed(2)}</p>
+                                </div>
+                                <div className="bg-muted/30 p-2 rounded">
+                                  <p className="text-xs text-muted-foreground">Size Range</p>
+                                  <p className="text-xs font-medium mt-1">{summary.minSize.toFixed(1)} - {summary.maxSize.toFixed(1)}</p>
+                                </div>
+                                <div className="bg-muted/30 p-2 rounded">
+                                  <p className="text-xs text-muted-foreground">Price Range</p>
+                                  <p className="text-xs font-medium mt-1">
+                                    {summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})} - {summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                                  </p>
+                                </div>
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
               
               {/* Detailed Summary Cards - only show if detailed view is selected */}
               {summaryCardView === "detailed" && (
                 <div className="grid grid-cols-1 gap-4">
-                  {detailedTypeSummary.map((summary) => (
-                    <Card key={summary.type} className="overflow-hidden">
-                      <CardHeader className="py-3 bg-muted/30">
-                        <CardTitle className="text-md">
-                          {summary.type} ({summary.count} units)
-                        </CardTitle>
-                      </CardHeader>
-                      <div className="grid grid-cols-1 divide-y md:divide-y-0 md:divide-x md:grid-cols-4">
-                        {/* Unit Count - Always show */}
-                        {summaryStats.find(s => s.id === "count")?.enabled && (
-                          <div className="p-4">
-                            <h4 className="text-sm font-medium mb-2">Unit Count</h4>
-                            <p className="text-xl font-medium">{summary.count}</p>
-                          </div>
-                        )}
-                        
-                        {/* PSF Stats */}
-                        {summaryStats.find(s => s.id === "psf")?.enabled && (
-                          <div className="p-4">
-                            <h4 className="text-sm font-medium mb-2">Price Per Square Foot</h4>
-                            <div className="grid grid-cols-3 gap-2 text-sm">
-                              <div>
-                                <p className="text-muted-foreground">Min</p>
-                                <p className="font-medium">{summary.minPsf.toFixed(2)}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Avg</p>
-                                <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Max</p>
-                                <p className="font-medium">{summary.maxPsf.toFixed(2)}</p>
-                              </div>
+                  {detailedTypeSummary.map((summary) => {
+                    // Find target PSF for this type
+                    const typeConfig = pricingConfig.bedroomTypePricing.find(
+                      (b) => b.type === summary.type
+                    );
+                    const targetPsf = typeConfig?.targetAvgPsf || 0;
+                    
+                    // Get optimization state for this type
+                    const optimized = optimizationState[summary.type]?.isOptimized || false;
+                    const originalBasePsf = optimizationState[summary.type]?.originalBasePsf || 0;
+                    const optimizedBasePsf = optimizationState[summary.type]?.optimizedBasePsf || 0;
+                    
+                    // Calculate PSF difference
+                    const psfDifference = summary.avgPsf - targetPsf;
+                    const psfDifferenceClass = 
+                      Math.abs(psfDifference) < 1 ? "text-green-500" :
+                      psfDifference < 0 ? "text-amber-500" : "text-red-500";
+                    
+                    return (
+                      <Card key={summary.type} className="overflow-hidden">
+                        <CardHeader className="py-3 bg-muted/30">
+                          <div className="flex justify-between items-center">
+                            <CardTitle className="text-md flex items-center gap-2">
+                              {summary.type} ({summary.count} units)
+                              {optimized && (
+                                <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 px-2 py-1 rounded-full">
+                                  Optimized
+                                </span>
+                              )}
+                            </CardTitle>
+                            
+                            <div className="flex items-center gap-2">
+                              <TooltipComponent>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => handleOptimizePsf(summary.type)}
+                                    disabled={optimizationInProgress === summary.type}
+                                    className="h-8"
+                                  >
+                                    <Wand2 className="h-4 w-4 mr-1" />
+                                    {optimizationInProgress === summary.type 
+                                      ? "Optimizing..." 
+                                      : optimized 
+                                        ? "Re-optimize" 
+                                        : "Optimize PSF"}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="max-w-xs">
+                                  <p className="text-xs">
+                                    Adjusts the base premium for this bedroom type using gradient descent 
+                                    optimization to bring the average PSF closer to the target value.
+                                  </p>
+                                </TooltipContent>
+                              </TooltipComponent>
+                              
+                              {optimized && (
+                                <TooltipComponent>
+                                  <TooltipTrigger asChild>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={() => handleRevertOptimization(summary.type)}
+                                      className="h-8"
+                                    >
+                                      <RefreshCcw className="h-4 w-4 mr-1" />
+                                      Revert
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom">
+                                    <p className="text-xs">
+                                      Restore original base PSF value of {originalBasePsf.toFixed(2)}
+                                    </p>
+                                  </TooltipContent>
+                                </TooltipComponent>
+                              )}
                             </div>
                           </div>
-                        )}
+                          
+                          {/* Target & Optimization info */}
+                          <div className="flex flex-wrap gap-4 mt-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground">Target PSF:</span>
+                              <span className="text-sm font-medium">{targetPsf.toFixed(2)}</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground">Achieved PSF:</span>
+                              <span className="text-sm font-medium">{summary.avgPsf.toFixed(2)}</span>
+                              {targetPsf > 0 && (
+                                <span className={`text-xs ${psfDifferenceClass}`}>
+                                  ({psfDifference > 0 ? "+" : ""}{psfDifference.toFixed(2)})
+                                </span>
+                              )}
+                            </div>
+                            
+                            {optimized && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">Base PSF:</span>
+                                <span className="text-sm font-medium">{optimizedBasePsf.toFixed(2)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  (Original: {originalBasePsf.toFixed(2)})
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </CardHeader>
                         
-                        {/* Price Stats */}
-                        {summaryStats.find(s => s.id === "price")?.enabled && (
-                          <div className="p-4">
-                            <h4 className="text-sm font-medium mb-2">Total Price</h4>
-                            <div className="grid grid-cols-3 gap-2 text-sm">
-                              <div>
-                                <p className="text-muted-foreground">Min</p>
-                                <p className="font-medium">{summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Avg</p>
-                                <p className="font-medium">{summary.avgPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Max</p>
-                                <p className="font-medium">{summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                        <div className="grid grid-cols-1 divide-y md:divide-y-0 md:divide-x md:grid-cols-4">
+                          {/* Unit Count - Always show */}
+                          {summaryStats.find(s => s.id === "count")?.enabled && (
+                            <div className="p-4">
+                              <h4 className="text-sm font-medium mb-2">Unit Count</h4>
+                              <p className="text-xl font-medium">{summary.count}</p>
+                            </div>
+                          )}
+                          
+                          {/* PSF Stats */}
+                          {summaryStats.find(s => s.id === "psf")?.enabled && (
+                            <div className="p-4">
+                              <h4 className="text-sm font-medium mb-2">Price Per Square Foot</h4>
+                              <div className="grid grid-cols-3 gap-2 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Min</p>
+                                  <p className="font-medium">{summary.minPsf.toFixed(2)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Avg</p>
+                                  <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Max</p>
+                                  <p className="font-medium">{summary.maxPsf.toFixed(2)}</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
-                        
-                        {/* Size Stats */}
-                        {summaryStats.find(s => s.id === "size")?.enabled && (
-                          <div className="p-4">
-                            <h4 className="text-sm font-medium mb-2">Unit Size (sqft)</h4>
-                            <div className="grid grid-cols-3 gap-2 text-sm">
-                              <div>
-                                <p className="text-muted-foreground">Min</p>
-                                <p className="font-medium">{summary.minSize.toFixed(1)}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Avg</p>
-                                <p className="font-medium">{summary.avgSize.toFixed(1)}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Max</p>
-                                <p className="font-medium">{summary.maxSize.toFixed(1)}</p>
+                          )}
+                          
+                          {/* Price Stats */}
+                          {summaryStats.find(s => s.id === "price")?.enabled && (
+                            <div className="p-4">
+                              <h4 className="text-sm font-medium mb-2">Total Price</h4>
+                              <div className="grid grid-cols-3 gap-2 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Min</p>
+                                  <p className="font-medium">{summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Avg</p>
+                                  <p className="font-medium">{summary.avgPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Max</p>
+                                  <p className="font-medium">{summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  ))}
+                          )}
+                          
+                          {/* Size Stats */}
+                          {summaryStats.find(s => s.id === "size")?.enabled && (
+                            <div className="p-4">
+                              <h4 className="text-sm font-medium mb-2">Unit Size (sqft)</h4>
+                              <div className="grid grid-cols-3 gap-2 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Min</p>
+                                  <p className="font-medium">{summary.minSize.toFixed(1)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Avg</p>
+                                  <p className="font-medium">{summary.avgSize.toFixed(1)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Max</p>
+                                  <p className="font-medium">{summary.maxSize.toFixed(1)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
               
