@@ -66,7 +66,7 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
               {safeBedroomTypes.map((type) => (
                 <CommandItem
                   key={type}
-                  value={type}
+                  value={type || ""}
                   onSelect={() => handleTypeSelection(type)}
                 >
                   <Check
@@ -93,6 +93,7 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
             >
               {type}
               <button
+                type="button"
                 className="ml-1 rounded-full outline-none focus:ring-2 focus:ring-offset-1"
                 onClick={() => handleTypeSelection(type)}
               >
