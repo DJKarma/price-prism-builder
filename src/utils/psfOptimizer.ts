@@ -1,4 +1,3 @@
-
 /**
  * Gradient Descent PSF Optimizer
  * 
@@ -199,25 +198,6 @@ const calculateOverallAveragePsf = (
   
   // Calculate average PSF
   return psfValues.reduce((sum, psf) => sum + psf, 0) / psfValues.length;
-};
-
-/**
- * Calculate the total price for a unit
- */
-export const calculateUnitPrice = (
-  unit: Unit, 
-  pricingConfig: PricingConfig
-): { psf: number; totalPrice: number } => {
-  const psf = calculateUnitPsf(unit, pricingConfig);
-  const sellArea = parseFloat(unit.sellArea as string) || 0;
-  const totalPrice = psf * sellArea;
-  // Ceiling to nearest 1000
-  const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
-  
-  return { 
-    psf, 
-    totalPrice: finalTotalPrice 
-  };
 };
 
 /**
@@ -548,6 +528,6 @@ export const megaOptimizePsf = (
 export {
   calculateUnitPsf,
   calculateAveragePsf,
-  calculateOverallAveragePsf
+  calculateOverallAveragePsf,
+  calculateFloorPremium
 };
-

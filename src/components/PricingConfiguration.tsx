@@ -56,13 +56,13 @@ const PricingConfiguration = ({
   onConfigurationComplete,
   maxFloor = 50
 }) => {
-  // Extract unique bedroom types and views - ensure they're strings
-  const bedroomTypes = [...new Set(data.map(unit => String(unit.bedrooms)))].sort();
-  const viewTypes = [...new Set(data.map(unit => String(unit.view)))].sort();
+  // Extract unique bedroom types and views
+  const bedroomTypes = [...new Set(data.map(unit => unit.bedrooms))].sort();
+  const viewTypes = [...new Set(data.map(unit => unit.view))].sort();
   
   // Calculate average area by bedroom type for target PSF calculations
   const bedroomAreaAverages = bedroomTypes.reduce((acc, type) => {
-    const unitsOfType = data.filter(unit => String(unit.bedrooms) === type);
+    const unitsOfType = data.filter(unit => unit.bedrooms === type);
     const totalArea = unitsOfType.reduce((sum, unit) => sum + parseFloat(unit.area), 0);
     const avgArea = totalArea / unitsOfType.length;
     
@@ -70,7 +70,7 @@ const PricingConfiguration = ({
       ...acc,
       [type]: avgArea
     };
-  }, {} as Record<string, number>);
+  }, {});
   
   // Initialize pricing state
   const [pricingConfig, setPricingConfig] = useState<PricingConfig>({
@@ -324,7 +324,7 @@ const PricingConfiguration = ({
                 </TableHeader>
                 <TableBody>
                   {pricingConfig.bedroomTypePricing.map((type, index) => (
-                    <TableRow key={`bedroom-type-${type.type}-${index}`}>
+                    <TableRow key={type.type}>
                       <TableCell>{type.type}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -383,7 +383,7 @@ const PricingConfiguration = ({
                 </TableHeader>
                 <TableBody>
                   {pricingConfig.viewPricing.map((view, index) => (
-                    <TableRow key={`view-${view.view}-${index}`}>
+                    <TableRow key={view.view}>
                       <TableCell>{view.view}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -436,7 +436,7 @@ const PricingConfiguration = ({
                     </TableHeader>
                     <TableBody>
                       {pricingConfig.floorRiseRules.map((rule, index) => (
-                        <TableRow key={`floor-rule-${index}`}>
+                        <TableRow key={index}>
                           <TableCell>
                             <Input
                               type="number"
