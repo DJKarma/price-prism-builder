@@ -121,6 +121,7 @@ const FixedHeaderTable = React.forwardRef<
     style={{ 
       maxHeight, 
       overflowY: "auto",
+      overflowX: "scroll", // Always show horizontal scrollbar
       scrollbarWidth: "thin" 
     }}
     {...props}
