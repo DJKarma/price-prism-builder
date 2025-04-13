@@ -124,7 +124,7 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
             return (
               <Card 
                 key={type.type} 
-                className={`border hover:shadow-md transition-all ${
+                className={`border hover:shadow-md transition-all h-full ${
                   hasChanged 
                     ? isIncrease 
                       ? 'border-green-200' 
@@ -162,16 +162,16 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
                         <p className="text-muted-foreground">Base PSF</p>
-                        <p className="font-medium">${type.basePsf.toFixed(2)}</p>
+                        <p className="font-medium">{type.basePsf.toFixed(2)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Target Avg PSF</p>
-                        <p className="font-medium">${type.targetAvgPsf.toFixed(2)}</p>
+                        <p className="font-medium">{type.targetAvgPsf.toFixed(2)}</p>
                       </div>
                       {hasChanged && (
                         <div className="col-span-2 mt-2 pt-2 border-t">
                           <p className="text-muted-foreground">Original Base PSF</p>
-                          <p className="font-medium">${type.originalBasePsf?.toFixed(2)}</p>
+                          <p className="font-medium">{type.originalBasePsf?.toFixed(2)}</p>
                         </div>
                       )}
                     </div>
@@ -202,7 +202,7 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                           <span className="text-xs font-medium text-green-700">Avg PSF</span>
                           <DollarSign className="h-3.5 w-3.5 text-green-600" />
                         </div>
-                        <p className="font-semibold text-sm text-green-900 mt-1">${avgPsf.toFixed(2)}</p>
+                        <p className="font-semibold text-sm text-green-900 mt-1">{avgPsf.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>

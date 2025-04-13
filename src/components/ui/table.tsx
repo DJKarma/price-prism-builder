@@ -1,6 +1,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const Table = React.forwardRef<
   HTMLTableElement,
@@ -109,14 +110,14 @@ const TableCaption = React.forwardRef<
 ))
 TableCaption.displayName = "TableCaption"
 
-// Create a fixed-header table container
+// Create a fixed-header table container with proper scrolling
 const FixedHeaderTable = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { maxHeight?: string }
 >(({ className, maxHeight = "600px", ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("w-full overflow-hidden border rounded-md", className)}
+    className={cn("w-full overflow-auto border rounded-md", className)}
     style={{ maxHeight }}
     {...props}
   />

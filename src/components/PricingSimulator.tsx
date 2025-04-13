@@ -31,6 +31,7 @@ import {
   Table as TableIcon,
   Check,
   Info,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PricingConfig } from "./PricingConfiguration";
@@ -39,7 +40,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { optimizeBasePsf } from "@/utils/psfOptimizer";
 
 interface PricingSimulatorProps {
   data: any[];
@@ -87,7 +87,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   
   // Optimization state
   const [optimizationState, setOptimizationState] = useState<OptimizationState>({});
-  const [optimizationInProgress, setOptimizationInProgress] = useState<string | null>(null);
   
   // Process the data with pricing calculations
   useEffect(() => {
@@ -248,6 +247,15 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
+  const resetFilters = () => {
+    setFilters({
+      type: "",
+      view: "",
+      floor: "",
+    });
+    toast.success("Filters have been reset");
+  };
+
   const handleSort = (key: string) => {
     let direction: "ascending" | "descending" = "ascending";
     if (sortConfig && sortConfig.key === key) {
@@ -341,14 +349,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div>
             <Select
               value={filters.type}
               onValueChange={(value) => handleFilterChange("type", value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Filter by Type" />
+                <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All Types</SelectItem>
@@ -366,7 +374,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               onValueChange={(value) => handleFilterChange("view", value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Filter by View" />
+                <SelectValue placeholder="All Views" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All Views</SelectItem>
@@ -384,7 +392,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               onValueChange={(value) => handleFilterChange("floor", value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Filter by Floor" />
+                <SelectValue placeholder="All Floors" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All Floors</SelectItem>
@@ -396,8 +404,22 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               </SelectContent>
             </Select>
           </div>
-          <div className="md:flex justify-end">
-            <Button variant="outline" onClick={exportCSV}>
+          <div>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={resetFilters}
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset Filters
+            </Button>
+          </div>
+          <div>
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={exportCSV}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export Results
             </Button>
