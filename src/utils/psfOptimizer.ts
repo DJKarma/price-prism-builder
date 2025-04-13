@@ -41,21 +41,21 @@ interface PricingConfig {
 }
 
 /**
- * Calculate floor premium PSF adjustment
+ * Calculate floor premium at a specific floor level
  */
-export const calculateFloorPremium = (floorLevel: number, floorRules: any[]) => {
-  if (!floorRules || floorRules.length === 0) return 0;
+const calculateFloorPremium = (
+  floorLevel: number,
+  floorRules: FloorRiseRule[]
+): number => {
+  // Sort rules by start floor to ensure proper processing
+  const sortedRules = [...floorRules].sort(
+    (a, b) => a.startFloor - b.startFloor
+  );
   
-  // Sort rules by startFloor to ensure they are processed in order
-  const sortedFloorRules = [...floorRules].sort((a, b) => a.startFloor - b.startFloor);
-  
-  let floorAdjustment = 0;
-  
-  // Calculate cumulative PSF adjustment based on floor rules
   let cumulativeAdjustment = 0;
   let currentFloor = 1;
 
-  for (const rule of sortedFloorRules) {
+  for (const rule of sortedRules) {
     // Ensure rule.endFloor is set (default to 99 if necessary)
     const ruleEnd = rule.endFloor !== null ? rule.endFloor : 99;
 
@@ -80,9 +80,8 @@ export const calculateFloorPremium = (floorLevel: number, floorRules: any[]) => 
       break;
     }
   }
-  floorAdjustment = cumulativeAdjustment;
   
-  return floorAdjustment;
+  return cumulativeAdjustment;
 };
 
 /**

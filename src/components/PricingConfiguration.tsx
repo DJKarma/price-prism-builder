@@ -1,542 +1,463 @@
-
 import React, { useState, useEffect } from "react";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
 } from "@/components/ui/table";
-import { PlusCircle, MinusCircle, Info } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Settings, PlusCircle, MinusCircle } from "lucide-react";
+import { toast } from "sonner";
+
+interface PricingConfigurationProps {
+  data: any[];
+  onConfigurationComplete: (config: PricingConfig) => void;
+  maxFloor?: number;
+}
+
+export interface FloorRiseRule {
+  startFloor: number;
+  endFloor: number | null;
+  psfIncrement: number;
+  jumpEveryFloor?: number;
+  jumpIncrement?: number;
+}
+
+export interface BedroomTypePricing {
+  type: string;
+  basePsf: number;
+  targetAvgPsf: number;
+}
+
+export interface ViewPricing {
+  view: string;
+  psfAdjustment: number;
+}
 
 export interface PricingConfig {
   basePsf: number;
-  targetOverallPsf: number;
-  bedroomTypePricing: {
+  bedroomTypePricing: Array<{
     type: string;
     basePsf: number;
     targetAvgPsf: number;
-  }[];
-  viewPricing: {
+    originalBasePsf?: number;
+  }>;
+  viewPricing: Array<{
     view: string;
     psfAdjustment: number;
-  }[];
-  floorRiseRules: {
+    originalPsfAdjustment?: number;
+  }>;
+  floorRiseRules: Array<{
     startFloor: number;
     endFloor: number | null;
     psfIncrement: number;
     jumpEveryFloor?: number;
     jumpIncrement?: number;
-  }[];
+  }>;
+  targetOverallPsf?: number;
+  isOptimized?: boolean;
   maxFloor?: number;
 }
 
-const PricingConfiguration = ({ 
-  data, 
+const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
+  data,
   onConfigurationComplete,
-  maxFloor = 50
+  maxFloor = 50,
 }) => {
-  // Extract unique bedroom types and views
-  const bedroomTypes = [...new Set(data.map(unit => unit.bedrooms))].sort();
-  const viewTypes = [...new Set(data.map(unit => unit.view))].sort();
-  
-  // Calculate average area by bedroom type for target PSF calculations
-  const bedroomAreaAverages = bedroomTypes.reduce((acc, type) => {
-    const unitsOfType = data.filter(unit => unit.bedrooms === type);
-    const totalArea = unitsOfType.reduce((sum, unit) => sum + parseFloat(unit.area), 0);
-    const avgArea = totalArea / unitsOfType.length;
-    
-    return {
-      ...acc,
-      [type]: avgArea
-    };
-  }, {});
-  
-  // Initialize pricing state
-  const [pricingConfig, setPricingConfig] = useState<PricingConfig>({
-    basePsf: 800,
-    targetOverallPsf: 1000,
-    bedroomTypePricing: bedroomTypes.map(type => ({
-      type,
-      basePsf: 800,
-      targetAvgPsf: 1000
-    })),
-    viewPricing: viewTypes.map(view => ({
-      view,
-      psfAdjustment: 0
-    })),
-    floorRiseRules: [
-      {
-        startFloor: 1,
-        endFloor: null,
-        psfIncrement: 5,
-        jumpEveryFloor: 5,
-        jumpIncrement: 20
+  const [basePsf, setBasePsf] = useState<number>(1000);
+  const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
+    { startFloor: 1, endFloor: maxFloor, psfIncrement: 10, jumpEveryFloor: 10, jumpIncrement: 20 },
+  ]);
+  const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
+  const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
+
+  useEffect(() => {
+    if (floorRiseRules.length > 0) {
+      const updatedRules = [...floorRiseRules];
+      if (updatedRules[updatedRules.length - 1].endFloor === null) {
+        updatedRules[updatedRules.length - 1].endFloor = maxFloor;
+        setFloorRiseRules(updatedRules);
       }
-    ]
-  });
-  
-  // Update base PSF for all bedroom types
-  const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newBasePsf = parseFloat(e.target.value);
-    if (isNaN(newBasePsf)) return;
-    
-    setPricingConfig({
-      ...pricingConfig,
-      basePsf: newBasePsf,
-      bedroomTypePricing: pricingConfig.bedroomTypePricing.map(type => ({
-        ...type,
-        basePsf: newBasePsf
+    }
+  }, [maxFloor]);
+
+  useEffect(() => {
+    if (!data.length) return;
+
+    const uniqueTypes = Array.from(
+      new Set(
+        data
+          .map((item) => item.type)
+          .filter((type) => type && type.trim() !== "")
+      )
+    ) as string[];
+
+    setBedroomTypes(
+      uniqueTypes.map((type) => ({
+        type,
+        basePsf: basePsf,
+        targetAvgPsf: basePsf,
       }))
+    );
+
+    const uniqueViews = Array.from(
+      new Set(
+        data
+          .map((item) => item.view)
+          .filter((view) => view && view.trim() !== "")
+      )
+    ) as string[];
+
+    setViewTypes(
+      uniqueViews.map((view) => ({
+        view,
+        psfAdjustment: 0,
+      }))
+    );
+  }, [data, basePsf]);
+
+  const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value > 0) {
+      setBasePsf(value);
+      setBedroomTypes(prev =>
+        prev.map(item => ({
+          ...item,
+          basePsf: value,
+          targetAvgPsf: value
+        }))
+      );
+    }
+  };
+
+  const handleAddFloorRiseRule = () => {
+    const lastRule = floorRiseRules[floorRiseRules.length - 1];
+    const newStartFloor = lastRule ? 
+      (lastRule.endFloor === null ? maxFloor : lastRule.endFloor) + 1 : 1;
+    
+    setFloorRiseRules([
+      ...floorRiseRules,
+      {
+        startFloor: newStartFloor,
+        endFloor: maxFloor,
+        psfIncrement: 10,
+        jumpEveryFloor: 10,
+        jumpIncrement: 20,
+      },
+    ]);
+  };
+
+  const handleRemoveFloorRiseRule = (index: number) => {
+    if (floorRiseRules.length <= 1) {
+      toast.error("You must have at least one floor rise rule");
+      return;
+    }
+    setFloorRiseRules(floorRiseRules.filter((_, i) => i !== index));
+  };
+
+  const updateFloorRiseRule = (index: number, field: keyof FloorRiseRule, value: number | null) => {
+    const newRules = [...floorRiseRules];
+    newRules[index] = { ...newRules[index], [field]: value };
+    setFloorRiseRules(newRules);
+  };
+
+  const updateBedroomTypePrice = (index: number, field: keyof BedroomTypePricing, value: number) => {
+    const newPricing = [...bedroomTypes];
+    newPricing[index] = { ...newPricing[index], [field]: value };
+    setBedroomTypes(newPricing);
+  };
+
+  const updateViewPricing = (index: number, value: number) => {
+    const newViewPricing = [...viewTypes];
+    newViewPricing[index] = { ...newViewPricing[index], psfAdjustment: value };
+    setViewTypes(newViewPricing);
+  };
+
+  const handleSubmit = () => {
+    if (basePsf <= 0) {
+      toast.error("Base PSF must be greater than zero");
+      return;
+    }
+
+    for (let i = 0; i < floorRiseRules.length; i++) {
+      const rule = floorRiseRules[i];
+      
+      if (rule.endFloor !== null && rule.startFloor > rule.endFloor) {
+        toast.error(`Floor rise rule #${i+1} has start floor greater than end floor`);
+        return;
+      }
+      
+      for (let j = i + 1; j < floorRiseRules.length; j++) {
+        const otherRule = floorRiseRules[j];
+        const ruleEnd = rule.endFloor === null ? maxFloor : rule.endFloor;
+        const otherRuleEnd = otherRule.endFloor === null ? maxFloor : otherRule.endFloor;
+        
+        if (
+          (rule.startFloor <= otherRuleEnd && ruleEnd >= otherRule.startFloor) ||
+          (otherRule.startFloor <= ruleEnd && otherRuleEnd >= rule.startFloor)
+        ) {
+          toast.error(`Floor rise rules #${i+1} and #${j+1} have overlapping floor ranges`);
+          return;
+        }
+      }
+    }
+
+    const processedRules = floorRiseRules.map(rule => ({
+      ...rule,
+      endFloor: rule.endFloor === null ? maxFloor : rule.endFloor
+    }));
+
+    onConfigurationComplete({
+      basePsf,
+      floorRiseRules: processedRules,
+      bedroomTypePricing: bedroomTypes,
+      viewPricing: viewTypes,
+      maxFloor,
     });
   };
 
-  // Update overall target PSF
-  const handleTargetOverallPsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTargetPsf = parseFloat(e.target.value);
-    if (isNaN(newTargetPsf)) return;
-    
-    setPricingConfig({
-      ...pricingConfig,
-      targetOverallPsf: newTargetPsf
-    });
-  };
-  
-  // Handle bedroom type pricing change
-  const handleBedroomPsfChange = (index: number, field: string, value: number) => {
-    const updatedPricing = [...pricingConfig.bedroomTypePricing];
-    updatedPricing[index] = {
-      ...updatedPricing[index],
-      [field]: value
-    };
-    
-    setPricingConfig({
-      ...pricingConfig,
-      bedroomTypePricing: updatedPricing
-    });
-  };
-  
-  // Handle view pricing change
-  const handleViewPsfChange = (index: number, value: number) => {
-    const updatedPricing = [...pricingConfig.viewPricing];
-    updatedPricing[index] = {
-      ...updatedPricing[index],
-      psfAdjustment: value
-    };
-    
-    setPricingConfig({
-      ...pricingConfig,
-      viewPricing: updatedPricing
-    });
-  };
-  
-  // Handle floor rule changes
-  const handleFloorRuleChange = (index: number, field: string, value: any) => {
-    const updatedRules = [...pricingConfig.floorRiseRules];
-    updatedRules[index] = {
-      ...updatedRules[index],
-      [field]: value
-    };
-    
-    setPricingConfig({
-      ...pricingConfig,
-      floorRiseRules: updatedRules
-    });
-  };
-  
-  // Add a new floor rule
-  const addFloorRule = () => {
-    // Determine the start floor for the new rule (one after the end of the last rule)
-    let startFloor = 1;
-    if (pricingConfig.floorRiseRules.length > 0) {
-      const lastRule = pricingConfig.floorRiseRules[pricingConfig.floorRiseRules.length - 1];
-      startFloor = (lastRule.endFloor || maxFloor) + 1;
-    }
-    
-    setPricingConfig({
-      ...pricingConfig,
-      floorRiseRules: [
-        ...pricingConfig.floorRiseRules,
-        {
-          startFloor,
-          endFloor: null,
-          psfIncrement: 5,
-          jumpEveryFloor: 5,
-          jumpIncrement: 20
-        }
-      ]
-    });
-  };
-  
-  // Remove a floor rule
-  const removeFloorRule = (index: number) => {
-    const updatedRules = [...pricingConfig.floorRiseRules];
-    updatedRules.splice(index, 1);
-    
-    setPricingConfig({
-      ...pricingConfig,
-      floorRiseRules: updatedRules
-    });
-  };
-  
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Add maxFloor to the configuration
-    const configWithMaxFloor = {
-      ...pricingConfig,
-      maxFloor
-    };
-    
-    onConfigurationComplete(configWithMaxFloor);
-  };
-  
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Configure Pricing Parameters</CardTitle>
-            <CardDescription>
-              Set base PSF, bedroom type premiums, view adjustments, and floor rise rules
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Base PSF and Overall Target PSF Configuration */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <Label htmlFor="basePsf">Base PSF for All Units</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="basePsf"
-                    type="number"
-                    min="0"
-                    step="10"
-                    value={pricingConfig.basePsf}
-                    onChange={handleBasePsfChange}
-                  />
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Info className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>The starting PSF value for all unit types.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                
-                <div className="pt-1">
-                  <Slider
-                    value={[pricingConfig.basePsf]}
-                    min={500}
-                    max={2000}
-                    step={10}
-                    onValueChange={(value) => {
-                      handleBasePsfChange({ target: { value: value[0].toString() } } as React.ChangeEvent<HTMLInputElement>);
-                    }}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>$500</span>
-                    <span>$2,000</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                <Label htmlFor="targetOverallPsf">Target Overall Average PSF</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="targetOverallPsf"
-                    type="number"
-                    min="0"
-                    step="10"
-                    value={pricingConfig.targetOverallPsf}
-                    onChange={handleTargetOverallPsfChange}
-                  />
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Info className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>The target overall average PSF for all units. This will be used for the Mega Optimize feature in the simulation.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                
-                <div className="pt-1">
-                  <Slider
-                    value={[pricingConfig.targetOverallPsf]}
-                    min={500}
-                    max={2000}
-                    step={10}
-                    onValueChange={(value) => {
-                      handleTargetOverallPsfChange({ target: { value: value[0].toString() } } as React.ChangeEvent<HTMLInputElement>);
-                    }}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>$500</span>
-                    <span>$2,000</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Bedroom Type Pricing */}
-            <div>
-              <h3 className="text-lg font-medium mb-3">Bedroom Type Pricing</h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Bedroom Type</TableHead>
-                    <TableHead>Base PSF</TableHead>
-                    <TableHead>Target Avg PSF</TableHead>
-                    <TableHead>Avg Area</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pricingConfig.bedroomTypePricing.map((type, index) => (
-                    <TableRow key={type.type}>
-                      <TableCell>{type.type}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="10"
-                            value={type.basePsf}
-                            onChange={(e) => 
-                              handleBedroomPsfChange(
-                                index, 
-                                "basePsf", 
-                                parseFloat(e.target.value) || 0
-                              )
-                            }
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="10"
-                            value={type.targetAvgPsf}
-                            onChange={(e) => 
-                              handleBedroomPsfChange(
-                                index, 
-                                "targetAvgPsf", 
-                                parseFloat(e.target.value) || 0
-                              )
-                            }
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {bedroomAreaAverages[type.type] 
-                          ? Math.round(bedroomAreaAverages[type.type]) 
-                          : "N/A"} sqft
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            
-            {/* View Pricing */}
-            <div>
-              <h3 className="text-lg font-medium mb-3">View PSF Adjustments</h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>View</TableHead>
-                    <TableHead>PSF Adjustment</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pricingConfig.viewPricing.map((view, index) => (
-                    <TableRow key={view.view}>
-                      <TableCell>{view.view}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            step="10"
-                            value={view.psfAdjustment}
-                            onChange={(e) => 
-                              handleViewPsfChange(
-                                index, 
-                                parseFloat(e.target.value) || 0
-                              )
-                            }
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            
-            {/* Floor Rise Rules */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-medium">Floor Rise Rules</h3>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={addFloorRule}
-                >
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Rule
-                </Button>
-              </div>
-              
-              <div className="rounded-md border">
-                <ScrollArea className="max-h-[300px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Start Floor</TableHead>
-                        <TableHead>End Floor</TableHead>
-                        <TableHead>PSF Increment</TableHead>
-                        <TableHead>Jump Every</TableHead>
-                        <TableHead>Jump Increment</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pricingConfig.floorRiseRules.map((rule, index) => (
-                        <TableRow key={index}>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={rule.startFloor}
-                              onChange={(e) => 
-                                handleFloorRuleChange(
-                                  index, 
-                                  "startFloor", 
-                                  parseInt(e.target.value) || 1
-                                )
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min={rule.startFloor}
-                              value={rule.endFloor === null ? '' : rule.endFloor}
-                              placeholder="(Max)"
-                              onChange={(e) => {
-                                const value = e.target.value.trim() === '' 
-                                  ? null 
-                                  : parseInt(e.target.value);
-                                handleFloorRuleChange(index, "endFloor", value);
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              step="1"
-                              value={rule.psfIncrement}
-                              onChange={(e) => 
-                                handleFloorRuleChange(
-                                  index, 
-                                  "psfIncrement", 
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={rule.jumpEveryFloor || ''}
-                              placeholder="Optional"
-                              onChange={(e) => {
-                                const value = e.target.value.trim() === '' 
-                                  ? undefined 
-                                  : parseInt(e.target.value);
-                                handleFloorRuleChange(index, "jumpEveryFloor", value);
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              step="1"
-                              value={rule.jumpIncrement || ''}
-                              placeholder="Optional"
-                              onChange={(e) => {
-                                const value = e.target.value.trim() === '' 
-                                  ? undefined 
-                                  : parseFloat(e.target.value);
-                                handleFloorRuleChange(index, "jumpIncrement", value);
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeFloorRule(index)}
-                              disabled={pricingConfig.floorRiseRules.length <= 1}
-                            >
-                              <MinusCircle className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-              </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                Leave end floor empty to apply rule to all remaining floors. Jump settings are optional.
-              </p>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full">
-              Complete Configuration & Continue to Simulation
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Settings className="h-5 w-5" />
+          Pricing Configuration
+        </CardTitle>
+        <CardDescription>
+          Set up base pricing and adjustment factors
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div>
+          <Label htmlFor="base-psf">Base PSF ($/sqft)</Label>
+          <Input
+            id="base-psf"
+            type="number"
+            min="0"
+            value={basePsf}
+            onChange={handleBasePsfChange}
+            className="w-full md:w-64"
+          />
+          <p className="text-sm text-muted-foreground mt-1">
+            This is the starting point for all price calculations
+          </p>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium">Floor Rise PSF Rules</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAddFloorRiseRule}
+              className="h-8"
+            >
+              <PlusCircle className="h-4 w-4 mr-1" /> Add Rule
             </Button>
-          </CardFooter>
-        </Card>
-      </form>
-    </div>
+          </div>
+          
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Start Floor</TableHead>
+                <TableHead>End Floor</TableHead>
+                <TableHead>PSF Increment</TableHead>
+                <TableHead>Jump Every</TableHead>
+                <TableHead>Jump PSF</TableHead>
+                <TableHead className="w-24">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {floorRiseRules.map((rule, index) => (
+                <TableRow key={index}>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={rule.startFloor}
+                      onChange={(e) =>
+                        updateFloorRiseRule(
+                          index,
+                          "startFloor",
+                          parseInt(e.target.value) || 1
+                        )
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min={rule.startFloor}
+                      value={rule.endFloor === null ? '' : rule.endFloor}
+                      placeholder={`${maxFloor} (Default)`}
+                      onChange={(e) => {
+                        const value = e.target.value.trim() === '' ? null : parseInt(e.target.value);
+                        updateFloorRiseRule(
+                          index,
+                          "endFloor",
+                          value
+                        );
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      value={rule.psfIncrement}
+                      onChange={(e) =>
+                        updateFloorRiseRule(
+                          index,
+                          "psfIncrement",
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={rule.jumpEveryFloor || 10}
+                      onChange={(e) =>
+                        updateFloorRiseRule(
+                          index,
+                          "jumpEveryFloor",
+                          parseInt(e.target.value) || 10
+                        )
+                      }
+                      placeholder="e.g., 10"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      value={rule.jumpIncrement || 20}
+                      onChange={(e) =>
+                        updateFloorRiseRule(
+                          index,
+                          "jumpIncrement",
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                      placeholder="e.g., 20"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveFloorRiseRule(index)}
+                    >
+                      <MinusCircle className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {bedroomTypes.length > 0 && (
+          <div>
+            <h3 className="text-sm font-medium mb-3">Bedroom Type Pricing</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bedroom Type</TableHead>
+                  <TableHead>Base PSF</TableHead>
+                  <TableHead>Target Average PSF</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bedroomTypes.map((type, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{type.type}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={type.basePsf}
+                        onChange={(e) =>
+                          updateBedroomTypePrice(
+                            index,
+                            "basePsf",
+                            parseFloat(e.target.value)
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={type.targetAvgPsf}
+                        onChange={(e) =>
+                          updateBedroomTypePrice(
+                            index,
+                            "targetAvgPsf",
+                            parseFloat(e.target.value)
+                          )
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {viewTypes.length > 0 && (
+          <div>
+            <h3 className="text-sm font-medium mb-3">View Pricing Adjustments</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>View Type</TableHead>
+                  <TableHead>PSF Adjustment</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {viewTypes.map((view, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{view.view}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={view.psfAdjustment}
+                        onChange={(e) =>
+                          updateViewPricing(
+                            index,
+                            parseFloat(e.target.value)
+                          )
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="flex justify-end">
+        <Button onClick={handleSubmit} className="w-full sm:w-auto">
+          Apply Configuration
+        </Button>
+      </CardFooter>
+    </Card>
   );
 };
 
