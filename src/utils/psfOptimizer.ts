@@ -1,4 +1,3 @@
-
 /**
  * Gradient Descent PSF Optimizer
  * 
@@ -63,19 +62,19 @@ const calculateFloorPremium = (
     if (floorLevel > ruleEnd) {
       // Process full range for the rule
       for (let floor = Math.max(currentFloor, rule.startFloor); floor <= ruleEnd; floor++) {
-        cumulativeAdjustment += rule.psfIncrement;
+        cumulativeAdjustment += Math.max(0, rule.psfIncrement); // Ensure non-negative
         // Check if this floor qualifies as a jump floor
         if (rule.jumpEveryFloor && rule.jumpIncrement && ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0)) {
-          cumulativeAdjustment += rule.jumpIncrement;
+          cumulativeAdjustment += Math.max(0, rule.jumpIncrement); // Ensure non-negative
         }
       }
       currentFloor = ruleEnd + 1;
     } else if (floorLevel >= rule.startFloor) {
       // Process up to the current floor within this rule
       for (let floor = Math.max(currentFloor, rule.startFloor); floor <= floorLevel; floor++) {
-        cumulativeAdjustment += rule.psfIncrement;
+        cumulativeAdjustment += Math.max(0, rule.psfIncrement); // Ensure non-negative
         if (rule.jumpEveryFloor && rule.jumpIncrement && ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0)) {
-          cumulativeAdjustment += rule.jumpIncrement;
+          cumulativeAdjustment += Math.max(0, rule.jumpIncrement); // Ensure non-negative
         }
       }
       break;
@@ -126,7 +125,7 @@ const calculateUnitPsf = (
   const floorAdjustment = calculateFloorPremium(floorLevel, floorRules);
   
   // Return final PSF
-  return basePsf + floorAdjustment + viewPsfAdjustment;
+  return Math.max(0, basePsf + floorAdjustment + viewPsfAdjustment); // Ensure non-negative
 };
 
 /**
@@ -226,32 +225,48 @@ const megaCostFunction = (
     views: string[]
   },
   targetPsf: number,
-  originalParams: number[]
+  originalParams: number[],
+  selectedTypes: string[]
 ): number => {
+  // Make sure we enforce non-negative parameter values
+  const safeParams = params.map(p => Math.max(0, p));
+  
   // First N params are bedroom type adjustments
   const bedroomAdjustments: Record<string, number> = {};
   paramMap.bedroomTypes.forEach((type, index) => {
-    bedroomAdjustments[type] = params[index];
+    // Only apply adjustments to selected bedroom types
+    if (selectedTypes.includes(type)) {
+      bedroomAdjustments[type] = safeParams[index];
+    }
   });
   
   // Next M params are view adjustments
   const viewAdjustments: Record<string, number> = {};
   paramMap.views.forEach((view, index) => {
-    viewAdjustments[view] = params[paramMap.bedroomTypes.length + index];
+    viewAdjustments[view] = safeParams[paramMap.bedroomTypes.length + index];
   });
   
   // Calculate average PSF with these parameters
-  const avgPsf = calculateOverallAveragePsf(units, pricingConfig, {
-    bedroomAdjustments,
-    viewAdjustments
-  });
+  const avgPsf = calculateOverallAveragePsf(
+    // Filter units to only include selected bedroom types
+    units.filter(unit => selectedTypes.includes(unit.type)), 
+    pricingConfig, 
+    {
+      bedroomAdjustments,
+      viewAdjustments
+    }
+  );
   
   // Add constraint penalty to avoid large changes
   const constraintFactor = 0.5;
   let constraintPenalty = 0;
   
   for (let i = 0; i < params.length; i++) {
-    constraintPenalty += constraintFactor * Math.pow(params[i] - originalParams[i], 2);
+    // Add penalty for negative values (should never happen due to safeParams)
+    if (params[i] < 0) {
+      constraintPenalty += 1000 * Math.abs(params[i]);
+    }
+    constraintPenalty += constraintFactor * Math.pow(safeParams[i] - originalParams[i], 2);
   }
   
   return Math.pow(avgPsf - targetPsf, 2) + constraintPenalty;
@@ -271,19 +286,26 @@ const fullCostFunction = (
     floorRuleMap: { ruleIndex: number, paramType: string, originalValue: number }[]
   },
   targetPsf: number,
-  originalParams: number[]
+  originalParams: number[],
+  selectedTypes: string[]
 ): number => {
+  // Make sure we enforce non-negative parameter values
+  const safeParams = params.map(p => Math.max(0, p));
+  
   // First section: bedroom type adjustments
   const bedroomAdjustments: Record<string, number> = {};
   paramMap.bedroomTypes.forEach((type, index) => {
-    bedroomAdjustments[type] = params[index];
+    // Only apply adjustments to selected bedroom types
+    if (selectedTypes.includes(type)) {
+      bedroomAdjustments[type] = safeParams[index];
+    }
   });
   
   // Second section: view adjustments
   const viewAdjustments: Record<string, number> = {};
   const viewStartIndex = paramMap.bedroomTypes.length;
   paramMap.views.forEach((view, index) => {
-    viewAdjustments[view] = params[viewStartIndex + index];
+    viewAdjustments[view] = safeParams[viewStartIndex + index];
   });
   
   // Third section: floor rule parameters
@@ -292,7 +314,7 @@ const fullCostFunction = (
   
   // Apply floor rule parameter changes
   paramMap.floorRuleMap.forEach((mapping, index) => {
-    const paramValue = params[floorParamStartIndex + index];
+    const paramValue = safeParams[floorParamStartIndex + index];
     const ruleIndex = mapping.ruleIndex;
     const paramType = mapping.paramType;
     
@@ -304,11 +326,16 @@ const fullCostFunction = (
   });
   
   // Calculate average PSF with these parameters
-  const avgPsf = calculateOverallAveragePsf(units, pricingConfig, {
-    bedroomAdjustments,
-    viewAdjustments,
-    floorRules
-  });
+  const avgPsf = calculateOverallAveragePsf(
+    // Filter units to only include selected bedroom types
+    units.filter(unit => selectedTypes.includes(unit.type)), 
+    pricingConfig, 
+    {
+      bedroomAdjustments,
+      viewAdjustments,
+      floorRules
+    }
+  );
   
   // Add constraint penalty to avoid large changes
   const constraintFactor = 0.5;
@@ -317,20 +344,31 @@ const fullCostFunction = (
   for (let i = 0; i < params.length; i++) {
     // Higher penalty for floor parameters to prevent large changes
     const paramFactor = i >= floorParamStartIndex ? constraintFactor * 2 : constraintFactor;
-    constraintPenalty += paramFactor * Math.pow(params[i] - originalParams[i], 2);
+    constraintPenalty += paramFactor * Math.pow(safeParams[i] - originalParams[i], 2);
   }
   
   // Add monotonicity constraints for floor parameters
   let monotonicityPenalty = 0;
   for (let i = 0; i < floorRules.length; i++) {
-    // Penalty for negative psfIncrement (should always be positive)
+    // Penalty for negative psfIncrement (should never happen due to safeParams)
     if (floorRules[i].psfIncrement < 0) {
       monotonicityPenalty += 1000 * Math.abs(floorRules[i].psfIncrement);
     }
     
-    // Penalty for negative jumpIncrement (should always be positive)
+    // Penalty for negative jumpIncrement (should never happen due to safeParams)
     if (floorRules[i].jumpIncrement !== undefined && floorRules[i].jumpIncrement < 0) {
       monotonicityPenalty += 1000 * Math.abs(floorRules[i].jumpIncrement);
+    }
+  }
+  
+  // Ensure cumulative floor PSF is monotonically increasing
+  for (let floor = 2; floor < 50; floor++) {
+    const prevFloorPsf = calculateFloorPremium(floor - 1, floorRules);
+    const currFloorPsf = calculateFloorPremium(floor, floorRules);
+    
+    // Add penalty if current floor PSF is less than previous floor
+    if (currFloorPsf < prevFloorPsf) {
+      monotonicityPenalty += 1000 * Math.abs(prevFloorPsf - currFloorPsf);
     }
   }
   
@@ -454,6 +492,7 @@ export const megaOptimizePsf = (
   units: Unit[],
   pricingConfig: PricingConfig,
   targetOverallPsf: number,
+  selectedTypes: string[] = [],
   options = {
     learningRate: 0.05,
     maxIterations: 200,
@@ -482,6 +521,14 @@ export const megaOptimizePsf = (
   const bedroomTypes = pricingConfig.bedroomTypePricing.map(b => b.type);
   const views = pricingConfig.viewPricing.map(v => v.view);
   
+  // If no bedroom types are selected, use all types
+  if (selectedTypes.length === 0) {
+    selectedTypes = [...bedroomTypes];
+  }
+  
+  // Filter units to only include selected bedroom types
+  const filteredUnits = units.filter(unit => selectedTypes.includes(unit.type));
+  
   // Parameter mapping for optimization
   const paramMap = {
     bedroomTypes,
@@ -508,7 +555,7 @@ export const megaOptimizePsf = (
   let previousCost = Infinity;
   
   // Calculate initial average PSF
-  const initialAvgPsf = calculateOverallAveragePsf(units, pricingConfig);
+  const initialAvgPsf = calculateOverallAveragePsf(filteredUnits, pricingConfig);
   
   // Gradient descent loop
   while (iteration < maxIterations) {
@@ -519,7 +566,8 @@ export const megaOptimizePsf = (
       pricingConfig,
       paramMap,
       targetOverallPsf,
-      initialParams
+      initialParams,
+      selectedTypes
     );
     
     // Check convergence
@@ -531,6 +579,12 @@ export const megaOptimizePsf = (
     const gradient: number[] = [];
     
     for (let i = 0; i < currentParams.length; i++) {
+      // Skip optimization for non-selected bedroom types
+      if (i < bedroomTypes.length && !selectedTypes.includes(bedroomTypes[i])) {
+        gradient.push(0); // No change for unselected types
+        continue;
+      }
+      
       // Create parameter vectors for numerical differentiation
       const paramsPlus = [...currentParams];
       paramsPlus[i] += epsilon;
@@ -545,7 +599,8 @@ export const megaOptimizePsf = (
         pricingConfig,
         paramMap,
         targetOverallPsf,
-        initialParams
+        initialParams,
+        selectedTypes
       );
       
       const costMinus = megaCostFunction(
@@ -554,7 +609,8 @@ export const megaOptimizePsf = (
         pricingConfig,
         paramMap,
         targetOverallPsf,
-        initialParams
+        initialParams,
+        selectedTypes
       );
       
       // Estimate gradient component using central difference
@@ -563,11 +619,28 @@ export const megaOptimizePsf = (
     
     // Update parameters using gradient descent
     for (let i = 0; i < currentParams.length; i++) {
+      // Skip parameter updates for non-selected bedroom types
+      if (i < bedroomTypes.length && !selectedTypes.includes(bedroomTypes[i])) {
+        continue; // No change for unselected types
+      }
+      
+      // Update parameter with gradient descent
       currentParams[i] = currentParams[i] - learningRate * gradient[i];
       
       // Ensure values don't go negative
-      if (i < bedroomTypes.length) { // Bedroom PSF
-        currentParams[i] = Math.max(currentParams[i], 1);
+      currentParams[i] = Math.max(currentParams[i], 0);
+      
+      // For view adjustments, limit the change to +/- 10% of original value
+      if (i >= bedroomTypes.length) {
+        const viewIndex = i - bedroomTypes.length;
+        const originalValue = initialParams[i];
+        const maxChange = Math.max(originalValue * 0.1, 1); // 10% or at least 1
+        
+        if (currentParams[i] > originalValue + maxChange) {
+          currentParams[i] = originalValue + maxChange;
+        } else if (currentParams[i] < originalValue - maxChange) {
+          currentParams[i] = Math.max(0, originalValue - maxChange);
+        }
       }
     }
     
@@ -579,16 +652,22 @@ export const megaOptimizePsf = (
   // Map optimized parameters back to bedroom types and views
   const bedroomAdjustments: Record<string, number> = {};
   bedroomTypes.forEach((type, index) => {
-    bedroomAdjustments[type] = currentParams[index];
+    // Only include selected bedroom types
+    if (selectedTypes.includes(type)) {
+      bedroomAdjustments[type] = Math.max(0, currentParams[index]);
+    }
   });
   
   const viewAdjustments: Record<string, number> = {};
   views.forEach((view, index) => {
-    viewAdjustments[view] = currentParams[bedroomTypes.length + index];
+    // Only include views that are related to selected bedroom types
+    if (filteredUnits.some(unit => unit.view === view)) {
+      viewAdjustments[view] = Math.max(0, currentParams[bedroomTypes.length + index]);
+    }
   });
   
   // Calculate final average PSF
-  const finalAvgPsf = calculateOverallAveragePsf(units, pricingConfig, {
+  const finalAvgPsf = calculateOverallAveragePsf(filteredUnits, pricingConfig, {
     bedroomAdjustments,
     viewAdjustments
   });
@@ -612,6 +691,7 @@ export const fullOptimizePsf = (
   units: Unit[],
   pricingConfig: PricingConfig,
   targetOverallPsf: number,
+  selectedTypes: string[] = [],
   options = {
     learningRate: 0.03,
     maxIterations: 300,
@@ -640,6 +720,19 @@ export const fullOptimizePsf = (
   // Extract all bedroom types and views for optimization
   const bedroomTypes = pricingConfig.bedroomTypePricing.map(b => b.type);
   const views = pricingConfig.viewPricing.map(v => v.view);
+  
+  // If no bedroom types are selected, use all types
+  if (selectedTypes.length === 0) {
+    selectedTypes = [...bedroomTypes];
+  }
+  
+  // Filter units to only include selected bedroom types
+  const filteredUnits = units.filter(unit => selectedTypes.includes(unit.type));
+  
+  // Find unique views used by the selected bedroom types
+  const usedViews = Array.from(new Set(
+    filteredUnits.map(unit => unit.view as string)
+  ));
   
   // Create a mapping of floor rule parameters
   const floorRuleMap: Array<{ ruleIndex: number, paramType: string, originalValue: number }> = [];
@@ -693,7 +786,7 @@ export const fullOptimizePsf = (
   let previousCost = Infinity;
   
   // Calculate initial average PSF
-  const initialAvgPsf = calculateOverallAveragePsf(units, pricingConfig);
+  const initialAvgPsf = calculateOverallAveragePsf(filteredUnits, pricingConfig);
   
   // Gradient descent loop
   while (iteration < maxIterations) {
@@ -704,7 +797,8 @@ export const fullOptimizePsf = (
       pricingConfig,
       paramMap,
       targetOverallPsf,
-      initialParams
+      initialParams,
+      selectedTypes
     );
     
     // Check convergence
@@ -716,6 +810,22 @@ export const fullOptimizePsf = (
     const gradient: number[] = [];
     
     for (let i = 0; i < currentParams.length; i++) {
+      // Skip optimization for non-selected bedroom types
+      if (i < bedroomTypes.length && !selectedTypes.includes(bedroomTypes[i])) {
+        gradient.push(0); // No change for unselected types
+        continue;
+      }
+      
+      // Skip optimization for views not used by selected bedroom types
+      if (i >= bedroomTypes.length && i < bedroomTypes.length + views.length) {
+        const viewIndex = i - bedroomTypes.length;
+        const view = views[viewIndex];
+        if (!usedViews.includes(view)) {
+          gradient.push(0); // No change for unused views
+          continue;
+        }
+      }
+      
       // Create parameter vectors for numerical differentiation
       const paramsPlus = [...currentParams];
       paramsPlus[i] += epsilon;
@@ -730,7 +840,8 @@ export const fullOptimizePsf = (
         pricingConfig,
         paramMap,
         targetOverallPsf,
-        initialParams
+        initialParams,
+        selectedTypes
       );
       
       const costMinus = fullCostFunction(
@@ -739,7 +850,8 @@ export const fullOptimizePsf = (
         pricingConfig,
         paramMap,
         targetOverallPsf,
-        initialParams
+        initialParams,
+        selectedTypes
       );
       
       // Estimate gradient component using central difference
@@ -748,6 +860,21 @@ export const fullOptimizePsf = (
     
     // Update parameters using gradient descent
     for (let i = 0; i < currentParams.length; i++) {
+      // Skip parameter updates for non-selected bedroom types
+      if (i < bedroomTypes.length && !selectedTypes.includes(bedroomTypes[i])) {
+        continue; // No change for unselected types
+      }
+      
+      // Skip updates for views not used by selected bedroom types
+      if (i >= bedroomTypes.length && i < bedroomTypes.length + views.length) {
+        const viewIndex = i - bedroomTypes.length;
+        const view = views[viewIndex];
+        if (!usedViews.includes(view)) {
+          continue; // No change for unused views
+        }
+      }
+      
+      // Update parameter with gradient descent
       currentParams[i] = currentParams[i] - learningRate * gradient[i];
       
       // Apply constraints based on parameter type
@@ -757,6 +884,18 @@ export const fullOptimizePsf = (
       if (i < bedroomCount) { 
         // Bedroom PSF - ensure positive
         currentParams[i] = Math.max(currentParams[i], 1);
+      } else if (i >= bedroomCount && i < bedroomCount + viewCount) {
+        // View adjustment - ensure positive and limit change to +/- 10%
+        const originalValue = initialParams[i];
+        const maxChange = Math.max(originalValue * 0.1, 1); // 10% or at least 1
+        
+        currentParams[i] = Math.max(0, currentParams[i]); // Ensure non-negative
+        
+        if (currentParams[i] > originalValue + maxChange) {
+          currentParams[i] = originalValue + maxChange;
+        } else if (currentParams[i] < originalValue - maxChange) {
+          currentParams[i] = Math.max(0, originalValue - maxChange);
+        }
       } else if (i >= bedroomCount + viewCount) {
         // Floor rule parameter - apply appropriate constraints
         const floorParamIndex = i - (bedroomCount + viewCount);
@@ -765,12 +904,12 @@ export const fullOptimizePsf = (
         if (paramMapping.paramType === 'psfIncrement') {
           // Ensure psfIncrement is positive but not too large
           currentParams[i] = Math.max(currentParams[i], 0.01);
-          const maxIncrement = paramMapping.originalValue * 2; // Limit to 2x original
+          const maxIncrement = Math.max(paramMapping.originalValue * 1.5, 1); // Limit to 1.5x original
           currentParams[i] = Math.min(currentParams[i], maxIncrement);
         } else if (paramMapping.paramType === 'jumpIncrement') {
           // Ensure jumpIncrement is positive but not too large
           currentParams[i] = Math.max(currentParams[i], 0);
-          const maxJumpIncrement = Math.max(paramMapping.originalValue * 2, 1); // Limit to 2x original
+          const maxJumpIncrement = Math.max(paramMapping.originalValue * 1.5, 1); // Limit to 1.5x original
           currentParams[i] = Math.min(currentParams[i], maxJumpIncrement);
         }
       }
@@ -784,12 +923,18 @@ export const fullOptimizePsf = (
   // Map optimized parameters back to bedroom types and views
   const bedroomAdjustments: Record<string, number> = {};
   bedroomTypes.forEach((type, index) => {
-    bedroomAdjustments[type] = currentParams[index];
+    // Only include selected bedroom types
+    if (selectedTypes.includes(type)) {
+      bedroomAdjustments[type] = Math.max(0, currentParams[index]);
+    }
   });
   
   const viewAdjustments: Record<string, number> = {};
   views.forEach((view, index) => {
-    viewAdjustments[view] = currentParams[bedroomTypes.length + index];
+    // Only include views that are related to selected bedroom types
+    if (usedViews.includes(view)) {
+      viewAdjustments[view] = Math.max(0, currentParams[bedroomTypes.length + index]);
+    }
   });
   
   // Create optimized floor rules
@@ -797,7 +942,7 @@ export const fullOptimizePsf = (
   const floorParamStartIndex = bedroomTypes.length + views.length;
   
   floorRuleMap.forEach((mapping, index) => {
-    const paramValue = currentParams[floorParamStartIndex + index];
+    const paramValue = Math.max(0, currentParams[floorParamStartIndex + index]);
     const { ruleIndex, paramType } = mapping;
     
     if (paramType === 'psfIncrement') {
@@ -808,7 +953,7 @@ export const fullOptimizePsf = (
   });
   
   // Calculate final average PSF
-  const finalAvgPsf = calculateOverallAveragePsf(units, pricingConfig, {
+  const finalAvgPsf = calculateOverallAveragePsf(filteredUnits, pricingConfig, {
     bedroomAdjustments,
     viewAdjustments,
     floorRules: optimizedFloorRules

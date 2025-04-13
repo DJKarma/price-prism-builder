@@ -42,7 +42,7 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
         <div className="flex items-center gap-2">
           <Input
             id="current-psf"
-            value={`$${currentOverallPsf.toFixed(2)}`}
+            value={currentOverallPsf.toFixed(2)}
             disabled
             className="bg-muted font-medium"
           />
@@ -60,20 +60,15 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
         </Label>
         <div className="flex items-center gap-2">
           {showTargetInput ? (
-            <div className="relative w-full">
-              <Input
-                id="target-psf"
-                type="number"
-                min="0"
-                step="0.01"
-                value={targetPsf}
-                onChange={onTargetPsfChange}
-                className="pl-7 pr-4"
-              />
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-muted-foreground">
-                $
-              </div>
-            </div>
+            <Input
+              id="target-psf"
+              type="number"
+              min="0"
+              step="0.01"
+              value={targetPsf}
+              onChange={onTargetPsfChange}
+              className="w-full"
+            />
           ) : (
             <Button 
               variant="outline" 
