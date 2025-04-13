@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -31,6 +32,8 @@ import {
   Check,
   Info,
   RotateCcw,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { PricingConfig } from "./PricingConfiguration";
@@ -67,6 +70,8 @@ interface OptimizationState {
   };
 }
 
+const ITEMS_PER_PAGE = 10;
+
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
   pricingConfig,
@@ -83,7 +88,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     view: "",
     floor: "",
   });
-  
+  const [currentPage, setCurrentPage] = useState(0);
   const [optimizationState, setOptimizationState] = useState<OptimizationState>({});
 
   useEffect(() => {
@@ -94,7 +99,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       initialOptimizationState[typeConfig.type] = {
         originalBasePsf: typeConfig.basePsf,
         optimizedBasePsf: typeConfig.basePsf,
-        isOptimized: false,
+        isOptimized: typeConfig.isOptimized || false,
       };
     });
     setOptimizationState(initialOptimizationState);
@@ -107,12 +112,12 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         (v) => v.view === unit.view
       );
       
-      const optimizationInfo = initialOptimizationState[unit.type];
-      const useOptimizedBasePsf = optimizationInfo?.isOptimized && optimizationInfo?.optimizedBasePsf;
+      // Check if this type was optimized
+      const isBedroomTypeOptimized = bedroomType?.isOptimized || false;
+      const optimizedTypes = pricingConfig.optimizedTypes || [];
+      const isTypeOptimized = optimizedTypes.includes(unit.type);
       
-      const basePsf = useOptimizedBasePsf 
-        ? optimizationInfo.optimizedBasePsf 
-        : (bedroomType?.basePsf || pricingConfig.basePsf);
+      const basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
       
       let floorAdjustment = 0;
       const floorLevel = parseInt(unit.floor) || 1;
@@ -123,7 +128,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       
       let cumulativeAdjustment = 0;
       for (const rule of sortedFloorRules) {
-        const ruleEnd = rule.endFloor;
+        const ruleEnd = rule.endFloor === null ? 999 : rule.endFloor;
         if (floorLevel > ruleEnd) {
           for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
             cumulativeAdjustment += rule.psfIncrement;
@@ -185,12 +190,13 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         basePsf,
         floorAdjustment,
         viewPsfAdjustment,
-        isOptimized: useOptimizedBasePsf,
+        isOptimized: isTypeOptimized,
       };
     });
 
     setUnits(calculatedUnits);
     setFilteredUnits(calculatedUnits);
+    setCurrentPage(0); // Reset to first page when data changes
   }, [data, pricingConfig]);
 
   useEffect(() => {
@@ -221,6 +227,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       });
     }
     setFilteredUnits(result);
+    setCurrentPage(0); // Reset to first page when filters change
   }, [units, filters, sortConfig]);
 
   const handleFilterChange = (key: string, value: string) => {
@@ -318,6 +325,20 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     toast.success("CSV file downloaded successfully");
   };
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredUnits.length / ITEMS_PER_PAGE);
+  const pageStart = currentPage * ITEMS_PER_PAGE;
+  const pageEnd = Math.min(pageStart + ITEMS_PER_PAGE, filteredUnits.length);
+  const currentPageData = filteredUnits.slice(pageStart, pageEnd);
+
+  const handlePrevPage = () => {
+    setCurrentPage((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1));
+  };
+
   return (
     <Card className="w-full mb-6">
       <CardHeader>
@@ -407,7 +428,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           </div>
         </div>
 
-        <FixedHeaderTable maxHeight="480px">
+        <FixedHeaderTable maxHeight="400px">
           <Table>
             <TableHeader>
               <TableRow>
@@ -524,7 +545,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUnits.slice(0, 15).map((unit, index) => (
+              {currentPageData.map((unit, index) => (
                 <TableRow key={index} className={unit.isOptimized ? "bg-green-50 dark:bg-green-950/20" : ""}>
                   <TableCell className="font-medium">{unit.name}</TableCell>
                   <TableCell>{unit.type || "—"}</TableCell>
@@ -574,27 +595,41 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </TableBody>
           </Table>
         </FixedHeaderTable>
-        <div className="mt-4 text-sm text-muted-foreground flex items-center justify-between">
-          <div>
-            Showing {Math.min(15, filteredUnits.length)} of {filteredUnits.length} units
-          </div>
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 rounded-full"
-                >
-                  <Info className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Table shows up to 15 rows at a time. Use filters to narrow results.</p>
-              </TooltipContent>
-            </Tooltip>
-            <Filter className="h-4 w-4 mr-2" />
+
+        {/* Pagination controls */}
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
+            <Filter className="h-4 w-4 mr-1" />
             <span>{Object.values(filters).filter(Boolean).length} active filters</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Showing {pageStart + 1}-{pageEnd} of {filteredUnits.length} units
+            </span>
+            <div className="flex items-center">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handlePrevPage}
+                disabled={currentPage === 0}
+                className="h-8 w-8"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="mx-2 text-sm">
+                Page {currentPage + 1} of {totalPages || 1}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages - 1}
+                className="h-8 w-8"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>

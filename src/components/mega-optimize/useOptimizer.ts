@@ -77,6 +77,11 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
   };
   
   const runMegaOptimization = async (selectedTypes: string[] = []) => {
+    if (selectedTypes.length === 0) {
+      toast.warning("Please select at least one bedroom type to optimize");
+      return;
+    }
+    
     setIsOptimizing(true);
     
     try {
@@ -94,20 +99,14 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         floorRiseRules: processedFloorRules
       };
       
-      // Filter bedroom types if specific types are selected
-      if (selectedTypes.length === 0) {
-        // If no types are selected, default to all types
-        selectedTypes = pricingConfig.bedroomTypePricing.map((type: any) => type.type);
-      }
-      
       let result;
       let optimizedConfig;
       
       if (optimizationMode === "basePsf") {
-        // Run standard bedroom PSF optimization
+        // Run standard bedroom PSF optimization - only for selected bedroom types
         result = megaOptimizePsf(data, configWithProcessedRules, targetPsf, selectedTypes);
         
-        // Create optimized config with only bedroom type changes
+        // Create optimized config with only selected bedroom type changes
         optimizedConfig = {
           ...pricingConfig,
           basePsf: pricingConfig.basePsf, // Keep original base PSF
@@ -117,22 +116,27 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
               return {
                 ...type,
                 basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
-                originalBasePsf: type.originalBasePsf || type.basePsf // Store original value if not already stored
+                originalBasePsf: type.originalBasePsf || type.basePsf, // Store original value if not already stored
+                isOptimized: true
               };
             }
-            return type; // Keep type as is if not selected for optimization
+            return {
+              ...type,
+              isOptimized: false
+            }; // Keep type as is if not selected for optimization
           }),
           viewPricing: pricingConfig.viewPricing, // Keep the original view pricing
           floorRiseRules: pricingConfig.floorRiseRules, // Keep the original floor rules
           targetOverallPsf: targetPsf,
           isOptimized: true,
-          optimizationMode: "basePsf"
+          optimizationMode: "basePsf",
+          optimizedTypes: selectedTypes
         };
       } else {
-        // Run full optimization including floor rules and view adjustments
+        // Run full optimization including floor rules and view adjustments - only for selected bedroom types
         result = fullOptimizePsf(data, configWithProcessedRules, targetPsf, selectedTypes);
         
-        // Create optimized config with all parameter changes
+        // Create optimized config with all parameter changes but only for selected bedroom types
         optimizedConfig = {
           ...pricingConfig,
           basePsf: pricingConfig.basePsf, // Keep original base PSF
@@ -142,10 +146,14 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
               return {
                 ...type,
                 basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
-                originalBasePsf: type.originalBasePsf || type.basePsf // Store original value if not already stored
+                originalBasePsf: type.originalBasePsf || type.basePsf, // Store original value if not already stored
+                isOptimized: true
               };
             }
-            return type; // Keep type as is if not selected for optimization
+            return {
+              ...type,
+              isOptimized: false
+            }; // Keep type as is if not selected for optimization
           }),
           viewPricing: pricingConfig.viewPricing.map((view: any) => {
             // Check if this view is used by any of the selected bedroom types
@@ -156,17 +164,20 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
             if (isViewUsed && result.optimizedParams.viewAdjustments[view.view] !== undefined) {
               return {
                 ...view,
-                psfAdjustment: result.optimizedParams.viewAdjustments[view.view],
+                psfAdjustment: Math.max(0, result.optimizedParams.viewAdjustments[view.view]), // Prevent negative values
                 originalPsfAdjustment: view.originalPsfAdjustment || view.psfAdjustment
               };
             }
             return view; // Keep view as is if not used by selected bedroom types
           }),
-          floorRiseRules: result.optimizedParams.floorRules || pricingConfig.floorRiseRules,
+          floorRiseRules: pricingConfig.originalFloorRiseRules 
+            ? pricingConfig.floorRiseRules
+            : [...pricingConfig.floorRiseRules],
           originalFloorRiseRules: pricingConfig.originalFloorRiseRules || pricingConfig.floorRiseRules, // Store original floor rules
           targetOverallPsf: targetPsf,
           isOptimized: true,
-          optimizationMode: "allParams"
+          optimizationMode: "allParams",
+          optimizedTypes: selectedTypes
         };
       }
       
@@ -184,13 +195,8 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       setCurrentOverallPsf(calculateOverallAveragePsf(data, optimizedConfig));
       setIsOptimized(true);
       
-      // Determine optimization type message
-      const optimizationTypeMsg = selectedTypes.length > 0 
-        ? `for ${selectedTypes.length} bedroom types` 
-        : "for all bedroom types";
-      
-      toast.success(`Optimization complete ${optimizationTypeMsg}`, {
-        description: `Optimized from ${result.initialAvgPsf.toFixed(2)} to ${result.finalAvgPsf.toFixed(2)} PSF`
+      toast.success(`Optimization complete for ${selectedTypes.length} bedroom type(s)`, {
+        description: `Optimized to target PSF of ${targetPsf.toFixed(2)}`
       });
     } catch (error) {
       console.error("Optimization error:", error);
@@ -203,12 +209,17 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
   };
   
   const revertOptimization = () => {
+    // Get the list of previously optimized types
+    const optimizedTypes = pricingConfig.optimizedTypes || 
+      pricingConfig.bedroomTypePricing.filter((type: any) => type.isOptimized).map((type: any) => type.type);
+    
     // Create reverted config
     const revertedConfig = {
       ...pricingConfig,
       bedroomTypePricing: pricingConfig.bedroomTypePricing.map((type: any) => ({
         ...type,
-        basePsf: type.originalBasePsf || type.basePsf
+        basePsf: type.originalBasePsf || type.basePsf,
+        isOptimized: false
       })),
       viewPricing: pricingConfig.viewPricing.map((view: any) => ({
         ...view,
@@ -216,7 +227,8 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       })),
       // Revert floor rise rules if they were optimized
       floorRiseRules: pricingConfig.originalFloorRiseRules || pricingConfig.floorRiseRules,
-      isOptimized: false
+      isOptimized: false,
+      optimizedTypes: []
     };
     
     // Calculate average PSF values for each bedroom type after reversion
