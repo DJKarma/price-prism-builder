@@ -1,9 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  FixedHeaderTable
 } from "@/components/ui/table";
 import {
   Select,
@@ -24,55 +25,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LabelList,
-  Cell,
-} from "recharts";
-import {
   ArrowUpDown,
   Download,
-  Calculator,
-  Layers,
   Filter,
-  ChartBar,
-  BedDouble,
-  PieChart,
   Table as TableIcon,
   Check,
-  CheckCheck,
-  Maximize2,
-  Minimize2,
-  RefreshCcw,
-  Wand2,
-  TrendingUp,
-  Zap,
-  Target,
   Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PricingConfig } from "./PricingConfiguration";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuCheckboxItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import {
-  Tooltip as TooltipComponent,
+  Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
@@ -97,28 +60,6 @@ interface UnitWithPricing extends Record<string, any> {
   isOptimized?: boolean; // Flag to indicate if this unit's price was optimized
 }
 
-interface TypeSummary {
-  type: string;
-  count: number;
-  minPsf: number;
-  avgPsf: number;
-  maxPsf: number;
-  minPrice: number;
-  avgPrice: number;
-  maxPrice: number;
-  minSize: number;
-  avgSize: number;
-  maxSize: number;
-}
-
-// Stats configuration for summary table
-interface SummaryStatConfig {
-  id: string;
-  label: string;
-  enabled: boolean;
-}
-
-// Optimization state to track original and optimized values
 interface OptimizationState {
   [bedroomType: string]: {
     originalBasePsf: number;
@@ -143,26 +84,11 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     view: "",
     floor: "",
   });
-  const [typeSummary, setTypeSummary] = useState<
-    Array<{ type: string; avgPsf: number; targetPsf: number; units: number; difference: number }>
-  >([]);
-  const [detailedTypeSummary, setDetailedTypeSummary] = useState<TypeSummary[]>([]);
-  
-  // Summary stats configuration
-  const [summaryStats, setSummaryStats] = useState<SummaryStatConfig[]>([
-    { id: "count", label: "Unit Count", enabled: true },
-    { id: "psf", label: "PSF Stats", enabled: true },
-    { id: "price", label: "Price Stats", enabled: true },
-    { id: "size", label: "Size Stats", enabled: true },
-  ]);
-  
-  // Card view control
-  const [summaryCardView, setSummaryCardView] = useState<"compact" | "detailed">("compact");
   
   // Optimization state
   const [optimizationState, setOptimizationState] = useState<OptimizationState>({});
   const [optimizationInProgress, setOptimizationInProgress] = useState<string | null>(null);
-
+  
   // Process the data with pricing calculations
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
@@ -285,66 +211,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     setUnits(calculatedUnits);
     setFilteredUnits(calculatedUnits);
     
-    // Calculate unit type summaries for chart
-    const typeGroups: Record<string, UnitWithPricing[]> = {};
-    calculatedUnits.forEach(unit => {
-      if (!unit.type) return;
-      if (!typeGroups[unit.type]) {
-        typeGroups[unit.type] = [];
-      }
-      typeGroups[unit.type].push(unit);
-    });
-    
-    // Basic summary for chart
-    const summaries = Object.entries(typeGroups).map(([type, unitGroup]) => {
-      const psfValues = unitGroup.map(u => u.finalPsf || 0);
-      const totalPsf = psfValues.reduce((sum, psf) => sum + psf, 0);
-      const avgPsf = totalPsf / psfValues.length;
-      const targetConfig = pricingConfig.bedroomTypePricing.find((b) => b.type === type);
-      const targetPsf = targetConfig?.targetAvgPsf || pricingConfig.basePsf;
-      return {
-        type,
-        avgPsf,
-        targetPsf,
-        units: unitGroup.length,
-        difference: avgPsf - targetPsf,
-      };
-    });
-    
-    setTypeSummary(summaries);
-    
-    // Detailed summary by bedroom type
-    const detailedSummaries = Object.entries(typeGroups).map(([type, unitGroup]) => {
-      const psfValues = unitGroup.map(u => u.finalPsf || 0);
-      const minPsf = Math.min(...psfValues);
-      const maxPsf = Math.max(...psfValues);
-      const avgPsf = psfValues.reduce((sum, val) => sum + val, 0) / psfValues.length;
-      const priceValues = unitGroup.map(u => u.finalTotalPrice);
-      const minPrice = Math.min(...priceValues);
-      const maxPrice = Math.max(...priceValues);
-      const avgPrice = priceValues.reduce((sum, val) => sum + val, 0) / priceValues.length;
-      const sizeValues = unitGroup.map(u => parseFloat(u.sellArea) || 0);
-      const minSize = Math.min(...sizeValues);
-      const maxSize = Math.max(...sizeValues);
-      const avgSize = sizeValues.reduce((sum, val) => sum + val, 0) / sizeValues.length;
-      return {
-        type,
-        count: unitGroup.length,
-        minPsf,
-        avgPsf,
-        maxPsf,
-        minPrice,
-        avgPrice,
-        maxPrice,
-        minSize,
-        avgSize,
-        maxSize,
-      };
-    });
-    
-    setDetailedTypeSummary(detailedSummaries);
-    
-  }, [data, pricingConfig]); // Updated dependency array to include "units"
+  }, [data, pricingConfig]);
 
   // Apply filters
   useEffect(() => {
@@ -389,12 +256,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     setSortConfig({ key, direction });
   };
 
-  const toggleSummaryStat = (id: string) => {
-    setSummaryStats((prev) =>
-      prev.map((stat) => (stat.id === id ? { ...stat, enabled: !stat.enabled } : stat))
-    );
-  };
-
   const getUniqueValues = (fieldName: string): string[] => {
     const values = new Set<string>();
     units.forEach((unit) => {
@@ -406,21 +267,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       return Array.from(values).sort((a, b) => parseInt(a) - parseInt(b));
     }
     return Array.from(values).sort();
-  };
-
-  const calculateTotals = () => {
-    const total = filteredUnits.reduce(
-      (acc, unit) => {
-        const sellArea = parseFloat(unit.sellArea) || 0;
-        return {
-          units: acc.units + 1,
-          area: acc.area + sellArea,
-          value: acc.value + unit.finalTotalPrice,
-        };
-      },
-      { units: 0, area: 0, value: 0 }
-    );
-    return { ...total, avgPsf: total.area ? total.value / total.area : 0 };
   };
 
   const exportCSV = () => {
@@ -483,442 +329,273 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     toast.success("CSV file downloaded successfully");
   };
 
-  // Optimization handlers
-  const handleOptimizePsf = (bedroomType: string) => {
-    setOptimizationInProgress(bedroomType);
-    const typeConfig = pricingConfig.bedroomTypePricing.find(
-      (b) => b.type === bedroomType
-    );
-    if (!typeConfig) {
-      toast.error(`Configuration for ${bedroomType} not found`);
-      setOptimizationInProgress(null);
-      return;
-    }
-    const targetPsf = typeConfig.targetAvgPsf;
-    const originalBasePsf =
-      optimizationState[bedroomType]?.originalBasePsf || typeConfig.basePsf;
-    try {
-      const result = optimizeBasePsf(
-        data,
-        pricingConfig,
-        bedroomType,
-        targetPsf,
-        originalBasePsf
-      );
-      setOptimizationState((prev) => ({
-        ...prev,
-        [bedroomType]: {
-          originalBasePsf: originalBasePsf,
-          optimizedBasePsf: result.optimizedBasePsf,
-          isOptimized: true,
-        },
-      }));
-      const updatedPricingConfig = {
-        ...pricingConfig,
-        bedroomTypePricing: pricingConfig.bedroomTypePricing.map((type) =>
-          type.type === bedroomType
-            ? { ...type, basePsf: result.optimizedBasePsf }
-            : type
-        ),
-      };
-      const updatedUnits = units.map((unit) => {
-        if (unit.type !== bedroomType) return unit;
-        const viewAdjustment = pricingConfig.viewPricing.find(
-          (v) => v.view === unit.view
-        );
-        const basePsf = result.optimizedBasePsf;
-        const floorAdjustment = unit.floorAdjustment;
-        const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
-        const calculatedPsf = basePsf + floorAdjustment + viewPsfAdjustment;
-        const sellArea = parseFloat(unit.sellArea) || 0;
-        const totalPrice = calculatedPsf * sellArea;
-        const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
-        const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
-        const basePriceComponent = basePsf * sellArea;
-        return {
-          ...unit,
-          calculatedPsf,
-          totalPrice,
-          finalTotalPrice,
-          finalPsf,
-          basePriceComponent,
-          basePsf,
-          isOptimized: true,
-        };
-      });
-      setUnits(updatedUnits);
-      toast.success(
-        `Optimization successful for ${bedroomType}. Changed base PSF from ${originalBasePsf.toFixed(
-          2
-        )} to ${result.optimizedBasePsf.toFixed(
-          2
-        )}. Avg PSF moved from ${result.initialAvgPsf.toFixed(
-          2
-        )} to ${result.finalAvgPsf.toFixed(2)}.`,
-        { duration: 4000 }
-      );
-    } catch (error) {
-      console.error("Optimization error:", error);
-      toast.error(
-        `Optimization failed: ${
-          (error as Error).message || "Unknown error"
-        }`
-      );
-    } finally {
-      setOptimizationInProgress(null);
-    }
-  };
-
-  const handleRevertOptimization = (bedroomType: string) => {
-    const { originalBasePsf } = optimizationState[bedroomType] || {};
-    if (originalBasePsf === undefined) {
-      toast.error(`Original value for ${bedroomType} not found`);
-      return;
-    }
-    setOptimizationState((prev) => ({
-      ...prev,
-      [bedroomType]: {
-        ...prev[bedroomType],
-        optimizedBasePsf: originalBasePsf,
-        isOptimized: false,
-      },
-    }));
-    const updatedUnits = units.map((unit) => {
-      if (unit.type !== bedroomType) return unit;
-      const viewAdjustment = pricingConfig.viewPricing.find(
-        (v) => v.view === unit.view
-      );
-      const basePsf = originalBasePsf;
-      const floorAdjustment = unit.floorAdjustment;
-      const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
-      const calculatedPsf = basePsf + floorAdjustment + viewPsfAdjustment;
-      const sellArea = parseFloat(unit.sellArea) || 0;
-      const totalPrice = calculatedPsf * sellArea;
-      const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
-      const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
-      const basePriceComponent = basePsf * sellArea;
-      return {
-        ...unit,
-        calculatedPsf,
-        totalPrice,
-        finalTotalPrice,
-        finalPsf,
-        basePriceComponent,
-        basePsf,
-        isOptimized: false,
-      };
-    });
-    setUnits(updatedUnits);
-    toast.success(
-      `Reverted ${bedroomType} to original base PSF: ${originalBasePsf.toFixed(
-        2
-      )}`
-    );
-  };
-
-  const totals = calculateTotals();
-
-  const getChartBarColor = (difference: number) => {
-    if (Math.abs(difference) < 1) return "#22c55e";
-    if (Math.abs(difference) < 5) return "#16a34a";
-    if (Math.abs(difference) < 10) return "#eab308";
-    if (difference < 0) return "#f97316";
-    return "#ef4444";
-  };
-
   return (
-    <div className="space-y-6">
-      
-      
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TableIcon className="h-5 w-5" />
-            Unit Pricing Details
-          </CardTitle>
-          <CardDescription>
-            View and filter detailed pricing for all units
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            <div>
-              <Select
-                value={filters.type}
-                onValueChange={(value) => handleFilterChange("type", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
-                  {getUniqueValues("type").map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Select
-                value={filters.view}
-                onValueChange={(value) => handleFilterChange("view", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by View" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Views</SelectItem>
-                  {getUniqueValues("view").map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Select
-                value={filters.floor}
-                onValueChange={(value) => handleFilterChange("floor", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by Floor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Floors</SelectItem>
-                  {getUniqueValues("floor").map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="md:flex justify-end">
-              <Button variant="outline" onClick={exportCSV}>
-                <Download className="h-4 w-4 mr-2" />
-                Export Results
-              </Button>
-            </div>
-          </div>
-
-          <div className="relative w-full border rounded-md overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("name")}
-                  >
-                    <div className="flex items-center">
-                      Unit <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("type")}
-                  >
-                    <div className="flex items-center">
-                      Type <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("floor")}
-                  >
-                    <div className="flex items-center">
-                      Floor <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead>View</TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("sellArea")}
-                  >
-                    <div className="flex items-center">
-                      Sell Area <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("acArea")}
-                  >
-                    <div className="flex items-center">
-                      AC Area <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("balconyArea")}
-                  >
-                    <div className="flex items-center">
-                      Balcony <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("balconyPercentage")}
-                  >
-                    <div className="flex items-center">
-                      Balcony % <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("basePsf")}
-                  >
-                    <div className="flex items-center">
-                      Base PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("floorAdjustment")}
-                  >
-                    <div className="flex items-center">
-                      Floor Premium PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("viewPsfAdjustment")}
-                  >
-                    <div className="flex items-center">
-                      View Premium PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("calculatedPsf")}
-                  >
-                    <div className="flex items-center">
-                      Total PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("basePriceComponent")}
-                  >
-                    <div className="flex items-center">
-                      Base Price <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("floorPriceComponent")}
-                  >
-                    <div className="flex items-center">
-                      Floor Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("viewPriceComponent")}
-                  >
-                    <div className="flex items-center">
-                      View Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("finalTotalPrice")}
-                  >
-                    <div className="flex items-center">
-                      Final Price <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
-                    onClick={() => handleSort("finalPsf")}
-                  >
-                    <div className="flex items-center">
-                      Final PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex items-center justify-center">
-                      Optimized
-                    </div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody maxHeight="600px">
-                {filteredUnits.map((unit, index) => (
-                  <TableRow key={index} className={unit.isOptimized ? "bg-green-50 dark:bg-green-950/20" : ""}>
-                    <TableCell className="font-medium">{unit.name}</TableCell>
-                    <TableCell>{unit.type || "—"}</TableCell>
-                    <TableCell>{unit.floor || "—"}</TableCell>
-                    <TableCell>{unit.view || "—"}</TableCell>
-                    <TableCell>{unit.sellArea || "0"}</TableCell>
-                    <TableCell>{unit.acArea || "0"}</TableCell>
-                    <TableCell>
-                      {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0"}
-                    </TableCell>
-                    <TableCell>
-                      {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0"}%
-                    </TableCell>
-                    <TableCell>
-                      {unit.basePsf.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.floorAdjustment.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.viewPsfAdjustment.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.calculatedPsf.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.basePriceComponent.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {unit.floorPriceComponent.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {unit.viewPriceComponent.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {unit.finalTotalPrice.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {unit.finalPsf?.toFixed(2) || "0.00"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {unit.isOptimized ? <Check className="h-4 w-4 text-green-600 inline" /> : "—"}
-                    </TableCell>
-                  </TableRow>
+    <Card className="w-full mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <TableIcon className="h-5 w-5" />
+          Unit Pricing Details
+        </CardTitle>
+        <CardDescription>
+          View and filter detailed pricing for all units
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div>
+            <Select
+              value={filters.type}
+              onValueChange={(value) => handleFilterChange("type", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Types</SelectItem>
+                {getUniqueValues("type").map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
                 ))}
-                {filteredUnits.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={18} className="text-center py-4">
-                      No units match your filter criteria
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-        <CardFooter className="text-sm text-muted-foreground">
-          Showing {filteredUnits.length} of {units.length} units
-        </CardFooter>
-      </Card>
-    </div>
+          <div>
+            <Select
+              value={filters.view}
+              onValueChange={(value) => handleFilterChange("view", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by View" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Views</SelectItem>
+                {getUniqueValues("view").map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Select
+              value={filters.floor}
+              onValueChange={(value) => handleFilterChange("floor", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Floor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Floors</SelectItem>
+                {getUniqueValues("floor").map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="md:flex justify-end">
+            <Button variant="outline" onClick={exportCSV}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Results
+            </Button>
+          </div>
+        </div>
+
+        <FixedHeaderTable maxHeight="480px">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("name")}
+                >
+                  <div className="flex items-center">
+                    Unit <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("type")}
+                >
+                  <div className="flex items-center">
+                    Type <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("floor")}
+                >
+                  <div className="flex items-center">
+                    Floor <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead>View</TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("sellArea")}
+                >
+                  <div className="flex items-center">
+                    Sell Area <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("acArea")}
+                >
+                  <div className="flex items-center">
+                    AC Area <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("balconyArea")}
+                >
+                  <div className="flex items-center">
+                    Balcony <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("balconyPercentage")}
+                >
+                  <div className="flex items-center">
+                    Balcony % <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("basePsf")}
+                >
+                  <div className="flex items-center">
+                    Base PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("floorAdjustment")}
+                >
+                  <div className="flex items-center">
+                    Floor Premium <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("viewPsfAdjustment")}
+                >
+                  <div className="flex items-center">
+                    View Premium <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("calculatedPsf")}
+                >
+                  <div className="flex items-center">
+                    Total PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("finalTotalPrice")}
+                >
+                  <div className="flex items-center">
+                    Final Price <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("finalPsf")}
+                >
+                  <div className="flex items-center">
+                    Final PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center justify-center">
+                    Optimized
+                  </div>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUnits.slice(0, 15).map((unit, index) => (
+                <TableRow key={index} className={unit.isOptimized ? "bg-green-50 dark:bg-green-950/20" : ""}>
+                  <TableCell className="font-medium">{unit.name}</TableCell>
+                  <TableCell>{unit.type || "—"}</TableCell>
+                  <TableCell>{unit.floor || "—"}</TableCell>
+                  <TableCell>{unit.view || "—"}</TableCell>
+                  <TableCell>{unit.sellArea || "0"}</TableCell>
+                  <TableCell>{unit.acArea || "0"}</TableCell>
+                  <TableCell>
+                    {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0"}
+                  </TableCell>
+                  <TableCell>
+                    {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0"}%
+                  </TableCell>
+                  <TableCell>
+                    {unit.basePsf.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {unit.floorAdjustment.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {unit.viewPsfAdjustment.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {unit.calculatedPsf.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {unit.finalTotalPrice.toLocaleString(undefined, {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    {unit.finalPsf?.toFixed(2) || "0.00"}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {unit.isOptimized ? <Check className="h-4 w-4 text-green-600 inline" /> : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredUnits.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={15} className="text-center py-4">
+                    No units match your filter criteria
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </FixedHeaderTable>
+        <div className="mt-4 text-sm text-muted-foreground flex items-center justify-between">
+          <div>
+            Showing {Math.min(15, filteredUnits.length)} of {filteredUnits.length} units
+          </div>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 rounded-full"
+                >
+                  <Info className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Table shows up to 15 rows at a time. Use filters to narrow results.</p>
+              </TooltipContent>
+            </Tooltip>
+            <Filter className="h-4 w-4 mr-2" />
+            <span>{Object.values(filters).filter(Boolean).length} active filters</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

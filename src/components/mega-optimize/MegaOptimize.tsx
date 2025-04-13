@@ -21,7 +21,6 @@ import { MegaOptimizeProps } from "./types";
 import { useOptimizer } from "./useOptimizer";
 import OptimizationControls from "./OptimizationControls";
 import OptimizationModeSelector from "./OptimizationModeSelector";
-import OptimizationImpact from "./OptimizationImpact";
 import BedroomTypeSummary from "./BedroomTypeSummary";
 
 const MegaOptimize: React.FC<MegaOptimizeProps> = ({ 
@@ -44,11 +43,6 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     runMegaOptimization,
     revertOptimization
   } = useOptimizer(data, pricingConfig, onOptimized);
-  
-  // Effect to immediately recalculate values whenever pricingConfig changes
-  useEffect(() => {
-    // The useOptimizer hook now handles this automatically
-  }, [pricingConfig]);
 
   // Handle selected types changes from BedroomTypeSummary
   const handleTypesChange = (types: string[]) => {
@@ -104,9 +98,9 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       </CardHeader>
       
       <CardContent className="pt-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left column: Optimization controls */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-4 space-y-6">
             <OptimizationControls
               currentOverallPsf={currentOverallPsf}
               targetPsf={targetPsf}
@@ -121,12 +115,10 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               optimizationMode={optimizationMode}
               onModeChange={setOptimizationMode}
             />
-            
-            <OptimizationImpact pricingConfig={pricingConfig} />
           </div>
           
           {/* Right column: Bedroom Type Summary */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-8">
             <BedroomTypeSummary 
               bedroomTypes={pricingConfig.bedroomTypePricing}
               isOptimized={isOptimized}

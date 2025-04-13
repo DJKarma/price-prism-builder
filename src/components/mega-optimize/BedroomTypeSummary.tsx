@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Building2, Check, ArrowUp, ArrowDown, Ruler, DollarSign, Home, SquareStack } from "lucide-react";
+import { Building2, ArrowUp, ArrowDown, Ruler, DollarSign, SquareStack } from "lucide-react";
 import { 
   Card, 
   CardContent,
@@ -22,7 +22,6 @@ interface BedroomType {
   basePsf: number;
   targetAvgPsf: number;
   originalBasePsf?: number;
-  // Added mock data properties for the mini-cards
   unitCount?: number;
   avgSize?: number;
   avgPsf?: number;
@@ -77,8 +76,8 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
   };
 
   return (
-    <div className="space-y-4 mt-6 mb-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-4">
         <h4 className="font-medium text-lg">Bedroom Type Summary</h4>
         
         <Select>
@@ -180,36 +179,30 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                     {/* Enhanced mini-cards section */}
                     <div className="mt-2 pt-4 border-t grid grid-cols-3 gap-2">
                       {/* Units mini-card */}
-                      <div className="bg-purple-50 rounded-lg border border-purple-100 shadow-sm p-3 hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-center mb-2">
+                      <div className="bg-purple-50 rounded-lg p-2">
+                        <div className="flex justify-between items-center">
                           <span className="text-xs font-medium text-purple-700">Units</span>
-                          <div className="bg-purple-100 p-1 rounded-full">
-                            <SquareStack className="h-3.5 w-3.5 text-purple-600" />
-                          </div>
+                          <SquareStack className="h-3.5 w-3.5 text-purple-600" />
                         </div>
-                        <p className="font-semibold text-sm text-purple-900">{unitCount}</p>
+                        <p className="font-semibold text-sm text-purple-900 mt-1">{unitCount}</p>
                       </div>
                       
                       {/* Average Size mini-card */}
-                      <div className="bg-blue-50 rounded-lg border border-blue-100 shadow-sm p-3 hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-center mb-2">
+                      <div className="bg-blue-50 rounded-lg p-2">
+                        <div className="flex justify-between items-center">
                           <span className="text-xs font-medium text-blue-700">Avg Size</span>
-                          <div className="bg-blue-100 p-1 rounded-full">
-                            <Ruler className="h-3.5 w-3.5 text-blue-600" />
-                          </div>
+                          <Ruler className="h-3.5 w-3.5 text-blue-600" />
                         </div>
-                        <p className="font-semibold text-sm text-blue-900">{avgSize} sf</p>
+                        <p className="font-semibold text-sm text-blue-900 mt-1">{avgSize} sf</p>
                       </div>
                       
                       {/* Average PSF mini-card */}
-                      <div className="bg-green-50 rounded-lg border border-green-100 shadow-sm p-3 hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-center mb-2">
+                      <div className="bg-green-50 rounded-lg p-2">
+                        <div className="flex justify-between items-center">
                           <span className="text-xs font-medium text-green-700">Avg PSF</span>
-                          <div className="bg-green-100 p-1 rounded-full">
-                            <DollarSign className="h-3.5 w-3.5 text-green-600" />
-                          </div>
+                          <DollarSign className="h-3.5 w-3.5 text-green-600" />
                         </div>
-                        <p className="font-semibold text-sm text-green-900">${avgPsf.toFixed(2)}</p>
+                        <p className="font-semibold text-sm text-green-900 mt-1">${avgPsf.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
