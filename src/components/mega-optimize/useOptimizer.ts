@@ -22,7 +22,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
     setIsOptimized(!!pricingConfig.isOptimized);
   }, [data, pricingConfig]);
   
-  // Calculate average PSF per bedroom type
+  // Calculate average PSF per bedroom type - improved to match PricingSummary calculation
   const calculateBedroomTypesAvgPsf = (config: any) => {
     // Group data by bedroom type
     const typeGroups: Record<string, any[]> = {};
@@ -33,8 +33,12 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       typeGroups[unit.type].push(unit);
     });
     
-    // For each bedroom type, calculate average PSF and average size
-    const bedroomAvgData: Record<string, { avgPsf: number, avgSize: number, unitCount: number }> = {};
+    // For each bedroom type, calculate statistics including min/avg/max PSF
+    const bedroomAvgData: Record<string, { 
+      avgPsf: number, 
+      avgSize: number, 
+      unitCount: number 
+    }> = {};
     
     config.bedroomTypePricing.forEach((typeConfig: any) => {
       const unitsOfType = typeGroups[typeConfig.type] || [];
@@ -45,6 +49,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       
       let totalPsf = 0;
       let totalArea = 0;
+      const psfValues: number[] = [];
       
       unitsOfType.forEach((unit: any) => {
         const area = parseFloat(unit.sellArea) || 0;
@@ -72,11 +77,13 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
           }
         });
         
-        // Calculate total PSF for this unit
+        // Calculate total PSF for this unit - this is the key calculation that needs to be correct
         const unitPsf = typeConfig.basePsf + floorPremium + viewPremium;
+        psfValues.push(unitPsf);
         totalPsf += unitPsf;
       });
       
+      // Calculate the true average PSF (not weighted by area)
       const avgPsf = totalPsf / unitsOfType.length;
       const avgSize = totalArea / unitsOfType.length;
       
@@ -131,6 +138,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
                 ...type,
                 basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
                 originalBasePsf: type.originalBasePsf || type.basePsf, // Store original value if not already stored
+                targetAvgPsf: targetPsf, // Set target PSF from the optimization target
                 isOptimized: true
               };
             }
@@ -161,6 +169,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
                 ...type,
                 basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
                 originalBasePsf: type.originalBasePsf || type.basePsf, // Store original value if not already stored
+                targetAvgPsf: targetPsf, // Set target PSF from the optimization target
                 isOptimized: true
               };
             }

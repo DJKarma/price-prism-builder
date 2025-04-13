@@ -116,6 +116,9 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
             const avgSize = type.avgSize !== undefined && type.avgSize > 0 ? type.avgSize : 0;
             const avgPsf = type.avgPsf !== undefined ? type.avgPsf : 0;
             
+            // Display targetAvgPsf as 0 initially, but show the actual value when optimized
+            const displayTargetAvgPsf = isOptimized ? type.targetAvgPsf : 0;
+            
             return (
               <Card 
                 key={type.type} 
@@ -161,7 +164,7 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Target Avg PSF</p>
-                        <p className="font-medium">{type.targetAvgPsf.toFixed(2)}</p>
+                        <p className="font-medium">{displayTargetAvgPsf.toFixed(2)}</p>
                       </div>
                       {hasChanged && (
                         <div className="col-span-2 mt-2 pt-2 border-t">
