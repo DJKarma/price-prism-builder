@@ -1,3 +1,4 @@
+
 /**
  * Gradient Descent PSF Optimizer
  * 
@@ -254,6 +255,86 @@ const megaCostFunction = (
   }
   
   return Math.pow(avgPsf - targetPsf, 2) + constraintPenalty;
+};
+
+/**
+ * Cost function for full optimization - optimizes all parameters
+ */
+const fullCostFunction = (
+  params: number[],
+  units: Unit[],
+  pricingConfig: PricingConfig,
+  paramMap: {
+    bedroomTypes: string[],
+    views: string[],
+    floorRuleParams: number, // Total number of floor rule parameters
+    floorRuleMap: { ruleIndex: number, paramType: string, originalValue: number }[]
+  },
+  targetPsf: number,
+  originalParams: number[]
+): number => {
+  // First section: bedroom type adjustments
+  const bedroomAdjustments: Record<string, number> = {};
+  paramMap.bedroomTypes.forEach((type, index) => {
+    bedroomAdjustments[type] = params[index];
+  });
+  
+  // Second section: view adjustments
+  const viewAdjustments: Record<string, number> = {};
+  const viewStartIndex = paramMap.bedroomTypes.length;
+  paramMap.views.forEach((view, index) => {
+    viewAdjustments[view] = params[viewStartIndex + index];
+  });
+  
+  // Third section: floor rule parameters
+  const floorRules = [...pricingConfig.floorRiseRules]; // Clone the original rules
+  const floorParamStartIndex = viewStartIndex + paramMap.views.length;
+  
+  // Apply floor rule parameter changes
+  paramMap.floorRuleMap.forEach((mapping, index) => {
+    const paramValue = params[floorParamStartIndex + index];
+    const ruleIndex = mapping.ruleIndex;
+    const paramType = mapping.paramType;
+    
+    if (paramType === 'psfIncrement') {
+      floorRules[ruleIndex].psfIncrement = paramValue;
+    } else if (paramType === 'jumpIncrement' && floorRules[ruleIndex].jumpEveryFloor) {
+      floorRules[ruleIndex].jumpIncrement = paramValue;
+    }
+  });
+  
+  // Calculate average PSF with these parameters
+  const avgPsf = calculateOverallAveragePsf(units, pricingConfig, {
+    bedroomAdjustments,
+    viewAdjustments,
+    floorRules
+  });
+  
+  // Add constraint penalty to avoid large changes
+  const constraintFactor = 0.5;
+  let constraintPenalty = 0;
+  
+  for (let i = 0; i < params.length; i++) {
+    // Higher penalty for floor parameters to prevent large changes
+    const paramFactor = i >= floorParamStartIndex ? constraintFactor * 2 : constraintFactor;
+    constraintPenalty += paramFactor * Math.pow(params[i] - originalParams[i], 2);
+  }
+  
+  // Add monotonicity constraints for floor parameters
+  let monotonicityPenalty = 0;
+  for (let i = 0; i < floorRules.length; i++) {
+    // Penalty for negative psfIncrement (should always be positive)
+    if (floorRules[i].psfIncrement < 0) {
+      monotonicityPenalty += 1000 * Math.abs(floorRules[i].psfIncrement);
+    }
+    
+    // Penalty for negative jumpIncrement (should always be positive)
+    if (floorRules[i].jumpIncrement !== undefined && floorRules[i].jumpIncrement < 0) {
+      monotonicityPenalty += 1000 * Math.abs(floorRules[i].jumpIncrement);
+    }
+  }
+  
+  return Math.pow(avgPsf - targetPsf, 2) + constraintPenalty + monotonicityPenalty;
 };
 
 /**
@@ -516,6 +597,228 @@ export const megaOptimizePsf = (
     optimizedParams: {
       bedroomAdjustments,
       viewAdjustments
+    },
+    finalAvgPsf,
+    iterations: iteration,
+    initialAvgPsf
+  };
+};
+
+/**
+ * Full Optimization algorithm that adjusts all parameters including floor rules
+ * to achieve a target overall PSF
+ */
+export const fullOptimizePsf = (
+  units: Unit[],
+  pricingConfig: PricingConfig,
+  targetOverallPsf: number,
+  options = {
+    learningRate: 0.03,
+    maxIterations: 300,
+    convergenceThreshold: 0.01,
+    epsilon: 0.1,
+    constraintFactor: 0.8
+  }
+): {
+  optimizedParams: {
+    bedroomAdjustments: Record<string, number>,
+    viewAdjustments: Record<string, number>,
+    floorRules: FloorRiseRule[]
+  },
+  finalAvgPsf: number,
+  iterations: number,
+  initialAvgPsf: number
+} => {
+  const {
+    learningRate,
+    maxIterations,
+    convergenceThreshold,
+    epsilon,
+    constraintFactor
+  } = options;
+  
+  // Extract all bedroom types and views for optimization
+  const bedroomTypes = pricingConfig.bedroomTypePricing.map(b => b.type);
+  const views = pricingConfig.viewPricing.map(v => v.view);
+  
+  // Create a mapping of floor rule parameters
+  const floorRuleMap: Array<{ ruleIndex: number, paramType: string, originalValue: number }> = [];
+  pricingConfig.floorRiseRules.forEach((rule, index) => {
+    // Add psfIncrement parameter
+    floorRuleMap.push({
+      ruleIndex: index,
+      paramType: 'psfIncrement',
+      originalValue: rule.psfIncrement
+    });
+    
+    // Add jumpIncrement if it exists
+    if (rule.jumpEveryFloor && rule.jumpIncrement !== undefined) {
+      floorRuleMap.push({
+        ruleIndex: index,
+        paramType: 'jumpIncrement',
+        originalValue: rule.jumpIncrement
+      });
+    }
+  });
+  
+  // Parameter mapping for optimization
+  const paramMap = {
+    bedroomTypes,
+    views,
+    floorRuleParams: floorRuleMap.length,
+    floorRuleMap
+  };
+  
+  // Initial parameter values
+  const initialParams: number[] = [
+    // Bedroom type parameters
+    ...bedroomTypes.map(type => {
+      const pricing = pricingConfig.bedroomTypePricing.find(b => b.type === type);
+      return pricing?.basePsf || pricingConfig.basePsf;
+    }),
+    // View parameters
+    ...views.map(view => {
+      const pricing = pricingConfig.viewPricing.find(v => v.view === view);
+      return pricing?.psfAdjustment || 0;
+    }),
+    // Floor rule parameters
+    ...floorRuleMap.map(mapping => mapping.originalValue)
+  ];
+  
+  // Current parameters (will be updated during optimization)
+  let currentParams = [...initialParams];
+  
+  // Iteration control
+  let iteration = 0;
+  let previousCost = Infinity;
+  
+  // Calculate initial average PSF
+  const initialAvgPsf = calculateOverallAveragePsf(units, pricingConfig);
+  
+  // Gradient descent loop
+  while (iteration < maxIterations) {
+    // Calculate current cost
+    const currentCost = fullCostFunction(
+      currentParams,
+      units,
+      pricingConfig,
+      paramMap,
+      targetOverallPsf,
+      initialParams
+    );
+    
+    // Check convergence
+    if (Math.abs(previousCost - currentCost) < convergenceThreshold) {
+      break;
+    }
+    
+    // Calculate gradient for each parameter
+    const gradient: number[] = [];
+    
+    for (let i = 0; i < currentParams.length; i++) {
+      // Create parameter vectors for numerical differentiation
+      const paramsPlus = [...currentParams];
+      paramsPlus[i] += epsilon;
+      
+      const paramsMinus = [...currentParams];
+      paramsMinus[i] -= epsilon;
+      
+      // Calculate costs for +/- epsilon
+      const costPlus = fullCostFunction(
+        paramsPlus,
+        units,
+        pricingConfig,
+        paramMap,
+        targetOverallPsf,
+        initialParams
+      );
+      
+      const costMinus = fullCostFunction(
+        paramsMinus,
+        units,
+        pricingConfig,
+        paramMap,
+        targetOverallPsf,
+        initialParams
+      );
+      
+      // Estimate gradient component using central difference
+      gradient.push((costPlus - costMinus) / (2 * epsilon));
+    }
+    
+    // Update parameters using gradient descent
+    for (let i = 0; i < currentParams.length; i++) {
+      currentParams[i] = currentParams[i] - learningRate * gradient[i];
+      
+      // Apply constraints based on parameter type
+      const bedroomCount = bedroomTypes.length;
+      const viewCount = views.length;
+      
+      if (i < bedroomCount) { 
+        // Bedroom PSF - ensure positive
+        currentParams[i] = Math.max(currentParams[i], 1);
+      } else if (i >= bedroomCount + viewCount) {
+        // Floor rule parameter - apply appropriate constraints
+        const floorParamIndex = i - (bedroomCount + viewCount);
+        const paramMapping = floorRuleMap[floorParamIndex];
+        
+        if (paramMapping.paramType === 'psfIncrement') {
+          // Ensure psfIncrement is positive but not too large
+          currentParams[i] = Math.max(currentParams[i], 0.01);
+          const maxIncrement = paramMapping.originalValue * 2; // Limit to 2x original
+          currentParams[i] = Math.min(currentParams[i], maxIncrement);
+        } else if (paramMapping.paramType === 'jumpIncrement') {
+          // Ensure jumpIncrement is positive but not too large
+          currentParams[i] = Math.max(currentParams[i], 0);
+          const maxJumpIncrement = Math.max(paramMapping.originalValue * 2, 1); // Limit to 2x original
+          currentParams[i] = Math.min(currentParams[i], maxJumpIncrement);
+        }
+      }
+    }
+    
+    // Update previous cost
+    previousCost = currentCost;
+    iteration++;
+  }
+  
+  // Map optimized parameters back to bedroom types and views
+  const bedroomAdjustments: Record<string, number> = {};
+  bedroomTypes.forEach((type, index) => {
+    bedroomAdjustments[type] = currentParams[index];
+  });
+  
+  const viewAdjustments: Record<string, number> = {};
+  views.forEach((view, index) => {
+    viewAdjustments[view] = currentParams[bedroomTypes.length + index];
+  });
+  
+  // Create optimized floor rules
+  const optimizedFloorRules = [...pricingConfig.floorRiseRules]; // Clone original rules
+  const floorParamStartIndex = bedroomTypes.length + views.length;
+  
+  floorRuleMap.forEach((mapping, index) => {
+    const paramValue = currentParams[floorParamStartIndex + index];
+    const { ruleIndex, paramType } = mapping;
+    
+    if (paramType === 'psfIncrement') {
+      optimizedFloorRules[ruleIndex].psfIncrement = paramValue;
+    } else if (paramType === 'jumpIncrement') {
+      optimizedFloorRules[ruleIndex].jumpIncrement = paramValue;
+    }
+  });
+  
+  // Calculate final average PSF
+  const finalAvgPsf = calculateOverallAveragePsf(units, pricingConfig, {
+    bedroomAdjustments,
+    viewAdjustments,
+    floorRules: optimizedFloorRules
+  });
+  
+  return {
+    optimizedParams: {
+      bedroomAdjustments,
+      viewAdjustments,
+      floorRules: optimizedFloorRules
     },
     finalAvgPsf,
     iterations: iteration,

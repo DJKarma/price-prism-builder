@@ -19,8 +19,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Info, Wand2, RotateCcw, TrendingUp, ArrowRight, Sparkles } from "lucide-react";
-import { megaOptimizePsf, calculateOverallAveragePsf } from "@/utils/psfOptimizer";
+import { megaOptimizePsf, calculateOverallAveragePsf, fullOptimizePsf } from "@/utils/psfOptimizer";
 import { toast } from "@/components/ui/use-toast";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface MegaOptimizeProps {
   data: any[];
@@ -42,6 +43,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       0
     ) / pricingConfig.bedroomTypePricing.length
   );
+  const [optimizationMode, setOptimizationMode] = useState<"basePsf" | "allParams">("basePsf");
   
   // Update the isOptimized state when config changes
   useEffect(() => {
@@ -68,34 +70,63 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         floorRiseRules: processedFloorRules
       };
       
-      // Run mega optimization
-      const result = megaOptimizePsf(data, configWithProcessedRules, targetPsf);
+      let result;
+      let optimizedConfig;
       
-      // Create optimized config
-      const optimizedConfig = {
-        ...pricingConfig,
-        basePsf: pricingConfig.basePsf, // Keep original base PSF
-        bedroomTypePricing: pricingConfig.bedroomTypePricing.map((type: any) => ({
-          ...type,
-          basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
-          originalBasePsf: type.originalBasePsf || type.basePsf // Store original value if not already stored
-        })),
-        viewPricing: pricingConfig.viewPricing.map((view: any) => ({
-          ...view,
-          psfAdjustment: result.optimizedParams.viewAdjustments[view.view] || view.psfAdjustment,
-          originalPsfAdjustment: view.originalPsfAdjustment || view.psfAdjustment // Store original value if not already stored
-        })),
-        floorRiseRules: pricingConfig.floorRiseRules, // Keep the original floor rules
-        targetOverallPsf: targetPsf,
-        isOptimized: true
-      };
+      if (optimizationMode === "basePsf") {
+        // Run standard bedroom PSF optimization
+        result = megaOptimizePsf(data, configWithProcessedRules, targetPsf);
+        
+        // Create optimized config with only bedroom type changes
+        optimizedConfig = {
+          ...pricingConfig,
+          basePsf: pricingConfig.basePsf, // Keep original base PSF
+          bedroomTypePricing: pricingConfig.bedroomTypePricing.map((type: any) => ({
+            ...type,
+            basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
+            originalBasePsf: type.originalBasePsf || type.basePsf // Store original value if not already stored
+          })),
+          viewPricing: pricingConfig.viewPricing.map((view: any) => ({
+            ...view,
+            psfAdjustment: result.optimizedParams.viewAdjustments[view.view] || view.psfAdjustment,
+            originalPsfAdjustment: view.originalPsfAdjustment || view.psfAdjustment // Store original value if not already stored
+          })),
+          floorRiseRules: pricingConfig.floorRiseRules, // Keep the original floor rules
+          targetOverallPsf: targetPsf,
+          isOptimized: true
+        };
+      } else {
+        // Run full optimization including floor rules and view adjustments
+        result = fullOptimizePsf(data, configWithProcessedRules, targetPsf);
+        
+        // Create optimized config with all parameter changes
+        optimizedConfig = {
+          ...pricingConfig,
+          basePsf: pricingConfig.basePsf, // Keep original base PSF
+          bedroomTypePricing: pricingConfig.bedroomTypePricing.map((type: any) => ({
+            ...type,
+            basePsf: result.optimizedParams.bedroomAdjustments[type.type] || type.basePsf,
+            originalBasePsf: type.originalBasePsf || type.basePsf // Store original value if not already stored
+          })),
+          viewPricing: pricingConfig.viewPricing.map((view: any) => ({
+            ...view,
+            psfAdjustment: result.optimizedParams.viewAdjustments[view.view] || view.psfAdjustment,
+            originalPsfAdjustment: view.originalPsfAdjustment || view.psfAdjustment // Store original value if not already stored
+          })),
+          floorRiseRules: result.optimizedParams.floorRules || pricingConfig.floorRiseRules,
+          originalFloorRiseRules: pricingConfig.originalFloorRiseRules || pricingConfig.floorRiseRules, // Store original floor rules
+          targetOverallPsf: targetPsf,
+          isOptimized: true,
+          optimizationMode: optimizationMode // Store which mode was used
+        };
+      }
       
       // Update UI
       onOptimized(optimizedConfig);
       setIsOptimized(true);
       
       toast({
-        title: "Mega Optimization Complete",
+        title: `${optimizationMode === "basePsf" ? "Base PSF" : "Full Parameter"} Optimization Complete`,
         description: `Optimized from ${result.initialAvgPsf.toFixed(2)} to ${result.finalAvgPsf.toFixed(2)} PSF in ${result.iterations} iterations.`,
       });
     } catch (error) {
@@ -122,6 +153,8 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         ...view,
         psfAdjustment: view.originalPsfAdjustment || view.psfAdjustment
       })),
+      // Revert floor rise rules if they were optimized
+      floorRiseRules: pricingConfig.originalFloorRiseRules || pricingConfig.floorRiseRules,
       isOptimized: false
     };
     
@@ -149,7 +182,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               Mega Optimization
             </CardTitle>
             <CardDescription className="text-indigo-700">
-              Optimize all premium values to achieve your target overall PSF
+              Optimize premium values to achieve your target overall PSF
             </CardDescription>
           </div>
           
@@ -167,8 +200,8 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                 </TooltipTrigger>
                 <TooltipContent className="max-w-[300px]">
                   <p>
-                    Mega Optimize uses advanced constrained gradient descent to adjust all 
-                    premium values (bedroom types and views) to achieve your target PSF 
+                    Mega Optimize uses advanced constrained gradient descent to adjust 
+                    premium values to achieve your target PSF 
                     while minimizing changes from the original values.
                   </p>
                 </TooltipContent>
@@ -241,6 +274,45 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
           </div>
         </div>
         
+        <div className="mb-6">
+          <Label className="mb-2 block">Optimization Mode</Label>
+          <div className="flex flex-col space-y-2">
+            <ToggleGroup 
+              type="single" 
+              value={optimizationMode}
+              onValueChange={(value) => {
+                if (value) setOptimizationMode(value as "basePsf" | "allParams");
+              }}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="basePsf" className="flex-grow">
+                Optimize Base PSF Only
+              </ToggleGroupItem>
+              <ToggleGroupItem value="allParams" className="flex-grow">
+                Optimize All Parameters
+              </ToggleGroupItem>
+            </ToggleGroup>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-sm text-muted-foreground flex items-center mt-1">
+                    <Info className="h-4 w-4 mr-1 inline-block" />
+                    Learn more about optimization modes
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[350px] p-4 text-sm">
+                  <p className="font-medium mb-2">Optimization Mode Comparison:</p>
+                  <ul className="list-disc pl-4 space-y-2">
+                    <li><span className="font-medium">Base PSF Only:</span> Adjusts only the bedroom type base PSF values to achieve target overall PSF.</li>
+                    <li><span className="font-medium">All Parameters:</span> Optimizes bedroom base PSF, floor premium values, and view adjustments together. This mode preserves the cumulative nature of floor premiums while achieving the target PSF with minimal changes.</li>
+                  </ul>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+        
         {isOptimized && (
           <div className="mt-4 p-4 bg-indigo-50 rounded-lg">
             <h4 className="font-medium mb-2 text-indigo-900">Optimization Impact</h4>
@@ -295,14 +367,73 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                 </ul>
               </div>
             </div>
+            
+            {/* Floor Rules Adjustments - Only shown when All Parameters mode was used */}
+            {pricingConfig.optimizationMode === "allParams" && pricingConfig.originalFloorRiseRules && (
+              <div className="mt-3">
+                <h5 className="text-sm font-medium mb-1 text-indigo-800">Floor Premium Adjustments</h5>
+                <ul className="space-y-1 bg-white p-2 rounded">
+                  {pricingConfig.floorRiseRules.map((rule: any, index: number) => {
+                    const originalRule = pricingConfig.originalFloorRiseRules[index];
+                    if (!originalRule) return null;
+                    
+                    const origIncrement = originalRule.psfIncrement;
+                    const currentIncrement = rule.psfIncrement;
+                    const incrementChange = ((currentIncrement - origIncrement) / origIncrement * 100).toFixed(1);
+                    const isIncrementPositive = currentIncrement > origIncrement;
+                    
+                    return (
+                      <li key={`floor-${index}`} className="text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            Floors {rule.startFloor}-{rule.endFloor === null ? "max" : rule.endFloor}:
+                          </span>
+                        </div>
+                        <div className="pl-4 mt-1 grid grid-cols-1 gap-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span>Base Increment:</span>
+                            <span className="flex items-center">
+                              {origIncrement.toFixed(2)}
+                              <ArrowRight className="mx-1 h-3 w-3" />
+                              <span className={isIncrementPositive ? "text-green-600" : "text-amber-600"}>
+                                {currentIncrement.toFixed(2)} ({isIncrementPositive ? "+" : ""}{incrementChange}%)
+                              </span>
+                            </span>
+                          </div>
+                          
+                          {rule.jumpEveryFloor && originalRule.jumpEveryFloor && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span>Jump Increment:</span>
+                              <span className="flex items-center">
+                                {originalRule.jumpIncrement?.toFixed(2) || "0.00"}
+                                <ArrowRight className="mx-1 h-3 w-3" />
+                                <span className={
+                                  (rule.jumpIncrement || 0) > (originalRule.jumpIncrement || 0) 
+                                    ? "text-green-600" 
+                                    : "text-amber-600"
+                                }>
+                                  {rule.jumpIncrement?.toFixed(2) || "0.00"}
+                                </span>
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
       
       <CardFooter className="flex flex-col items-start text-sm text-muted-foreground bg-gradient-to-r from-indigo-50/50 to-blue-50/50 rounded-b">
         <p>
-          Mega Optimize uses advanced constrained gradient descent to find the optimal 
-          premium values while minimizing changes from your original settings.
+          {optimizationMode === "basePsf" 
+            ? "Base PSF Optimization adjusts only bedroom type PSF values to achieve target overall PSF."
+            : "Full Parameter Optimization fine-tunes bedroom PSF, floor premiums, and view adjustments while preserving the cumulative nature of floor premiums."
+          }
         </p>
       </CardFooter>
     </Card>
