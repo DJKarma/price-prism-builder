@@ -47,7 +47,6 @@ interface PricingSimulatorProps {
 }
 
 interface UnitWithPricing extends Record<string, any> {
-  calculatedPsf: number;
   totalPrice: number;
   finalTotalPrice: number; // Ceiled total price
   balconyArea?: number;
@@ -55,7 +54,7 @@ interface UnitWithPricing extends Record<string, any> {
   basePriceComponent?: number;
   floorPriceComponent?: number;
   viewPriceComponent?: number;
-  finalPsf?: number; // Added for clarity
+  finalPsf: number; // Now the primary PSF value
   isOptimized?: boolean; // Flag to indicate if this unit's price was optimized
 }
 
@@ -139,7 +138,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       
       const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
       
-      const calculatedPsf = basePsf + floorAdjustment + viewPsfAdjustment;
+      // Calculate base PSF with all adjustments
+      const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment;
       
       const sellArea = parseFloat(unit.sellArea) || 0;
       const acArea = parseFloat(unit.acArea) || 0;
@@ -152,7 +152,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       }
       const balconyPercentage = sellArea > 0 ? (balconyArea / sellArea) * 100 : 0;
       
-      const totalPrice = calculatedPsf * sellArea;
+      const totalPrice = basePsfWithAdjustments * sellArea;
       const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
       const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
       
@@ -162,7 +162,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       
       return {
         ...unit,
-        calculatedPsf,
         totalPrice,
         finalTotalPrice,
         finalPsf,
@@ -264,10 +263,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       "Base PSF",
       "Floor Premium PSF",
       "View Premium PSF",
-      "Total PSF",
-      "Base Price",
-      "Floor Premium",
-      "View Premium",
       "Total Price (Raw)",
       "Final Total Price",
       "Final PSF",
@@ -285,10 +280,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       unit.basePsf.toFixed(2),
       unit.floorAdjustment.toFixed(2),
       unit.viewPsfAdjustment.toFixed(2),
-      unit.calculatedPsf.toFixed(2),
-      unit.basePriceComponent.toFixed(2),
-      unit.floorPriceComponent.toFixed(2),
-      unit.viewPriceComponent.toFixed(2),
       unit.totalPrice.toFixed(2),
       unit.finalTotalPrice.toFixed(2),
       unit.finalPsf ? unit.finalPsf.toFixed(2) : "0",
@@ -486,14 +477,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </TableHead>
                   <TableHead
                     className="cursor-pointer"
-                    onClick={() => handleSort("calculatedPsf")}
-                  >
-                    <div className="flex items-center">
-                      Total PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer"
                     onClick={() => handleSort("finalTotalPrice")}
                   >
                     <div className="flex items-center">
@@ -538,9 +521,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     </TableCell>
                     <TableCell>
                       {unit.viewPsfAdjustment.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {unit.calculatedPsf.toFixed(2)}
                     </TableCell>
                     <TableCell>
                       {unit.finalTotalPrice.toLocaleString(undefined, {

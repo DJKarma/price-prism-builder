@@ -115,8 +115,7 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
             const unitCount = type.unitCount !== undefined ? type.unitCount : 0;
             const avgSize = type.avgSize !== undefined && type.avgSize > 0 ? type.avgSize : 0;
             
-            // Use the correct avgPsf value that matches PricingSummary's calculation
-            // This ensures consistency between the two components
+            // Use the finalPsf derived avgPsf value that matches PricingSummary's calculation
             const avgPsf = type.avgPsf !== undefined ? type.avgPsf : 0;
             
             // Display targetAvgPsf as 0 initially, but show the actual value when optimized
@@ -199,10 +198,10 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                         </p>
                       </div>
                       
-                      {/* Average PSF mini-card */}
+                      {/* Average PSF mini-card - using finalPsf derived value */}
                       <div className="bg-green-50 rounded-lg p-2 flex flex-col">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-green-700">Avg PSF</span>
+                          <span className="text-xs font-medium text-green-700">Final PSF</span>
                         </div>
                         <p className="font-semibold text-sm text-green-900 mt-1">
                           {avgPsf > 0 ? avgPsf.toFixed(2) : "0.00"}

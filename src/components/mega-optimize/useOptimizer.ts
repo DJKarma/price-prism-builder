@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { megaOptimizePsf, calculateOverallAveragePsf, fullOptimizePsf } from "@/utils/psfOptimizer";
 import { toast } from "sonner";
@@ -32,7 +33,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       typeGroups[unit.type].push(unit);
     });
     
-    // For each bedroom type, calculate statistics (min/avg/max) based solely on finalPsf
+    // For each bedroom type, calculate statistics based solely on finalPsf
     const bedroomAvgData: Record<string, { 
       avgPsf: number, 
       avgSize: number, 

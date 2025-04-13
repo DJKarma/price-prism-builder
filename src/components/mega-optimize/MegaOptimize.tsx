@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
@@ -45,7 +44,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     revertOptimization
   } = useOptimizer(data, pricingConfig, onOptimized);
 
-  // Calculate bedroom type average PSF values for display
+  // Calculate bedroom type average PSF values for display using finalPsf only
   const bedroomTypeData = React.useMemo(() => {
     console.log("Calculating bedroomTypeData in MegaOptimize");
     
@@ -73,7 +72,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       const avgSize = unitCount > 0 ? totalArea / unitCount : 0;
       console.log(`Bedroom type ${type.type}: unitCount=${unitCount}, totalArea=${totalArea}, avgSize=${avgSize}`);
       
-      // Calculate current average PSF
+      // Calculate current average PSF using finalPsf only
       let totalPsf = 0;
       unitsOfType.forEach((unit: any) => {
         const floorNum = parseInt(unit.floor) || 0;
@@ -98,14 +97,13 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
           }
         });
         
-        // Calculate total PSF for this unit
+        // Calculate finalPsf for this unit
         const sellArea = parseFloat(unit.sellArea) || 0;
-        const rawPsf = type.basePsf + floorPremium + viewPremium;
-        const totalPrice = rawPsf * sellArea;
+        const basePsf = type.basePsf + floorPremium + viewPremium;
+        const totalPrice = basePsf * sellArea;
         const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
-        const unitPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
-        totalPsf += unitPsf;
-
+        const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
+        totalPsf += finalPsf;
       });
       
       const avgPsf = unitCount > 0 ? totalPsf / unitCount : 0;
