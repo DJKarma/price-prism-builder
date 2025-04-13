@@ -168,7 +168,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                 <div key={field.id} className="space-y-1">
                   <label className="text-sm font-medium">{field.label}</label>
                   <Select
-                    value={mapping[field.id] || ""}
+                    value={mapping[field.id] || undefined}
                     onValueChange={(value) => handleMappingChange(field.id, value)}
                   >
                     <SelectTrigger>
