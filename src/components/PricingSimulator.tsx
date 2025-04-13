@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -17,18 +18,12 @@ import {
   FixedHeaderTable
 } from "@/components/ui/table";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import { Checkbox } from "@/components/ui/checkbox";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowUpDown,
   Download,
@@ -37,8 +32,6 @@ import {
   Check,
   Info,
   RotateCcw,
-  ChevronsUpDown,
-  X
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -46,8 +39,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface PricingSimulatorProps {
   data: any[];
@@ -67,10 +58,6 @@ interface UnitWithPricing extends Record<string, any> {
   isOptimized?: boolean; // Flag to indicate if this unit's price was optimized
 }
 
-interface MultiFilterValue {
-  [key: string]: string[];
-}
-
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
   pricingConfig,
@@ -82,26 +69,21 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     key: string;
     direction: "ascending" | "descending";
   }>({ key: "floor", direction: "ascending" }); // Set default sort to floor ascending
-  const [multiFilters, setMultiFilters] = useState<MultiFilterValue>({
-    type: [],
-    view: [],
-    floor: [],
-  });
-  const [filterPopoverOpen, setFilterPopoverOpen] = useState<{[key: string]: boolean}>({
-    type: false,
-    view: false,
-    floor: false
+  const [filters, setFilters] = useState<Record<string, string>>({
+    type: "",
+    view: "",
+    floor: "",
   });
 
   useEffect(() => {
-    if (pricingConfig?.optimizedTypes?.length) {
+    if (pricingConfig?.optimizedTypes?.length && filters.type === "") {
       const optimizedTypes = pricingConfig.optimizedTypes;
-      if (optimizedTypes.length === 1 && multiFilters.type.length === 0) {
-        setMultiFilters(prev => ({ ...prev, type: [...optimizedTypes] }));
-        toast.info(`Filtered to show optimized bedroom type: ${optimizedTypes.join(', ')}`);
+      if (optimizedTypes.length === 1) {
+        setFilters(prev => ({ ...prev, type: optimizedTypes[0] }));
+        toast.info(`Filtered to show optimized bedroom type: ${optimizedTypes[0]}`);
       }
     }
-  }, [pricingConfig?.optimizedTypes]);
+  }, [pricingConfig?.optimizedTypes, filters.type]);
 
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
@@ -156,6 +138,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       
       const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
       
+      // Calculate base PSF with all adjustments
       const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment;
       
       const sellArea = parseFloat(unit.sellArea) || 0;
@@ -172,6 +155,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       const totalPrice = basePsfWithAdjustments * sellArea;
       const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
       
+      // Calculate finalPsf exactly as in PricingSummary - based on finalTotalPrice / sellArea
       const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
       
       const basePriceComponent = basePsf * sellArea;
@@ -201,19 +185,15 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
   useEffect(() => {
     let result = [...units];
-    
-    if (multiFilters.type.length > 0) {
-      result = result.filter((unit) => multiFilters.type.includes(unit.type));
+    if (filters.type) {
+      result = result.filter((unit) => unit.type === filters.type);
     }
-    
-    if (multiFilters.view.length > 0) {
-      result = result.filter((unit) => multiFilters.view.includes(unit.view));
+    if (filters.view) {
+      result = result.filter((unit) => unit.view === filters.view);
     }
-    
-    if (multiFilters.floor.length > 0) {
-      result = result.filter((unit) => multiFilters.floor.includes(unit.floor));
+    if (filters.floor) {
+      result = result.filter((unit) => unit.floor === filters.floor);
     }
-    
     if (sortConfig) {
       result.sort((a, b) => {
         if (sortConfig.key === 'floor') {
@@ -230,33 +210,19 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         return 0;
       });
     }
-    
     setFilteredUnits(result);
-  }, [units, multiFilters, sortConfig]);
+  }, [units, filters, sortConfig]);
 
-  const handleMultiFilterChange = (key: string, value: string) => {
-    setMultiFilters(prev => {
-      const newValues = prev[key].includes(value)
-        ? prev[key].filter(v => v !== value)
-        : [...prev[key], value];
-      
-      const result = { ...prev, [key]: newValues };
-      return result;
-    });
-  };
-
-  const toggleFilterPopover = (key: string) => {
-    setFilterPopoverOpen(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    toast.info(`Filter applied: ${key} = ${value || 'All'}`);
   };
 
   const resetFilters = () => {
-    setMultiFilters({
-      type: [],
-      view: [],
-      floor: [],
+    setFilters({
+      type: "",
+      view: "",
+      floor: "",
     });
     toast.success("Filters have been reset");
   };
@@ -280,15 +246,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       return Array.from(values).sort((a, b) => parseInt(a) - parseInt(b));
     }
     return Array.from(values).sort();
-  };
-
-  const formatPriceForDisplay = (price: number): string => {
-    if (price >= 1000000) {
-      return `${(price / 1000000).toFixed(2)}M`;
-    } else if (price >= 1000) {
-      return `${(price / 1000).toFixed(0)}K`;
-    }
-    return price.toFixed(0);
   };
 
   const exportCSV = () => {
@@ -343,65 +300,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     toast.success("CSV file downloaded successfully");
   };
 
-  const getTotalActiveFilters = () => {
-    return Object.values(multiFilters).reduce((total, filters) => total + filters.length, 0);
-  };
-
-  const MultiSelectFilter = ({ 
-    label, 
-    filterKey, 
-    options 
-  }: { 
-    label: string, 
-    filterKey: string, 
-    options: string[] 
-  }) => (
-    <Popover 
-      open={filterPopoverOpen[filterKey]} 
-      onOpenChange={(open) => setFilterPopoverOpen(prev => ({ ...prev, [filterKey]: open }))}
-    >
-      <PopoverTrigger asChild>
-        <Button 
-          variant="outline" 
-          role="combobox" 
-          className="w-full justify-between"
-          onClick={() => toggleFilterPopover(filterKey)}
-        >
-          {multiFilters[filterKey].length > 0 
-            ? `${multiFilters[filterKey].length} ${label.toLowerCase()} selected` 
-            : `All ${label}s`}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command>
-          <CommandInput placeholder={`Search ${label.toLowerCase()}...`} />
-          <CommandEmpty>No {label.toLowerCase()} found</CommandEmpty>
-          <CommandGroup>
-            <ScrollArea className="h-[200px]">
-              {options.map((option) => (
-                <CommandItem 
-                  key={option} 
-                  value={option}
-                  onSelect={() => handleMultiFilterChange(filterKey, option)}
-                  className="px-2 py-1 cursor-pointer"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      checked={multiFilters[filterKey].includes(option)} 
-                      className="h-4 w-4"
-                    />
-                    <span>{option}</span>
-                  </div>
-                </CommandItem>
-              ))}
-            </ScrollArea>
-          </CommandGroup>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-
   return (
     <Card className="w-full mb-6">
       <CardHeader>
@@ -416,85 +314,58 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div>
-            <MultiSelectFilter 
-              label="Type" 
-              filterKey="type" 
-              options={getUniqueValues("type")} 
-            />
-            {multiFilters.type.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {multiFilters.type.map(type => (
-                  <Badge 
-                    key={type} 
-                    variant="secondary" 
-                    className="text-xs"
-                  >
-                    {type}
-                    <button
-                      type="button"
-                      className="ml-1"
-                      onClick={() => handleMultiFilterChange("type", type)}
-                    >
-                      <X className="h-2 w-2" />
-                    </button>
-                  </Badge>
+            <Select
+              value={filters.type}
+              onValueChange={(value) => handleFilterChange("type", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Types</SelectItem>
+                {getUniqueValues("type").map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
                 ))}
-              </div>
-            )}
+              </SelectContent>
+            </Select>
           </div>
           <div>
-            <MultiSelectFilter 
-              label="View" 
-              filterKey="view" 
-              options={getUniqueValues("view")} 
-            />
-            {multiFilters.view.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {multiFilters.view.map(view => (
-                  <Badge 
-                    key={view} 
-                    variant="secondary" 
-                    className="text-xs"
-                  >
-                    {view}
-                    <button
-                      type="button"
-                      className="ml-1"
-                      onClick={() => handleMultiFilterChange("view", view)}
-                    >
-                      <X className="h-2 w-2" />
-                    </button>
-                  </Badge>
+            <Select
+              value={filters.view}
+              onValueChange={(value) => handleFilterChange("view", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Views" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Views</SelectItem>
+                {getUniqueValues("view").map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
                 ))}
-              </div>
-            )}
+              </SelectContent>
+            </Select>
           </div>
           <div>
-            <MultiSelectFilter 
-              label="Floor" 
-              filterKey="floor" 
-              options={getUniqueValues("floor")} 
-            />
-            {multiFilters.floor.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {multiFilters.floor.map(floor => (
-                  <Badge 
-                    key={floor} 
-                    variant="secondary" 
-                    className="text-xs"
-                  >
-                    {floor}
-                    <button
-                      type="button"
-                      className="ml-1"
-                      onClick={() => handleMultiFilterChange("floor", floor)}
-                    >
-                      <X className="h-2 w-2" />
-                    </button>
-                  </Badge>
+            <Select
+              value={filters.floor}
+              onValueChange={(value) => handleFilterChange("floor", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Floors" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Floors</SelectItem>
+                {getUniqueValues("floor").map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
                 ))}
-              </div>
-            )}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Button 
@@ -651,7 +522,10 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     {unit.viewPsfAdjustment.toFixed(2)}
                   </TableCell>
                   <TableCell>
-                    {formatPriceForDisplay(unit.finalTotalPrice)}
+                    {unit.finalTotalPrice.toLocaleString(undefined, {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    })}
                   </TableCell>
                   <TableCell>
                     {unit.finalPsf?.toFixed(2) || "0.00"}
@@ -675,7 +549,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         <div className="mt-4 flex items-center justify-end">
           <div className="text-sm text-muted-foreground flex items-center gap-2">
             <Filter className="h-4 w-4 mr-1" />
-            <span>{getTotalActiveFilters()} active filters</span>
+            <span>{Object.values(filters).filter(Boolean).length} active filters</span>
             <span className="ml-2">Showing {filteredUnits.length} units</span>
           </div>
         </div>

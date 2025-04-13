@@ -1,23 +1,17 @@
 
 import React, { useState } from "react";
-import { X, Check, ChevronsUpDown } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface BedroomTypeSelectorProps {
   bedroomTypes: string[];
@@ -81,65 +75,52 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">Select Bedroom Types to Optimize</label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
-            role="combobox"
-            aria-expanded={open}
             className="w-full justify-between"
           >
             {safeSelectedTypes.length > 0
               ? `${safeSelectedTypes.length} ${safeSelectedTypes.length === 1 ? "type" : "types"} selected`
               : "Select bedroom types..."}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <span className="ml-2">▼</span>
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-full p-0">
-          <Command>
-            <CommandInput placeholder="Search bedroom types..." />
-            <CommandEmpty>No bedroom type found.</CommandEmpty>
-            <CommandGroup>
-              <ScrollArea className="h-[200px]">
-                <div className="px-2 py-1">
-                  <div 
-                    className="flex items-center space-x-2 rounded-md px-2 py-2 cursor-pointer hover:bg-accent"
-                    onClick={handleSelectAll}
-                  >
-                    <Checkbox 
-                      checked={allSelected} 
-                      className="h-4 w-4"
-                    />
-                    <span className="font-medium">{allSelected ? "Deselect All" : "Select All"}</span>
-                  </div>
-                </div>
-                {safeBedroomTypes.length > 0 ? (
-                  safeBedroomTypes.map((type) => (
-                    <CommandItem
-                      key={type}
-                      value={type}
-                      onSelect={() => handleTypeSelection(type)}
-                      className="px-2 py-1 cursor-pointer"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          checked={safeSelectedTypes.includes(type)} 
-                          className="h-4 w-4"
-                        />
-                        <span>{type}</span>
-                      </div>
-                    </CommandItem>
-                  ))
-                ) : (
-                  <div className="py-2 px-2 text-sm text-muted-foreground">
-                    No bedroom types available
-                  </div>
-                )}
-              </ScrollArea>
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-full min-w-[200px] bg-popover p-2">
+          <DropdownMenuLabel>Bedroom Types</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {/* Select All option */}
+          <DropdownMenuCheckboxItem
+            checked={allSelected}
+            onSelect={(e) => {
+              e.preventDefault();
+              handleSelectAll();
+            }}
+            className="font-medium"
+          >
+            {allSelected ? "Deselect All" : "Select All"}
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
+          {/* List all bedroom types */}
+          {safeBedroomTypes.length > 0 ? (
+            safeBedroomTypes.map((type) => (
+              <DropdownMenuCheckboxItem
+                key={type}
+                checked={safeSelectedTypes.includes(type)}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  handleTypeSelection(type);
+                }}
+              >
+                {type}
+              </DropdownMenuCheckboxItem>
+            ))
+          ) : (
+            <div className="px-2 py-1 text-sm text-muted-foreground">No bedroom types available</div>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {safeSelectedTypes.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
