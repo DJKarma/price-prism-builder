@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from "react";
 import {
   Card,
@@ -264,7 +263,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                             key={index} 
                             className={
                               isHighlighted 
-                                ? "bg-yellow-50 transition-colors duration-500" 
+                                ? "bg-yellow-100 transition-colors duration-500" 
                                 : index % 2 === 0 ? "bg-white" : "bg-purple-50/30"
                             }
                           >
@@ -277,7 +276,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                 </div>
                                 <div className={`text-center px-2 py-1 rounded-md font-medium transition-all duration-500 ${
                                   isHighlighted 
-                                    ? "bg-yellow-100 text-yellow-800 animate-pulse transform scale-110" 
+                                    ? "bg-yellow-300 text-yellow-900 animate-pulse transform scale-110 shadow-lg" 
                                     : "bg-purple-50 text-purple-600"
                                 }`}>
                                   {isFinite(stat.avgPsf) && stat.avgPsf > 0 ? stat.avgPsf.toFixed(2) : "0.00"}
@@ -294,7 +293,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                 </div>
                                 <div className={`text-center px-2 py-1 rounded-md font-medium transition-all duration-500 ${
                                   isHighlighted 
-                                    ? "bg-yellow-100 text-yellow-800" 
+                                    ? "bg-yellow-300 text-yellow-900" 
                                     : "bg-purple-50 text-purple-600"
                                 }`}>
                                   {isFinite(stat.avgPrice) && stat.avgPrice > 0 ? `${showDollarSign ? "$" : ""}${Math.round(stat.avgPrice).toLocaleString()}` : "0"}
@@ -311,7 +310,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                                 </div>
                                 <div className={`text-center px-2 py-1 rounded-md font-medium ${
                                   isHighlighted 
-                                    ? "bg-yellow-100 text-yellow-800" 
+                                    ? "bg-yellow-300 text-yellow-900" 
                                     : "bg-purple-50 text-purple-600"
                                 }`}>
                                   {isFinite(stat.avgSize) && stat.avgSize > 0 ? stat.avgSize.toFixed(0) : "0"}

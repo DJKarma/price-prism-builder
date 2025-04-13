@@ -153,11 +153,11 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     toast.promise(
       new Promise(resolve => {
         runMegaOptimization(selectedTypes);
-        // Highlight the selected types for 2 seconds
+        // Highlight the selected types for 4 seconds (increased from 2)
         setHighlightedTypes([...selectedTypes]);
         setTimeout(() => {
           setHighlightedTypes([]);
-        }, 2000);
+        }, 4000); // Changed from 2000 to 4000 for 4 seconds
         // Simulate promise for toast
         setTimeout(resolve, 1000);
       }),
@@ -231,7 +231,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left column: Optimization controls */}
           <div className="lg:col-span-4 space-y-6">
-            {/* Current Overall PSF Display */}
+            {/* Display Current Overall PSF in an eye-catching way */}
             <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg p-4 text-center mb-4 transform transition-transform hover:scale-105 shadow-md">
               <h3 className="text-lg font-medium text-indigo-700">Current Overall PSF</h3>
               <p className="text-3xl font-bold text-indigo-900 flex items-center justify-center">
@@ -239,6 +239,11 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                 {currentOverallPsf.toFixed(2)}
                 <Sparkles className="h-5 w-5 text-yellow-500 ml-2 animate-pulse" />
               </p>
+              {isOptimized && (
+                <Badge className="mt-2 bg-green-100 text-green-800 hover:bg-green-200">
+                  Optimized
+                </Badge>
+              )}
             </div>
             
             {/* Target PSF by Bedroom Type */}
@@ -249,7 +254,9 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                   <div 
                     key={type} 
                     className={`p-2 rounded-md flex justify-between items-center ${
-                      selectedTypes.includes(type) ? 'bg-indigo-50 border border-indigo-200' : 'bg-gray-50 border border-gray-200'
+                      selectedTypes.includes(type) 
+                        ? 'bg-indigo-50 border border-indigo-200' 
+                        : 'bg-gray-50 border border-gray-200'
                     }`}
                   >
                     <span className="font-medium text-sm">{type}</span>
@@ -284,17 +291,6 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
           
           {/* Right column: Pricing Summary */}
           <div className="lg:col-span-8">
-            <div className="mb-4">
-              <div className="bg-purple-50 rounded-lg p-4 text-center mb-4">
-                <h3 className="text-xl font-semibold text-purple-700">Target Overall PSF</h3>
-                <p className="text-3xl font-bold text-purple-900">{targetPsf.toFixed(2)}</p>
-                {isOptimized && (
-                  <Badge className="mt-2 bg-green-100 text-green-800 hover:bg-green-200">
-                    Optimized
-                  </Badge>
-                )}
-              </div>
-            </div>
             {/* Use the processed data for PricingSummary instead of raw data */}
             <PricingSummary 
               data={processedData.length > 0 ? processedData : data} 

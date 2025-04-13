@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Wand2, RotateCcw, Target, Edit } from "lucide-react";
+import { Wand2, RotateCcw, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,18 +37,6 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="current-psf">Current Overall PSF</Label>
-        <div className="flex items-center gap-2">
-          <Input
-            id="current-psf"
-            value={currentOverallPsf.toFixed(2)}
-            disabled
-            className="bg-muted font-medium"
-          />
-        </div>
-      </div>
-      
       <div className="space-y-2">
         <Label htmlFor="target-psf" className="flex justify-between">
           <span>Target Overall PSF</span>
