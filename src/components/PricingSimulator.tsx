@@ -34,9 +34,17 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { ArrowUpDown, Download, Calculator, Layers } from "lucide-react";
+import { ArrowUpDown, Download, Calculator, Layers, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { PricingConfig } from "./PricingConfiguration";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuCheckboxItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface PricingSimulatorProps {
   data: any[];
@@ -67,6 +75,13 @@ interface TypeSummary {
   maxSize: number;
 }
 
+// Stats configuration for summary table
+interface SummaryStatConfig {
+  id: string;
+  label: string;
+  enabled: boolean;
+}
+
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
   pricingConfig,
@@ -86,6 +101,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     Array<{ type: string; avgPsf: number; targetPsf: number; units: number }>
   >([]);
   const [detailedTypeSummary, setDetailedTypeSummary] = useState<TypeSummary[]>([]);
+  
+  // Summary stats configuration
+  const [summaryStats, setSummaryStats] = useState<SummaryStatConfig[]>([
+    { id: "count", label: "Unit Count", enabled: true },
+    { id: "psf", label: "PSF Stats", enabled: true },
+    { id: "price", label: "Price Stats", enabled: true },
+    { id: "size", label: "Size Stats", enabled: true },
+  ]);
 
   // Process the data with pricing calculations
   useEffect(() => {
@@ -103,17 +126,37 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       // Base price from unit type or default base
       const basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
       
-      // Calculate floor adjustment
+      // Calculate floor adjustment - FIXED to be cumulative
       let floorAdjustment = 0;
       const floorLevel = parseInt(unit.floor) || 1;
       
-      for (const rule of pricingConfig.floorRiseRules) {
-        if (floorLevel >= rule.startFloor && floorLevel <= rule.endFloor) {
-          floorAdjustment = 
-            (floorLevel - rule.startFloor + 1) * rule.psfIncrement;
+      // Sort floor rules by startFloor to process them in order
+      const sortedFloorRules = [...pricingConfig.floorRiseRules].sort(
+        (a, b) => a.startFloor - b.startFloor
+      );
+      
+      // Calculate cumulative floor adjustment
+      let currentFloor = 1;
+      let cumulativeAdjustment = 0;
+      
+      for (const rule of sortedFloorRules) {
+        // If we already passed this rule's range, apply full adjustment
+        if (floorLevel > rule.endFloor) {
+          // Apply adjustment for all floors in this rule
+          const floorsInRange = rule.endFloor - Math.max(currentFloor, rule.startFloor) + 1;
+          cumulativeAdjustment += floorsInRange * rule.psfIncrement;
+          currentFloor = rule.endFloor + 1;
+        } 
+        // If we're within this rule's range
+        else if (floorLevel >= rule.startFloor) {
+          // Apply adjustment for floors up to the unit's floor
+          const floorsInRange = floorLevel - Math.max(currentFloor, rule.startFloor) + 1;
+          cumulativeAdjustment += floorsInRange * rule.psfIncrement;
           break;
         }
       }
+      
+      floorAdjustment = cumulativeAdjustment;
       
       // Calculate view adjustment
       const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
@@ -293,6 +336,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     }
     
     setSortConfig({ key, direction });
+  };
+
+  const toggleSummaryStat = (id: string) => {
+    setSummaryStats((prev) =>
+      prev.map((stat) =>
+        stat.id === id ? { ...stat, enabled: !stat.enabled } : stat
+      )
+    );
   };
 
   const getUniqueValues = (fieldName: string): string[] => {
@@ -512,13 +563,38 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </div>
           )}
           
-          {/* Improved Detailed Bedroom Type Summary */}
+          {/* Improved Detailed Bedroom Type Summary with Dropdown Selector */}
           {detailedTypeSummary.length > 0 && (
             <div className="mt-8">
-              <h3 className="text-lg font-medium mb-2 flex items-center gap-2">
-                <Layers className="h-5 w-5" />
-                Detailed Bedroom Type Summary
-              </h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Layers className="h-5 w-5" />
+                  Detailed Bedroom Type Summary
+                </h3>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 gap-1">
+                      <Filter className="h-4 w-4" />
+                      <span>Select Statistics</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-background border border-border">
+                    <DropdownMenuLabel>Display Options</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {summaryStats.map((stat) => (
+                      <DropdownMenuCheckboxItem
+                        key={stat.id}
+                        checked={stat.enabled}
+                        onCheckedChange={() => toggleSummaryStat(stat.id)}
+                      >
+                        {stat.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              
               <div className="grid grid-cols-1 gap-4">
                 {detailedTypeSummary.map((summary) => (
                   <Card key={summary.type} className="overflow-hidden">
@@ -527,58 +603,77 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                         {summary.type} ({summary.count} units)
                       </CardTitle>
                     </CardHeader>
-                    <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x">
-                      <div className="p-4">
-                        <h4 className="text-sm font-medium mb-2">Price Per Square Foot</h4>
-                        <div className="grid grid-cols-3 gap-2 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Min</p>
-                            <p className="font-medium">{summary.minPsf.toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Avg</p>
-                            <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Max</p>
-                            <p className="font-medium">{summary.maxPsf.toFixed(2)}</p>
+                    <div className="grid grid-cols-1 divide-y md:divide-y-0 md:divide-x md:grid-cols-4">
+                      {/* Unit Count - Always show */}
+                      {summaryStats.find(s => s.id === "count")?.enabled && (
+                        <div className="p-4">
+                          <h4 className="text-sm font-medium mb-2">Unit Count</h4>
+                          <p className="text-xl font-medium">{summary.count}</p>
+                        </div>
+                      )}
+                      
+                      {/* PSF Stats */}
+                      {summaryStats.find(s => s.id === "psf")?.enabled && (
+                        <div className="p-4">
+                          <h4 className="text-sm font-medium mb-2">Price Per Square Foot</h4>
+                          <div className="grid grid-cols-3 gap-2 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Min</p>
+                              <p className="font-medium">{summary.minPsf.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Avg</p>
+                              <p className="font-medium">{summary.avgPsf.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Max</p>
+                              <p className="font-medium">{summary.maxPsf.toFixed(2)}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="p-4">
-                        <h4 className="text-sm font-medium mb-2">Total Price</h4>
-                        <div className="grid grid-cols-3 gap-2 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Min</p>
-                            <p className="font-medium">{summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Avg</p>
-                            <p className="font-medium">{summary.avgPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Max</p>
-                            <p className="font-medium">{summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <h4 className="text-sm font-medium mb-2">Unit Size (sqft)</h4>
-                        <div className="grid grid-cols-3 gap-2 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Min</p>
-                            <p className="font-medium">{summary.minSize.toFixed(1)}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Avg</p>
-                            <p className="font-medium">{summary.avgSize.toFixed(1)}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Max</p>
-                            <p className="font-medium">{summary.maxSize.toFixed(1)}</p>
+                      )}
+                      
+                      {/* Price Stats */}
+                      {summaryStats.find(s => s.id === "price")?.enabled && (
+                        <div className="p-4">
+                          <h4 className="text-sm font-medium mb-2">Total Price</h4>
+                          <div className="grid grid-cols-3 gap-2 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Min</p>
+                              <p className="font-medium">{summary.minPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Avg</p>
+                              <p className="font-medium">{summary.avgPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Max</p>
+                              <p className="font-medium">{summary.maxPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
+                      
+                      {/* Size Stats */}
+                      {summaryStats.find(s => s.id === "size")?.enabled && (
+                        <div className="p-4">
+                          <h4 className="text-sm font-medium mb-2">Unit Size (sqft)</h4>
+                          <div className="grid grid-cols-3 gap-2 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Min</p>
+                              <p className="font-medium">{summary.minSize.toFixed(1)}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Avg</p>
+                              <p className="font-medium">{summary.avgSize.toFixed(1)}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Max</p>
+                              <p className="font-medium">{summary.maxSize.toFixed(1)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </Card>
                 ))}
