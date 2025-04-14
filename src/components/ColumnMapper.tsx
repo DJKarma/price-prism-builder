@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { MapPin, AlertTriangle, ArrowLeft, CheckCircle2, PanelRight, Database } from "lucide-react";
+import { MapPin, AlertTriangle, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -44,14 +44,16 @@ export interface AdditionalCategory {
 }
 
 const requiredFields = [
-  { id: "name", label: "Unit Name", keywords: ["unit", "name", "id", "number", "no", "apartment", "apt", "property", "lot"] },
-  { id: "sellArea", label: "Sell Area", keywords: ["sell", "area", "sellable", "saleable", "sales", "sqft", "sq ft", "sqm", "sq m", "square", "size", "built up", "gross", "net", "usable", "carpet"] },
+  { id: "name", label: "Unit Name", keywords: ["unit", "name", "id", "number", "no"] },
+  { id: "sellArea", label: "Sell Area", keywords: ["sell", "area", "sellable", "saleable", "sales", "sqft", "sq ft", "sqm", "sq m", "square", "size"] },
 ];
 
 const optionalFields = [
-  { id: "acArea", label: "AC Area", keywords: ["ac", "air", "conditioning", "climate", "cool", "controlled", "hvac"] },
-  { id: "balcony", label: "Balcony", keywords: ["balcony", "patio", "outdoor", "terrace", "deck", "veranda", "porch"] },
-  { id: "floor", label: "Floor Level", keywords: ["floor", "level", "story", "storey", "elevation", "height", "tier"] },
+  { id: "acArea", label: "AC Area", keywords: ["ac", "air", "conditioning", "climate", "cool", "controlled"] },
+  { id: "balcony", label: "Balcony", keywords: ["balcony", "patio", "outdoor", "terrace", "deck"] },
+  { id: "floor", label: "Floor Level", keywords: ["floor", "level", "story", "storey", "elevation"] },
+  { id: "view", label: "View", keywords: ["view", "facing", "outlook", "aspect", "direction", "overlook"] },
+  { id: "type", label: "Bedroom Type", keywords: ["bed", "bedroom", "room", "type", "unit type", "layout", "configuration"] },
 ];
 
 const allFields = [...requiredFields, ...optionalFields];
@@ -68,11 +70,81 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [blankValues, setBlankValues] = useState<{field: string, count: number}[]>([]);
   const [additionalCategories, setAdditionalCategories] = useState<AdditionalCategory[]>([]);
-  const [availableHeaders, setAvailableHeaders] = useState<string[]>([]);
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  
-  // Detect unmapped columns that could be used for additional categories
+  const [duplicateSelectionAlert, setDuplicateSelectionAlert] = useState<{ show: boolean, field: string, existingField: string }>({ 
+    show: false, field: '', existingField: '' 
+  });
+
   useEffect(() => {
+    const initialMapping: Record<string, string> = {};
+    const usedHeaders = new Set<string>();
+    
+    allFields.forEach(field => {
+      const exactMatch = headers.find(header => 
+        header.toLowerCase() === field.id.toLowerCase() || 
+        header.toLowerCase() === field.label.toLowerCase()
+      );
+      
+      if (exactMatch && !usedHeaders.has(exactMatch)) {
+        initialMapping[field.id] = exactMatch;
+        usedHeaders.add(exactMatch);
+      }
+    });
+    
+    allFields.forEach(field => {
+      if (initialMapping[field.id]) return;
+      
+      const keywordMatch = headers.find(header => {
+        const headerLower = header.toLowerCase();
+        return !usedHeaders.has(header) && 
+               field.keywords.some(keyword => headerLower.includes(keyword.toLowerCase()));
+      });
+      
+      if (keywordMatch) {
+        initialMapping[field.id] = keywordMatch;
+        usedHeaders.add(keywordMatch);
+      }
+    });
+    
+    allFields.forEach(field => {
+      if (initialMapping[field.id]) return;
+      
+      const containsMatch = headers.find(header => {
+        if (usedHeaders.has(header)) return false;
+        
+        const headerLower = header.toLowerCase();
+        const fieldIdLower = field.id.toLowerCase();
+        const fieldLabelLower = field.label.toLowerCase();
+        
+        return headerLower.includes(fieldIdLower) || 
+               fieldIdLower.includes(headerLower) ||
+               headerLower.includes(fieldLabelLower) || 
+               fieldLabelLower.includes(headerLower);
+      });
+      
+      if (containsMatch) {
+        initialMapping[field.id] = containsMatch;
+        usedHeaders.add(containsMatch);
+      }
+    });
+    
+    setMapping(initialMapping);
+    
+    detectAdditionalCategories();
+  }, [headers, data]);
+
+  useEffect(() => {
+    if (data.length > 0) {
+      const preview: Record<string, any> = {};
+      
+      Object.entries(mapping).forEach(([fieldId, headerName]) => {
+        preview[fieldId] = data[0][headerName];
+      });
+      
+      setPreviewData(preview);
+    }
+  }, [mapping, data]);
+
+  const detectAdditionalCategories = () => {
     if (!data.length) return;
     
     const mappedColumns = new Set(Object.values(mapping));
@@ -81,7 +153,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     const potentialCategories: AdditionalCategory[] = [];
     
     unmappedColumns.forEach(column => {
-      // Exclude view and bedroom type columns 
+      // Exclude view and bedroom type columns
       const columnLower = column.toLowerCase();
       const isViewOrType = 
         columnLower.includes("view") || 
@@ -122,213 +194,40 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     });
     
     setAdditionalCategories(potentialCategories);
-  }, [headers, data, mapping]);
-
-  // Update available headers whenever mappings change
-  useEffect(() => {
-    const mappedColumns = new Set(Object.values(mapping));
-    setAvailableHeaders(headers.filter(header => !mappedColumns.has(header)));
-  }, [headers, mapping]);
-
-  // Initialize mappings with smart detection based on enhanced fuzzy matching
-  useEffect(() => {
-    if (isInitialized || !headers.length || !data.length) return;
-    
-    const initialMapping: Record<string, string> = {};
-    const usedHeaders = new Set<string>();
-    
-    // Exact matches have highest priority
-    allFields.forEach(field => {
-      if (initialMapping[field.id]) return;
-      
-      // Try exact match (case insensitive)
-      const exactMatch = headers.find(header => {
-        const headerLower = header.toLowerCase();
-        return !usedHeaders.has(header) && (
-          headerLower === field.id.toLowerCase() || 
-          headerLower === field.label.toLowerCase()
-        );
-      });
-      
-      if (exactMatch) {
-        initialMapping[field.id] = exactMatch;
-        usedHeaders.add(exactMatch);
-      }
-    });
-    
-    // Look for keyword matches next
-    allFields.forEach(field => {
-      if (initialMapping[field.id]) return;
-      
-      // Score-based fuzzy matching for keywords
-      const scoredHeaders = headers
-        .filter(header => !usedHeaders.has(header))
-        .map(header => {
-          const headerLower = header.toLowerCase();
-          let score = 0;
-          
-          // Score each keyword match
-          field.keywords.forEach(keyword => {
-            const keywordLower = keyword.toLowerCase();
-            if (headerLower === keywordLower) {
-              score += 10; // Exact keyword match
-            } else if (headerLower.includes(keywordLower)) {
-              score += 5; // Partial keyword match
-            } else if (keywordLower.includes(headerLower)) {
-              score += 3; // Header is contained in keyword
-            }
-            
-            // Distance-based scoring for fuzzy matching
-            const distance = levenshteinDistance(headerLower, keywordLower);
-            if (distance <= 2) {
-              score += (3 - distance); // Close matches get higher scores
-            }
-          });
-          
-          return { header, score };
-        })
-        .filter(item => item.score > 0)
-        .sort((a, b) => b.score - a.score);
-      
-      if (scoredHeaders.length > 0) {
-        initialMapping[field.id] = scoredHeaders[0].header;
-        usedHeaders.add(scoredHeaders[0].header);
-      }
-    });
-    
-    // Additional contextual matching
-    allFields.forEach(field => {
-      if (initialMapping[field.id]) return;
-      
-      // For area fields, check for numerical columns
-      if (field.id.includes("Area") && data.length > 0) {
-        const numericalHeaders = headers
-          .filter(header => !usedHeaders.has(header))
-          .filter(header => {
-            // Check if the column contains mostly numbers
-            const sample = data.slice(0, 5).map(row => row[header]);
-            return sample.every(val => val === undefined || val === null || val === "" || !isNaN(Number(val)));
-          });
-        
-        // Choose the best match based on name and content
-        const bestMatch = numericalHeaders.find(header => 
-          header.toLowerCase().includes("area") || 
-          header.toLowerCase().includes("size") || 
-          header.toLowerCase().includes("sqft") ||
-          header.toLowerCase().includes("sq") ||
-          header.toLowerCase().includes("sqm")
-        );
-        
-        if (bestMatch) {
-          initialMapping[field.id] = bestMatch;
-          usedHeaders.add(bestMatch);
-        }
-      }
-      
-      // For floor field, look for numerical columns that could represent floors
-      if (field.id === "floor" && data.length > 0) {
-        const potentialFloorHeaders = headers
-          .filter(header => !usedHeaders.has(header))
-          .filter(header => {
-            const headerLower = header.toLowerCase();
-            return headerLower.includes("fl") || 
-                  headerLower.includes("level") || 
-                  headerLower.includes("storey");
-          });
-        
-        if (potentialFloorHeaders.length > 0) {
-          initialMapping[field.id] = potentialFloorHeaders[0];
-          usedHeaders.add(potentialFloorHeaders[0]);
-        }
-      }
-    });
-    
-    setMapping(initialMapping);
-    setIsInitialized(true);
-    
-    // Show toast for auto-mapping
-    const mappedCount = Object.keys(initialMapping).length;
-    if (mappedCount > 0) {
-      toast.success(`Auto-mapped ${mappedCount} columns successfully!`, {
-        description: "Review and adjust if needed",
-        icon: <CheckCircle2 className="h-5 w-5 text-green-500" />
-      });
-    }
-    
-  }, [headers, data, isInitialized]);
-
-  // Calculate Levenshtein distance for fuzzy matching
-  const levenshteinDistance = (a: string, b: string): number => {
-    if (a.length === 0) return b.length;
-    if (b.length === 0) return a.length;
-  
-    const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
-  
-    for (let i = 0; i <= a.length; i++) {
-      matrix[0][i] = i;
-    }
-  
-    for (let j = 0; j <= b.length; j++) {
-      matrix[j][0] = j;
-    }
-  
-    for (let j = 1; j <= b.length; j++) {
-      for (let i = 1; i <= a.length; i++) {
-        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-        matrix[j][i] = Math.min(
-          matrix[j][i - 1] + 1, // deletion
-          matrix[j - 1][i] + 1, // insertion
-          matrix[j - 1][i - 1] + cost // substitution
-        );
-      }
-    }
-  
-    return matrix[b.length][a.length];
   };
 
-  useEffect(() => {
-    if (data.length > 0) {
-      const preview: Record<string, any> = {};
-      
-      Object.entries(mapping).forEach(([fieldId, headerName]) => {
-        preview[fieldId] = data[0][headerName];
-      });
-      
-      setPreviewData(preview);
+  const findExistingMappingForHeader = (headerName: string): string | null => {
+    for (const [fieldId, mappedHeader] of Object.entries(mapping)) {
+      if (mappedHeader === headerName) {
+        return fieldId;
+      }
     }
-  }, [mapping, data]);
+    return null;
+  };
 
-  const handleMappingChange = (fieldId: string, headerName: string | null) => {
-    setMapping(prev => {
-      const newMapping = { ...prev };
-      
-      // If there was a previous mapping for this field, remove it
-      if (newMapping[fieldId]) {
-        // No action needed since we'll update it or delete it below
-      }
-      
-      // If headerName is null (unselected) or empty, delete the mapping
-      if (!headerName) {
-        delete newMapping[fieldId];
-      } else {
-        // Check if this header is already mapped to another field
-        const existingField = Object.entries(newMapping).find(
-          ([id, header]) => id !== fieldId && header === headerName
-        );
-        
-        if (existingField) {
-          toast.warning(`Column "${headerName}" is already mapped to ${existingField[0]}`, {
-            description: "We've removed the previous mapping",
-          });
-          delete newMapping[existingField[0]];
-        }
-        
-        // Add the new mapping
-        newMapping[fieldId] = headerName;
-      }
-      
-      return newMapping;
-    });
+  const handleMappingChange = (fieldId: string, headerName: string) => {
+    // Check if this header is already mapped to another field
+    const existingFieldId = findExistingMappingForHeader(headerName);
+    
+    if (existingFieldId && existingFieldId !== fieldId) {
+      // Show alert about duplicate mapping
+      const existingField = allFields.find(f => f.id === existingFieldId);
+      setDuplicateSelectionAlert({
+        show: true,
+        field: allFields.find(f => f.id === fieldId)?.label || fieldId,
+        existingField: existingField?.label || existingFieldId
+      });
+      return;
+    }
+    
+    setMapping(prev => ({
+      ...prev,
+      [fieldId]: headerName
+    }));
+  };
+
+  const handleDuplicateSelectionConfirm = () => {
+    setDuplicateSelectionAlert({ show: false, field: '', existingField: '' });
   };
 
   const toggleAdditionalCategory = (columnIndex: number, category: string) => {
@@ -454,15 +353,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         categories: cat.selectedCategories
       }));
 
-    // Animation before transition
-    toast.success("Mapping complete! Proceeding to configuration...", {
-      duration: 2000,
-    });
-
-    // Slight delay for transition between steps
-    setTimeout(() => {
-      onMappingComplete(mapping, transformedData, selectedCategoriesData);
-    }, 800);
+    onMappingComplete(mapping, transformedData, selectedCategoriesData);
   };
 
   const parseFloorValue = (value: any): string => {
@@ -518,7 +409,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     if (!mapping[fieldId] || !data.length) return null;
 
     return (
-      <div className="text-xs text-muted-foreground mt-1 bg-muted p-1 rounded overflow-hidden text-ellipsis max-w-xs animate-fade-in">
+      <div className="text-xs text-muted-foreground mt-1 bg-muted p-1 rounded overflow-hidden text-ellipsis max-w-xs">
         Sample: <span className="font-mono">{data[0][mapping[fieldId]] || "N/A"}</span>
       </div>
     );
@@ -528,38 +419,24 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     if (mapping[fieldId] || !data.length) return null;
 
     return (
-      <div className="text-xs text-muted-foreground mt-1 bg-amber-100 p-1 rounded overflow-hidden text-ellipsis max-w-xs animate-fade-in">
+      <div className="text-xs text-muted-foreground mt-1 bg-amber-100 p-1 rounded overflow-hidden text-ellipsis max-w-xs">
         Default: <span className="font-mono">{getDefaultValue(fieldId)}</span>
       </div>
     );
   };
 
-  // Get currently available headers for a field's dropdown
-  const getSelectableHeaders = (fieldId: string): string[] => {
-    // Start with all available headers
-    let selectableHeaders = [...availableHeaders];
-    
-    // If this field already has a mapping, include that header in the options
-    const currentMapping = mapping[fieldId];
-    if (currentMapping && !selectableHeaders.includes(currentMapping)) {
-      selectableHeaders.push(currentMapping);
-    }
-    
-    return selectableHeaders;
-  };
-
   return (
     <>
-      <Card className="w-full card-hover animate-fade-in">
+      <Card className="w-full">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <Button variant="outline" size="sm" onClick={onBack} className="hover-scale">
+            <Button variant="outline" size="sm" onClick={onBack}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Upload
             </Button>
           </div>
           <CardTitle className="flex items-center gap-2 mt-4">
-            <MapPin className="h-5 w-5 text-indigo-600" />
+            <MapPin className="h-5 w-5" />
             Map Your CSV Columns
           </CardTitle>
           <CardDescription>
@@ -568,35 +445,32 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Alert className="mb-6 bg-amber-50 border-amber-200 animate-fade-in">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="text-amber-800">
+          <Alert className="mb-6 bg-amber-50">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
               Special floor values like "G" (Ground Floor) will be automatically converted. 
               Blank values will use defaults: 0 for numeric fields, "Unit 1" for names, etc.
             </AlertDescription>
           </Alert>
           
-          <div className="space-y-6 stagger-animation">
-            <div className="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-lg border border-indigo-100 shadow-sm">
-              <h3 className="text-sm font-medium mb-3 text-indigo-800 flex items-center">
-                <Database className="h-4 w-4 mr-2 text-indigo-600" />
-                Required Fields
-              </h3>
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-medium mb-3">Required Fields</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {requiredFields.map((field) => (
-                  <div key={field.id} className="space-y-1 smooth-transition">
+                  <div key={field.id} className="space-y-1">
                     <label className="text-sm font-medium flex items-center gap-1">
                       {field.label} <span className="text-amber-500">*</span>
                     </label>
                     <Select
-                      value={mapping[field.id] || ""}
-                      onValueChange={(value) => handleMappingChange(field.id, value || null)}
+                      value={mapping[field.id] || undefined}
+                      onValueChange={(value) => handleMappingChange(field.id, value)}
                     >
-                      <SelectTrigger className="hover-scale">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select a column" />
                       </SelectTrigger>
-                      <SelectContent className="max-h-60">
-                        {getSelectableHeaders(field.id).map((header) => (
+                      <SelectContent>
+                        {headers.map((header) => (
                           <SelectItem key={header} value={header}>
                             {header}
                           </SelectItem>
@@ -610,24 +484,21 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
               </div>
             </div>
             
-            <div className="bg-gradient-to-br from-blue-50 to-white p-4 rounded-lg border border-blue-100 shadow-sm">
-              <h3 className="text-sm font-medium mb-3 text-blue-800 flex items-center">
-                <PanelRight className="h-4 w-4 mr-2 text-blue-600" />
-                Optional Fields
-              </h3>
+            <div>
+              <h3 className="text-sm font-medium mb-3">Optional Fields</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {optionalFields.map((field) => (
-                  <div key={field.id} className="space-y-1 smooth-transition">
+                  <div key={field.id} className="space-y-1">
                     <label className="text-sm font-medium">{field.label}</label>
                     <Select
-                      value={mapping[field.id] || ""}
-                      onValueChange={(value) => handleMappingChange(field.id, value || null)}
+                      value={mapping[field.id] || undefined}
+                      onValueChange={(value) => handleMappingChange(field.id, value)}
                     >
-                      <SelectTrigger className="hover-scale">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select a column" />
                       </SelectTrigger>
-                      <SelectContent className="max-h-60">
-                        {getSelectableHeaders(field.id).map((header) => (
+                      <SelectContent>
+                        {headers.map((header) => (
                           <SelectItem key={header} value={header}>
                             {header}
                           </SelectItem>
@@ -642,17 +513,10 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
             </div>
             
             {additionalCategories.length > 0 && (
-              <div className="mt-8 animate-slide-in">
-                <h3 className="text-lg font-medium mb-3 text-indigo-800 flex items-center gap-2">
-                  <svg className="h-5 w-5 text-indigo-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8 13V12M12 13V10M16 13V8M8 21L12 17L16 21M3 4H21M4 4H20V16C20 16.5523 19.5523 17 19 17H5C4.44772 17 4 16.5523 4 16V4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Additional Pricing Factors
-                </h3>
-                <Alert className="mb-4 bg-indigo-50 border-indigo-200">
-                  <svg className="h-4 w-4 text-indigo-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 16V12M12 8H12.01M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
+              <div className="mt-8">
+                <h3 className="text-lg font-medium mb-3 text-indigo-800">Additional Pricing Factors</h3>
+                <Alert className="mb-4 bg-indigo-50">
+                  <AlertTriangle className="h-4 w-4 text-indigo-600" />
                   <AlertDescription className="text-indigo-700">
                     We've detected additional columns in your data that can be used for pricing adjustments. 
                     These categories are selected by default.
@@ -660,14 +524,14 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                 </Alert>
                 
                 {additionalCategories.map((cat, catIndex) => (
-                  <div key={cat.column} className="mb-8 border rounded-lg p-4 bg-white shadow-sm card-hover">
+                  <div key={cat.column} className="mb-8 border rounded-lg p-4 bg-white">
                     <div className="flex justify-between items-center mb-3">
                       <h4 className="text-md font-medium text-indigo-700">{cat.column}</h4>
                       <div className="flex gap-2">
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          className="text-xs h-7 px-2 border-indigo-200 hover:bg-indigo-50 hover-scale"
+                          className="text-xs h-7 px-2 border-indigo-200 hover:bg-indigo-50"
                           onClick={() => toggleAllCategoriesInColumn(catIndex, true)}
                         >
                           Select All
@@ -675,7 +539,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          className="text-xs h-7 px-2 border-indigo-200 hover:bg-indigo-50 hover-scale"
+                          className="text-xs h-7 px-2 border-indigo-200 hover:bg-indigo-50"
                           onClick={() => toggleAllCategoriesInColumn(catIndex, false)}
                         >
                           Clear All
@@ -688,10 +552,10 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                         return (
                           <div 
                             key={category} 
-                            className={`p-2 rounded border cursor-pointer flex items-center transition-all duration-200 ${
+                            className={`p-2 rounded border cursor-pointer flex items-center ${
                               isSelected 
-                                ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm' 
-                                : 'bg-background border-input hover:bg-gray-50'
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-800' 
+                                : 'bg-background border-input'
                             }`}
                             onClick={() => toggleAdditionalCategory(catIndex, category)}
                           >
@@ -718,21 +582,17 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         <CardFooter className="flex justify-end">
           <Button 
             onClick={handleSubmit} 
-            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white animate-pulse-subtle hover-scale"
+            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
           >
-            <CheckCircle2 className="mr-2 h-5 w-5" />
             Confirm Mapping and Continue
           </Button>
         </CardFooter>
       </Card>
       
       <AlertDialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
-        <AlertDialogContent className="animate-fade-in">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-amber-700 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Data Mapping Issues
-            </AlertDialogTitle>
+            <AlertDialogTitle>Data Mapping Issues</AlertDialogTitle>
             <AlertDialogDescription>
               The following issues were found in your data mapping:
               
@@ -766,12 +626,31 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="hover-scale">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={proceedWithMapping}
-              className="bg-indigo-600 hover:bg-indigo-700 hover-scale"
-            >
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={proceedWithMapping}>
               Continue with Defaults
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert for duplicate column selection */}
+      <AlertDialog open={duplicateSelectionAlert.show} onOpenChange={(open) => {
+        if (!open) setDuplicateSelectionAlert({...duplicateSelectionAlert, show: false});
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Column Already Mapped</AlertDialogTitle>
+            <AlertDialogDescription>
+              This column is already mapped to <strong>{duplicateSelectionAlert.existingField}</strong>. 
+              Each column can only be mapped to one field.
+              
+              Please select a different column for <strong>{duplicateSelectionAlert.field}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleDuplicateSelectionConfirm}>
+              Ok, I Understand
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
