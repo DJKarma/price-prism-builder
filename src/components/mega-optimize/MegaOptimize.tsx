@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
@@ -41,6 +42,7 @@ const sortBedroomTypes = (a: any, b: any) => {
 const formatNumber = (num: number, decimals = 2, formatAsCurrency = true): string => {
   if (!isFinite(num) || num === 0) return "0";
   
+  // Format with thousands separator
   const formatWithCommas = (value: number, decimalPlaces: number): string => {
     return value.toLocaleString('en-US', {
       minimumFractionDigits: decimalPlaces,
@@ -75,11 +77,11 @@ const SlotMachineNumber = ({
   useEffect(() => {
     if (isAnimating && Math.abs(value - displayValue) > 0.01) {
       let iterations = 0;
-      const maxIterations = 5;
+      const maxIterations = 5; // Reduced for shorter animation
       const interval = setInterval(() => {
         if (iterations < maxIterations) {
           const progress = iterations / maxIterations;
-          const easingFactor = 1 - Math.pow(1 - progress, 3);
+          const easingFactor = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
           const intermediateValue = displayValue + (value - displayValue) * easingFactor;
           
           const randomness = (1 - progress) * Math.abs(value - displayValue) * 0.15;
@@ -190,6 +192,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       
       floorAdjustment = cumulativeAdjustment;
       
+      // Add additional category adjustments if they exist
       let additionalAdjustment = 0;
       if (pricingConfig.additionalCategoryPricing) {
         pricingConfig.additionalCategoryPricing.forEach((cat: any) => {
@@ -219,8 +222,8 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         finalTotalPrice,
         finalPsf,
         finalAcPsf,
-        sellArea: Number(sellArea.toFixed(2)),
-        acArea: Number(acArea.toFixed(2))
+        sellArea: Number(sellArea.toFixed(2)), // Round sellArea to 2 decimal places
+        acArea: Number(acArea.toFixed(2))  // Round acArea to 2 decimal places
       };
       
       return processedUnit;
