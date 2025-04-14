@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -459,19 +458,20 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             />
           </div>
           <div className="md:col-span-3 flex flex-col justify-end gap-2">
-            <div className="flex gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1">
               <Button 
                 variant="outline" 
-                className="w-full" 
+                size="sm"
                 onClick={resetFilters}
+                className="flex-shrink-0"
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
-                Reset Filters
+                Reset
               </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" size="sm" className="flex-shrink-0">
                     <Settings className="h-4 w-4 mr-2" />
                     Columns
                   </Button>
@@ -514,8 +514,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               
               <Button 
                 variant="outline" 
-                className="w-full"
+                size="sm"
                 onClick={exportCSV}
+                className="flex-shrink-0"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export

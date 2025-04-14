@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -73,7 +72,6 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   const [availableHeaders, setAvailableHeaders] = useState<string[]>([]);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   
-  // Detect unmapped columns that could be used for additional categories
   useEffect(() => {
     if (!data.length) return;
     
@@ -83,7 +81,6 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     const potentialCategories: AdditionalCategory[] = [];
     
     unmappedColumns.forEach(column => {
-      // Skip columns already mapped for other required purposes
       const columnLower = column.toLowerCase();
       const isViewOrType = 
         columnLower.includes("view") || 
@@ -112,12 +109,11 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         });
         
         if (uniqueValues.size > 1 && uniqueValues.size <= 20) {
-          // Set all categories as selected by default
           const categories = Array.from(uniqueValues).sort();
           potentialCategories.push({
             column,
             categories: categories,
-            selectedCategories: [...categories] // Select all by default
+            selectedCategories: [...categories]
           });
         }
       }
@@ -126,24 +122,20 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     setAdditionalCategories(potentialCategories);
   }, [headers, data, mapping]);
 
-  // Update available headers whenever mappings change
   useEffect(() => {
     const mappedColumns = new Set(Object.values(mapping).filter(val => val !== "not_available"));
     setAvailableHeaders(headers.filter(header => !mappedColumns.has(header)));
   }, [headers, mapping]);
 
-  // Initialize mappings with smart detection based on enhanced fuzzy matching
   useEffect(() => {
     if (isInitialized || !headers.length || !data.length) return;
     
     const initialMapping: Record<string, string> = {};
     const usedHeaders = new Set<string>();
     
-    // Exact matches have highest priority
     allFields.forEach(field => {
       if (initialMapping[field.id]) return;
       
-      // Try exact match (case insensitive)
       const exactMatch = headers.find(header => {
         const headerLower = header.toLowerCase();
         return !usedHeaders.has(header) && (
@@ -158,32 +150,28 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       }
     });
     
-    // Look for keyword matches next
     allFields.forEach(field => {
       if (initialMapping[field.id]) return;
       
-      // Score-based fuzzy matching for keywords
       const scoredHeaders = headers
         .filter(header => !usedHeaders.has(header))
         .map(header => {
           const headerLower = header.toLowerCase();
           let score = 0;
           
-          // Score each keyword match
           field.keywords.forEach(keyword => {
             const keywordLower = keyword.toLowerCase();
             if (headerLower === keywordLower) {
-              score += 10; // Exact keyword match
+              score += 10;
             } else if (headerLower.includes(keywordLower)) {
-              score += 5; // Partial keyword match
+              score += 5;
             } else if (keywordLower.includes(headerLower)) {
-              score += 3; // Header is contained in keyword
+              score += 3;
             }
             
-            // Distance-based scoring for fuzzy matching
             const distance = levenshteinDistance(headerLower, keywordLower);
             if (distance <= 2) {
-              score += (3 - distance); // Close matches get higher scores
+              score += (3 - distance);
             }
           });
           
@@ -198,21 +186,17 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       }
     });
     
-    // Additional contextual matching
     allFields.forEach(field => {
       if (initialMapping[field.id]) return;
       
-      // For area fields, check for numerical columns
       if (field.id.includes("Area") && data.length > 0) {
         const numericalHeaders = headers
           .filter(header => !usedHeaders.has(header))
           .filter(header => {
-            // Check if the column contains mostly numbers
             const sample = data.slice(0, 5).map(row => row[header]);
             return sample.every(val => val === undefined || val === null || val === "" || !isNaN(Number(val)));
           });
         
-        // Choose the best match based on name and content
         const bestMatch = numericalHeaders.find(header => 
           header.toLowerCase().includes("area") || 
           header.toLowerCase().includes("size") || 
@@ -227,7 +211,6 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         }
       }
       
-      // For floor field, look for numerical columns that could represent floors
       if (field.id === "floor" && data.length > 0) {
         const potentialFloorHeaders = headers
           .filter(header => !usedHeaders.has(header))
@@ -248,7 +231,6 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     setMapping(initialMapping);
     setIsInitialized(true);
     
-    // Show toast for auto-mapping
     const mappedCount = Object.keys(initialMapping).length;
     if (mappedCount > 0) {
       toast.success(`Auto-mapped ${mappedCount} columns successfully!`, {
@@ -256,10 +238,8 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         icon: <CheckCircle2 className="h-5 w-5 text-green-500" />
       });
     }
-    
   }, [headers, data, isInitialized]);
 
-  // Calculate Levenshtein distance for fuzzy matching
   const levenshteinDistance = (a: string, b: string): number => {
     if (a.length === 0) return b.length;
     if (b.length === 0) return a.length;
@@ -278,9 +258,9 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       for (let i = 1; i <= a.length; i++) {
         const cost = a[i - 1] === b[j - 1] ? 0 : 1;
         matrix[j][i] = Math.min(
-          matrix[j][i - 1] + 1, // deletion
-          matrix[j - 1][i] + 1, // insertion
-          matrix[j - 1][i - 1] + cost // substitution
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1,
+          matrix[j - 1][i - 1] + cost
         );
       }
     }
@@ -308,16 +288,13 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     setMapping(prev => {
       const newMapping = { ...prev };
       
-      // If there was a previous mapping for this field, remove it
       if (newMapping[fieldId]) {
-        // No action needed since we'll update it or delete it below
+        delete newMapping[fieldId];
       }
       
-      // If headerName is null (unselected) or empty, delete the mapping
       if (!headerName) {
         delete newMapping[fieldId];
       } else {
-        // Check if this header is already mapped to another field (skip for "not_available")
         if (headerName !== "not_available") {
           const existingField = Object.entries(newMapping).find(
             ([id, header]) => id !== fieldId && header === headerName
@@ -331,7 +308,6 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
           }
         }
         
-        // Add the new mapping
         newMapping[fieldId] = headerName;
       }
       
@@ -468,12 +444,10 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         categories: cat.selectedCategories
       }));
 
-    // Animation before transition
     toast.success("Mapping complete! Proceeding to configuration...", {
       duration: 2000,
     });
 
-    // Slight delay for transition between steps
     setTimeout(() => {
       onMappingComplete(mapping, transformedData, selectedCategoriesData);
     }, 800);
@@ -556,12 +530,9 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     );
   };
 
-  // Get currently available headers for a field's dropdown
   const getSelectableHeaders = (fieldId: string): string[] => {
-    // Start with all available headers
     let selectableHeaders = [...availableHeaders];
     
-    // If this field already has a mapping, include that header in the options
     const currentMapping = mapping[fieldId];
     if (currentMapping && currentMapping !== "not_available" && !selectableHeaders.includes(currentMapping)) {
       selectableHeaders.push(currentMapping);
