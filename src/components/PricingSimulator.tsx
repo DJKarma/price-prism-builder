@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -38,6 +37,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import * as XLSX from 'xlsx';
 import PricingSummary from "./PricingSummary";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { exportToExcel } from "@/utils/configUtils";
+import { simulatePricing } from "@/utils/psfOptimizer";
+import PremiumEditor from "./PremiumEditor";
 
 interface PricingSimulatorProps {
   data: any[];
@@ -97,6 +101,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   const [selectedFloors, setSelectedFloors] = useState<string[]>([]);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
   const [additionalColumnValues, setAdditionalColumnValues] = useState<Record<string, string[]>>({});
+  
+  // Export config option
+  const [includeConfig, setIncludeConfig] = useState<boolean>(false);
   
   // Column visibility
   const defaultVisibleColumns = [
@@ -180,125 +187,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       setSelectedAdditionalFilters(initialFilters);
     }
 
-    const calculatedUnits = data.map((unit) => {
-      const bedroomType = pricingConfig.bedroomTypePricing.find(
-        (b: any) => b.type === unit.type
-      );
-      const viewAdjustment = pricingConfig.viewPricing.find(
-        (v: any) => v.view === unit.view
-      );
-      
-      const isBedroomTypeOptimized = bedroomType?.isOptimized || false;
-      const optimizedTypes = pricingConfig.optimizedTypes || [];
-      const isTypeOptimized = optimizedTypes.includes(unit.type);
-      
-      const basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
-      
-      let floorAdjustment = 0;
-      const floorLevel = parseInt(unit.floor) || 1;
-      
-      const sortedFloorRules = [...pricingConfig.floorRiseRules].sort(
-        (a: any, b: any) => a.startFloor - b.startFloor
-      );
-      
-      let cumulativeAdjustment = 0;
-      for (const rule of sortedFloorRules) {
-        const ruleEnd = rule.endFloor === null ? 999 : rule.endFloor;
-        if (floorLevel > ruleEnd) {
-          for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
-            cumulativeAdjustment += rule.psfIncrement;
-            if (rule.jumpEveryFloor && rule.jumpIncrement) {
-              if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
-                cumulativeAdjustment += rule.jumpIncrement;
-              }
-            }
-          }
-        } else if (floorLevel >= rule.startFloor) {
-          for (let floor = Math.max(rule.startFloor, 1); floor <= floorLevel; floor++) {
-            cumulativeAdjustment += rule.psfIncrement;
-            if (rule.jumpEveryFloor && rule.jumpIncrement) {
-              if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
-                cumulativeAdjustment += rule.jumpIncrement;
-              }
-            }
-          }
-          break;
-        }
-      }
-      
-      floorAdjustment = cumulativeAdjustment;
-      
-      const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
-      
-      // Calculate additional category adjustments
-      const additionalCategoryPriceComponents: Record<string, number> = {};
-      let additionalCategoryAdjustment = 0;
-      
-      if (pricingConfig.additionalCategoryPricing) {
-        pricingConfig.additionalCategoryPricing.forEach((catPricing: any) => {
-          const { column, category, psfAdjustment } = catPricing;
-          
-          // Check if this unit has this category value
-          const columnKey = `${column}_value`; // The raw column value we stored
-          const matchesCategory = unit[columnKey] === category;
-          
-          if (matchesCategory) {
-            additionalCategoryAdjustment += psfAdjustment;
-            
-            // Store component for display in detailed breakdown
-            const componentKey = `${column}: ${category}`;
-            additionalCategoryPriceComponents[componentKey] = psfAdjustment;
-          }
-        });
-      }
-      
-      // Calculate base PSF with all adjustments
-      const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalCategoryAdjustment;
-      
-      const sellArea = parseFloat(unit.sellArea) || 0;
-      const acArea = parseFloat(unit.acArea) || 0;
-      
-      let balconyArea = parseFloat(unit.balcony) || 0;
-      if (sellArea > 0 && acArea > 0) {
-        if (!unit.balcony || unit.balcony === '0') {
-          balconyArea = sellArea - acArea;
-        }
-      }
-      const balconyPercentage = sellArea > 0 ? (balconyArea / sellArea) * 100 : 0;
-      
-      const totalPrice = basePsfWithAdjustments * sellArea;
-      const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
-      
-      // Calculate finalPsf (SA PSF) based on finalTotalPrice / sellArea
-      const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
-      
-      // Calculate finalAcPsf (AC PSF) based on finalTotalPrice / acArea
-      const finalAcPsf = acArea > 0 ? finalTotalPrice / acArea : 0;
-      
-      const basePriceComponent = basePsf * sellArea;
-      const floorPriceComponent = floorAdjustment * sellArea;
-      const viewPriceComponent = viewPsfAdjustment * sellArea;
-      
-      return {
-        ...unit,
-        totalPrice,
-        finalTotalPrice,
-        finalPsf,
-        finalAcPsf,
-        balconyArea,
-        balconyPercentage,
-        basePriceComponent,
-        floorPriceComponent,
-        viewPriceComponent,
-        basePsf,
-        floorAdjustment,
-        viewPsfAdjustment,
-        additionalCategoryAdjustment,
-        additionalCategoryPriceComponents,
-        isOptimized: isTypeOptimized,
-      };
-    });
-
+    // Use the simulatePricing function to calculate unit prices
+    const calculatedUnits = simulatePricing(data, pricingConfig);
     setUnits(calculatedUnits);
     setFilteredUnits(calculatedUnits);
   }, [data, pricingConfig]);
@@ -418,77 +308,63 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     toast.success("Column visibility reset to default");
   };
 
-  const exportCSV = () => {
+  const exportCSV = async () => {
     if (!filteredUnits.length) {
       toast.error("No data to export");
       return;
     }
     
-    // Create workbook
-    const wb = XLSX.utils.book_new();
+    // Create summary data for the summary sheet
+    const summaryData = createSummaryData();
     
-    // Only include visible columns for Units sheet
-    const allColumnDefs = [
-      ...allColumns,
-      ...additionalColumns.map(col => ({ id: col, label: `${col}`, required: false })),
-      ...additionalColumns.map(col => ({ id: `${col}_premium`, label: `${col} Premium`, required: false }))
-    ];
-    
-    const visibleColumnDefs = allColumnDefs.filter(col => 
-      visibleColumns.includes(col.id) || 
-      (additionalColumns.includes(col.id) && visibleColumns.includes(col.id)) ||
-      (col.id.endsWith('_premium') && visibleColumns.includes(col.id))
-    );
-    
-    // Build headers from visible columns
-    const headers = visibleColumnDefs.map(col => col.label);
-    
-    // Create each row of data for Units sheet
-    const rows = filteredUnits.map((unit) => {
-      return visibleColumnDefs.map(col => {
-        // Handle additional column premium values
-        if (col.id.endsWith('_premium')) {
-          const columnName = col.id.replace('_premium', '');
-          const columnKey = `${columnName}: ${unit[`${columnName}_value`]}`;
-          const premium = unit.additionalCategoryPriceComponents?.[columnKey] || 0;
-          return premium;
+    // Create a flat array of data for the export
+    const flattenedData = filteredUnits.map(unit => {
+      // Create a flattened version of the unit data for export
+      const flatUnit: Record<string, any> = {};
+      
+      // Add basic fields
+      allColumns.forEach(col => {
+        if (col.id in unit) {
+          const value = unit[col.id];
+          if (col.id === "isOptimized") {
+            flatUnit[col.label] = value ? "Yes" : "No";
+          } else if (typeof value === 'number') {
+            flatUnit[col.label] = value;
+          } else {
+            flatUnit[col.label] = value;
+          }
         }
-        
-        // Handle additional column values
-        if (additionalColumns.includes(col.id)) {
-          return unit[`${col.id}_value`] || '';
-        }
-        
-        const value = unit[col.id];
-        
-        // Format based on column type
-        if (col.id === "isOptimized") {
-          return value ? "Yes" : "No";
-        } else if (["sellArea", "acArea", "balconyArea"].includes(col.id)) {
-          return typeof value === 'number' ? value.toFixed(2) : value;
-        } else if (col.id === "balconyPercentage") {
-          return typeof value === 'number' ? value.toFixed(2) + "%" : value;
-        } else if (col.id === "finalTotalPrice") {
-          return value;
-        } else if (typeof value === 'number') {
-          return value.toFixed(2);
-        }
-        
-        return value !== undefined && value !== null ? value : "";
       });
+      
+      // Add additional category columns
+      additionalColumns.forEach(column => {
+        const columnKey = `${column}_value`;
+        if (columnKey in unit) {
+          flatUnit[column] = unit[columnKey];
+        }
+        
+        // Add premium values if available
+        const premiumKey = `${column}: ${unit[columnKey]}`;
+        if (unit.additionalCategoryPriceComponents && premiumKey in unit.additionalCategoryPriceComponents) {
+          flatUnit[`${column} Premium`] = unit.additionalCategoryPriceComponents[premiumKey];
+        } else {
+          flatUnit[`${column} Premium`] = 0;
+        }
+      });
+      
+      return flatUnit;
     });
     
-    // Create Units sheet
-    const unitsWs = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    XLSX.utils.book_append_sheet(wb, unitsWs, "Units");
-    
-    // Create Pricing Summary sheet
-    const summaryHeaders = [
-      "Type", "Units", "Avg Size", "Total Value", 
-      "Min SA PSF", "Avg SA PSF", "Max SA PSF",
-      "Min AC PSF", "Avg AC PSF", "Max AC PSF"
-    ];
-    
+    // Export the data
+    await exportToExcel(
+      flattenedData, 
+      includeConfig, 
+      pricingConfig, 
+      summaryData
+    );
+  };
+
+  const createSummaryData = () => {
     // Group by bedroom type for summary
     const typeGroups: Record<string, any[]> = {};
     filteredUnits.forEach((item) => {
@@ -499,7 +375,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       typeGroups[type].push(item);
     });
     
-    // Calculate metrics for each type
+    // Calculate metrics for each type and create summary rows
     const summaryRows = Object.keys(typeGroups).map((type) => {
       const items = typeGroups[type];
       
@@ -511,7 +387,18 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       });
       
       if (validItems.length === 0) {
-        return [type, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        return {
+          Type: type,
+          Units: 0,
+          "Avg Size": 0,
+          "Total Value": 0,
+          "Min SA PSF": 0,
+          "Avg SA PSF": 0,
+          "Max SA PSF": 0,
+          "Min AC PSF": 0,
+          "Avg AC PSF": 0,
+          "Max AC PSF": 0
+        };
       }
       
       // Calculate metrics
@@ -537,18 +424,18 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         maxAcPsf = Math.max(...acPsfs);
       }
       
-      return [
-        type, 
-        unitCount, 
-        avgSize.toFixed(2), 
-        totalValue,
-        minPsf.toFixed(2),
-        avgPsf.toFixed(2),
-        maxPsf.toFixed(2),
-        minAcPsf.toFixed(2),
-        avgAcPsf.toFixed(2),
-        maxAcPsf.toFixed(2)
-      ];
+      return {
+        Type: type,
+        Units: unitCount,
+        "Avg Size": avgSize,
+        "Total Value": totalValue,
+        "Min SA PSF": minPsf,
+        "Avg SA PSF": avgPsf,
+        "Max SA PSF": maxPsf,
+        "Min AC PSF": minAcPsf,
+        "Avg AC PSF": avgAcPsf,
+        "Max AC PSF": maxAcPsf
+      };
     });
     
     // Add total row
@@ -585,27 +472,21 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         maxAcPsf = Math.max(...acPsfs);
       }
       
-      summaryRows.push([
-        "TOTAL",
-        totalUnitCount,
-        avgSize.toFixed(2),
-        totalValue,
-        minPsf.toFixed(2),
-        overallAvgPsf.toFixed(2),
-        maxPsf.toFixed(2),
-        minAcPsf.toFixed(2),
-        overallAvgAcPsf.toFixed(2),
-        maxAcPsf.toFixed(2)
-      ]);
+      summaryRows.push({
+        Type: "TOTAL",
+        Units: totalUnitCount,
+        "Avg Size": avgSize,
+        "Total Value": totalValue,
+        "Min SA PSF": minPsf,
+        "Avg SA PSF": overallAvgPsf,
+        "Max SA PSF": maxPsf,
+        "Min AC PSF": minAcPsf,
+        "Avg AC PSF": overallAvgAcPsf,
+        "Max AC PSF": maxAcPsf
+      });
     }
     
-    // Create Summary sheet
-    const summaryWs = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryRows]);
-    XLSX.utils.book_append_sheet(wb, summaryWs, "Pricing Summary");
-    
-    // Export to Excel file
-    XLSX.writeFile(wb, "pricing_simulation.xlsx");
-    toast.success("Excel file with Units and Summary downloaded successfully");
+    return summaryRows;
   };
 
   // Get unique bedroom types, views, and floors for filters
@@ -620,6 +501,12 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     (selectedFloors.length > 0 ? 1 : 0) +
     Object.values(selectedAdditionalFilters).reduce((count, values) => count + (values.length > 0 ? 1 : 0), 0);
 
+  const handlePricingConfigChange = (newConfig: any) => {
+    if (onConfigUpdate) {
+      onConfigUpdate(newConfig);
+    }
+  };
+
   return (
     <Card className="w-full mb-6">
       <CardHeader>
@@ -632,6 +519,13 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {onConfigUpdate && (
+          <PremiumEditor 
+            pricingConfig={pricingConfig} 
+            onPricingConfigChange={handlePricingConfigChange}
+          />
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
           <div className="md:col-span-3">
             <BedroomTypeSelector
@@ -661,7 +555,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             />
           </div>
           <div className="md:col-span-3 flex flex-col justify-end gap-2">
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
               <Button 
                 variant="outline" 
                 size="sm"
@@ -729,15 +623,28 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                 </DropdownMenuContent>
               </DropdownMenu>
               
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={exportCSV}
-                className="flex-shrink-0"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
+              <div className="flex items-center space-x-1 ml-1">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={exportCSV}
+                  className="flex-shrink-0"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+                <div className="flex items-center space-x-2 border border-gray-200 rounded-md px-2 py-1">
+                  <Switch
+                    id="include-config"
+                    checked={includeConfig}
+                    onCheckedChange={setIncludeConfig}
+                    size="sm"
+                  />
+                  <Label htmlFor="include-config" className="text-xs">
+                    Include config
+                  </Label>
+                </div>
+              </div>
             </div>
           </div>
         </div>
