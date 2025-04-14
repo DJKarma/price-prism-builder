@@ -1,3 +1,3 @@
 
-import MegaOptimize from "./MegaOptimize";
-export { MegaOptimize };
+export { default as MegaOptimize } from "./MegaOptimize";
+export * from "./types";

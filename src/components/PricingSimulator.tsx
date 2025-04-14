@@ -680,113 +680,102 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                 )}
                 
                 {visibleColumns.includes("isOptimized") && (
-                  <TableHead className="whitespace-nowrap">
-                    <div className="flex items-center justify-center">
-                      Optimized
-                    </div>
-                  </TableHead>
+                  <TableHead className="whitespace-nowrap">Optimized</TableHead>
                 )}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUnits.map((unit, index) => (
-                <TableRow key={index} className={unit.isOptimized ? "bg-green-50 dark:bg-green-950/20" : ""}>
-                  {visibleColumns.includes("name") && (
-                    <TableCell className="font-medium">{unit.name}</TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("type") && (
-                    <TableCell>{unit.type || "—"}</TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("floor") && (
-                    <TableCell>{unit.floor || "—"}</TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("view") && (
-                    <TableCell>{unit.view || "—"}</TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("sellArea") && (
-                    <TableCell>{parseFloat(unit.sellArea).toFixed(2) || "0.00"}</TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("acArea") && (
-                    <TableCell>{parseFloat(unit.acArea).toFixed(2) || "0.00"}</TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("balconyArea") && (
-                    <TableCell>
-                      {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0.00"}
-                    </TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("balconyPercentage") && (
-                    <TableCell>
-                      {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0.00"}%
-                    </TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("basePsf") && (
-                    <TableCell>
-                      {unit.basePsf.toFixed(2)}
-                    </TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("floorAdjustment") && (
-                    <TableCell>
-                      {unit.floorAdjustment.toFixed(2)}
-                    </TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("viewPsfAdjustment") && (
-                    <TableCell>
-                      {unit.viewPsfAdjustment.toFixed(2)}
-                    </TableCell>
-                  )}
-                  
-                  {/* Add additional category columns */}
-                  {additionalColumns.map(column => (
-                    visibleColumns.includes(column) && (
-                      <TableCell key={column}>
-                        {(() => {
-                          // Calculate total adjustment for this column
-                          let adjustment = 0;
-                          if (unit.additionalCategoryPriceComponents) {
-                            Object.entries(unit.additionalCategoryPriceComponents).forEach(([key, value]) => {
-                              if (key.startsWith(column + ":")) {
-                                adjustment += Number(value);
-                              }
-                            });
-                          }
-                          return adjustment.toFixed(2);
-                        })()}
+              {filteredUnits.length > 0 ? (
+                filteredUnits.map((unit, index) => (
+                  <TableRow 
+                    key={unit.name || index}
+                    className={unit.isOptimized ? "bg-green-50" : ""}
+                  >
+                    {visibleColumns.includes("name") && <TableCell>{unit.name}</TableCell>}
+                    {visibleColumns.includes("type") && <TableCell>{unit.type}</TableCell>}
+                    {visibleColumns.includes("floor") && <TableCell>{unit.floor}</TableCell>}
+                    {visibleColumns.includes("view") && <TableCell>{unit.view}</TableCell>}
+                    
+                    {visibleColumns.includes("sellArea") && (
+                      <TableCell className="text-right">
+                        {parseFloat(unit.sellArea).toFixed(2)}
                       </TableCell>
-                    )
-                  ))}
-                  
-                  {visibleColumns.includes("finalTotalPrice") && (
-                    <TableCell>
-                      {formatNumberWithCommas(unit.finalTotalPrice)}
-                    </TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("finalPsf") && (
-                    <TableCell>
-                      {unit.finalPsf?.toFixed(2) || "0.00"}
-                    </TableCell>
-                  )}
-                  
-                  {visibleColumns.includes("isOptimized") && (
-                    <TableCell className="text-center">
-                      {unit.isOptimized ? <Check className="h-4 w-4 text-green-600 inline" /> : "—"}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-              {filteredUnits.length === 0 && (
+                    )}
+                    
+                    {visibleColumns.includes("acArea") && (
+                      <TableCell className="text-right">
+                        {parseFloat(unit.acArea).toFixed(2)}
+                      </TableCell>
+                    )}
+                    
+                    {visibleColumns.includes("balconyArea") && (
+                      <TableCell className="text-right">
+                        {unit.balconyArea.toFixed(2)}
+                      </TableCell>
+                    )}
+                    
+                    {visibleColumns.includes("balconyPercentage") && (
+                      <TableCell className="text-right">
+                        {unit.balconyPercentage.toFixed(2)}%
+                      </TableCell>
+                    )}
+                    
+                    {visibleColumns.includes("basePsf") && (
+                      <TableCell className="text-right">
+                        {unit.basePsf.toFixed(2)}
+                      </TableCell>
+                    )}
+                    
+                    {visibleColumns.includes("floorAdjustment") && (
+                      <TableCell className="text-right">
+                        {unit.floorAdjustment.toFixed(2)}
+                      </TableCell>
+                    )}
+                    
+                    {visibleColumns.includes("viewPsfAdjustment") && (
+                      <TableCell className="text-right">
+                        {unit.viewPsfAdjustment.toFixed(2)}
+                      </TableCell>
+                    )}
+                    
+                    {/* Additional category columns */}
+                    {additionalColumns.map(column => (
+                      visibleColumns.includes(column) && (
+                        <TableCell key={column} className="text-right">
+                          {(unit.additionalCategoryPriceComponents && 
+                           unit.additionalCategoryPriceComponents[`${column}: ${unit[`${column}_value`]}`]) || 
+                           "0.00"}
+                        </TableCell>
+                      )
+                    ))}
+                    
+                    {visibleColumns.includes("finalTotalPrice") && (
+                      <TableCell className="font-medium text-right">
+                        {formatNumberWithCommas(unit.finalTotalPrice)}
+                      </TableCell>
+                    )}
+                    
+                    {visibleColumns.includes("finalPsf") && (
+                      <TableCell className="font-medium text-right">
+                        {unit.finalPsf.toFixed(2)}
+                      </TableCell>
+                    )}
+                    
+                    {visibleColumns.includes("isOptimized") && (
+                      <TableCell className="text-center">
+                        {unit.isOptimized ? (
+                          <Check className="h-5 w-5 text-green-600 mx-auto" />
+                        ) : null}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
-                  <TableCell colSpan={visibleColumns.length} className="text-center py-4">
+                  <TableCell
+                    colSpan={Object.keys(visibleColumns).length || 1}
+                    className="text-center py-6"
+                  >
                     No units match your filter criteria
                   </TableCell>
                 </TableRow>
@@ -794,14 +783,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </TableBody>
           </Table>
         </FixedHeaderTable>
-
-        <div className="mt-4 flex items-center justify-end">
-          <div className="text-sm text-muted-foreground flex items-center gap-2">
-            <Filter className="h-4 w-4 mr-1" />
-            <span>{activeFiltersCount} active filters</span>
-            <span className="ml-2">Showing {filteredUnits.length} units</span>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

@@ -46,6 +46,8 @@ export interface AdditionalCategory {
 const requiredFields = [
   { id: "name", label: "Unit Name", keywords: ["unit", "name", "id", "number", "no", "apartment", "apt", "property", "lot"] },
   { id: "sellArea", label: "Sell Area", keywords: ["sell", "area", "sellable", "saleable", "sales", "sqft", "sq ft", "sqm", "sq m", "square", "size", "built up", "gross", "net", "usable", "carpet"] },
+  { id: "type", label: "Bedroom Type", keywords: ["bed", "bedroom", "type", "unit type", "category", "layout", "room", "br", "bhk"] },
+  { id: "view", label: "View", keywords: ["view", "facing", "direction", "outlook", "orientation", "exposure"] },
 ];
 
 const optionalFields = [
@@ -81,7 +83,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     const potentialCategories: AdditionalCategory[] = [];
     
     unmappedColumns.forEach(column => {
-      // Exclude view and bedroom type columns 
+      // Skip columns already mapped for other required purposes
       const columnLower = column.toLowerCase();
       const isViewOrType = 
         columnLower.includes("view") || 
