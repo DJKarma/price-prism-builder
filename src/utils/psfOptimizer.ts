@@ -1,980 +1,549 @@
-/**
- * Gradient Descent PSF Optimizer
- * 
- * This utility uses a constrained gradient descent algorithm to find the optimal
- * base PSF value that minimizes the difference between achieved average PSF and target PSF.
- */
-
-interface Unit {
-  type: string;
-  sellArea: string | number;
-  view: string;
-  floor: string | number;
-  [key: string]: any;
-}
-
-interface BedroomTypePricing {
-  type: string;
-  basePsf: number;
-  targetAvgPsf: number;
-}
-
-interface ViewPricing {
-  view: string;
-  psfAdjustment: number;
-}
-
-interface FloorRiseRule {
-  startFloor: number;
-  endFloor: number | null;
-  psfIncrement: number;
-  jumpEveryFloor?: number;
-  jumpIncrement?: number;
-}
-
-interface PricingConfig {
-  basePsf: number;
-  bedroomTypePricing: BedroomTypePricing[];
-  viewPricing: ViewPricing[];
-  floorRiseRules: FloorRiseRule[];
-  targetOverallPsf?: number;
-}
-
-/**
- * Calculate floor premium at a specific floor level
- */
-const calculateFloorPremium = (
-  floorLevel: number,
-  floorRules: FloorRiseRule[]
-): number => {
-  // Sort rules by start floor to ensure proper processing
-  const sortedRules = [...floorRules].sort(
-    (a, b) => a.startFloor - b.startFloor
-  );
+// Utility function to calculate Overall Average PSF
+export const calculateOverallAveragePsf = (data: any[], pricingConfig: any) => {
+  if (!data.length || !pricingConfig) return 0;
   
-  let cumulativeAdjustment = 0;
-  let currentFloor = 1;
-
-  for (const rule of sortedRules) {
-    // Ensure rule.endFloor is set (default to 99 if necessary)
-    const ruleEnd = rule.endFloor !== null ? rule.endFloor : 99;
-
-    if (floorLevel > ruleEnd) {
-      // Process full range for the rule
-      for (let floor = Math.max(currentFloor, rule.startFloor); floor <= ruleEnd; floor++) {
-        cumulativeAdjustment += Math.max(0, rule.psfIncrement); // Ensure non-negative
-        // Check if this floor qualifies as a jump floor
-        if (rule.jumpEveryFloor && rule.jumpIncrement && ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0)) {
-          cumulativeAdjustment += Math.max(0, rule.jumpIncrement); // Ensure non-negative
-        }
-      }
-      currentFloor = ruleEnd + 1;
-    } else if (floorLevel >= rule.startFloor) {
-      // Process up to the current floor within this rule
-      for (let floor = Math.max(currentFloor, rule.startFloor); floor <= floorLevel; floor++) {
-        cumulativeAdjustment += Math.max(0, rule.psfIncrement); // Ensure non-negative
-        if (rule.jumpEveryFloor && rule.jumpIncrement && ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0)) {
-          cumulativeAdjustment += Math.max(0, rule.jumpIncrement); // Ensure non-negative
-        }
-      }
-      break;
-    }
-  }
+  let totalSellArea = 0;
+  let totalPrice = 0;
   
-  return cumulativeAdjustment;
-};
-
-/**
- * Calculate the PSF for a given unit with the provided base PSF for its type
- */
-const calculateUnitPsf = (
-  unit: Unit, 
-  pricingConfig: PricingConfig, 
-  overrideParams?: {
-    basePsf?: number,
-    viewAdjustments?: Record<string, number>,
-    floorRules?: FloorRiseRule[]
-  }
-): number => {
-  // Find bedroom type pricing
-  const bedroomType = pricingConfig.bedroomTypePricing.find(
-    (b) => b.type === unit.type
-  );
-  
-  // Use override base PSF if provided, otherwise use configured value
-  const basePsf = overrideParams?.basePsf !== undefined 
-    ? overrideParams.basePsf 
-    : (bedroomType?.basePsf || pricingConfig.basePsf);
-  
-  // Find view adjustment
-  const unitView = unit.view as string;
-  let viewPsfAdjustment = 0;
-  
-  if (overrideParams?.viewAdjustments && unitView in overrideParams.viewAdjustments) {
-    viewPsfAdjustment = overrideParams.viewAdjustments[unitView];
-  } else {
+  data.forEach(unit => {
+    const sellArea = parseFloat(unit.sellArea) || 0;
+    if (sellArea <= 0) return; // Skip units with invalid sell area
+    
+    // Get bedroom type configuration
+    const bedroomType = pricingConfig.bedroomTypePricing.find(
+      (b: any) => b.type === unit.type
+    );
+    
+    // Get view premium
     const viewAdjustment = pricingConfig.viewPricing.find(
-      (v) => v.view === unitView
-    );
-    viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
-  }
-  
-  // Calculate floor adjustment using the dedicated function
-  const floorLevel = parseInt(unit.floor as string) || 1;
-  const floorRules = overrideParams?.floorRules || pricingConfig.floorRiseRules;
-  const floorAdjustment = calculateFloorPremium(floorLevel, floorRules);
-  
-  // Return final PSF
-  return Math.max(0, basePsf + floorAdjustment + viewPsfAdjustment); // Ensure non-negative
-};
-
-/**
- * Calculates the average PSF for a bedroom type with a given base PSF
- */
-const calculateAveragePsf = (
-  units: Unit[], 
-  pricingConfig: PricingConfig, 
-  bedroomType: string,
-  testBasePsf: number
-): number => {
-  // Filter units of the target bedroom type
-  const typeUnits = units.filter(unit => unit.type === bedroomType);
-  
-  if (typeUnits.length === 0) return 0;
-  
-  // Calculate PSF for each unit with the test base PSF
-  const psfValues = typeUnits.map(unit => {
-    const psf = calculateUnitPsf(unit, pricingConfig, { basePsf: testBasePsf });
-    const sellArea = parseFloat(unit.sellArea as string) || 0;
-    const totalPrice = psf * sellArea;
-    // Ceiling to nearest 1000
-    const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
-    // Final PSF based on ceiled price
-    return sellArea > 0 ? finalTotalPrice / sellArea : 0;
-  });
-  
-  // Calculate average PSF
-  return psfValues.reduce((sum, psf) => sum + psf, 0) / psfValues.length;
-};
-
-/**
- * Calculates the overall average PSF across all units
- */
-const calculateOverallAveragePsf = (
-  units: Unit[], 
-  pricingConfig: PricingConfig,
-  overrideParams?: {
-    bedroomAdjustments?: Record<string, number>,
-    viewAdjustments?: Record<string, number>,
-    floorRules?: FloorRiseRule[]
-  }
-): number => {
-  if (units.length === 0) return 0;
-  
-  // Calculate PSF for each unit with the overrides
-  const psfValues = units.map(unit => {
-    // Find bedroom type for potential override
-    const unitType = unit.type as string;
-    let overrideBasePsf;
-    
-    if (overrideParams?.bedroomAdjustments && unitType in overrideParams.bedroomAdjustments) {
-      overrideBasePsf = overrideParams.bedroomAdjustments[unitType];
-    }
-    
-    const psf = calculateUnitPsf(unit, pricingConfig, {
-      basePsf: overrideBasePsf,
-      viewAdjustments: overrideParams?.viewAdjustments,
-      floorRules: overrideParams?.floorRules
-    });
-    
-    const sellArea = parseFloat(unit.sellArea as string) || 0;
-    const totalPrice = psf * sellArea;
-    // Ceiling to nearest 1000
-    const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
-    // Final PSF based on ceiled price
-    return sellArea > 0 ? finalTotalPrice / sellArea : 0;
-  });
-  
-  // Calculate average PSF
-  return psfValues.reduce((sum, psf) => sum + psf, 0) / psfValues.length;
-};
-
-/**
- * Cost function for optimization - squared difference between achieved and target PSF
- */
-const costFunction = (
-  basePsf: number,
-  units: Unit[],
-  pricingConfig: PricingConfig,
-  bedroomType: string,
-  targetPsf: number
-): number => {
-  const avgPsf = calculateAveragePsf(units, pricingConfig, bedroomType, basePsf);
-  return Math.pow(avgPsf - targetPsf, 2);
-};
-
-/**
- * Cost function for mega optimization - optimizes across multiple parameters
- */
-const megaCostFunction = (
-  params: number[],
-  units: Unit[],
-  pricingConfig: PricingConfig,
-  paramMap: {
-    bedroomTypes: string[],
-    views: string[]
-  },
-  targetPsf: number,
-  originalParams: number[],
-  selectedTypes: string[]
-): number => {
-  // Make sure we enforce non-negative parameter values
-  const safeParams = params.map(p => Math.max(0, p));
-  
-  // First N params are bedroom type adjustments
-  const bedroomAdjustments: Record<string, number> = {};
-  paramMap.bedroomTypes.forEach((type, index) => {
-    // Only apply adjustments to selected bedroom types
-    if (selectedTypes.includes(type)) {
-      bedroomAdjustments[type] = safeParams[index];
-    }
-  });
-  
-  // Next M params are view adjustments
-  const viewAdjustments: Record<string, number> = {};
-  paramMap.views.forEach((view, index) => {
-    viewAdjustments[view] = safeParams[paramMap.bedroomTypes.length + index];
-  });
-  
-  // Calculate average PSF with these parameters
-  const avgPsf = calculateOverallAveragePsf(
-    // Filter units to only include selected bedroom types
-    units.filter(unit => selectedTypes.includes(unit.type)), 
-    pricingConfig, 
-    {
-      bedroomAdjustments,
-      viewAdjustments
-    }
-  );
-  
-  // Add constraint penalty to avoid large changes
-  const constraintFactor = 0.5;
-  let constraintPenalty = 0;
-  
-  for (let i = 0; i < params.length; i++) {
-    // Add penalty for negative values (should never happen due to safeParams)
-    if (params[i] < 0) {
-      constraintPenalty += 1000 * Math.abs(params[i]);
-    }
-    constraintPenalty += constraintFactor * Math.pow(safeParams[i] - originalParams[i], 2);
-  }
-  
-  return Math.pow(avgPsf - targetPsf, 2) + constraintPenalty;
-};
-
-/**
- * Cost function for full optimization - optimizes all parameters
- */
-const fullCostFunction = (
-  params: number[],
-  units: Unit[],
-  pricingConfig: PricingConfig,
-  paramMap: {
-    bedroomTypes: string[],
-    views: string[],
-    floorRuleParams: number, // Total number of floor rule parameters
-    floorRuleMap: { ruleIndex: number, paramType: string, originalValue: number }[]
-  },
-  targetPsf: number,
-  originalParams: number[],
-  selectedTypes: string[]
-): number => {
-  // Make sure we enforce non-negative parameter values
-  const safeParams = params.map(p => Math.max(0, p));
-  
-  // First section: bedroom type adjustments
-  const bedroomAdjustments: Record<string, number> = {};
-  paramMap.bedroomTypes.forEach((type, index) => {
-    // Only apply adjustments to selected bedroom types
-    if (selectedTypes.includes(type)) {
-      bedroomAdjustments[type] = safeParams[index];
-    }
-  });
-  
-  // Second section: view adjustments
-  const viewAdjustments: Record<string, number> = {};
-  const viewStartIndex = paramMap.bedroomTypes.length;
-  paramMap.views.forEach((view, index) => {
-    viewAdjustments[view] = safeParams[viewStartIndex + index];
-  });
-  
-  // Third section: floor rule parameters
-  const floorRules = [...pricingConfig.floorRiseRules]; // Clone the original rules
-  const floorParamStartIndex = viewStartIndex + paramMap.views.length;
-  
-  // Apply floor rule parameter changes
-  paramMap.floorRuleMap.forEach((mapping, index) => {
-    const paramValue = safeParams[floorParamStartIndex + index];
-    const ruleIndex = mapping.ruleIndex;
-    const paramType = mapping.paramType;
-    
-    if (paramType === 'psfIncrement') {
-      floorRules[ruleIndex].psfIncrement = paramValue;
-    } else if (paramType === 'jumpIncrement' && floorRules[ruleIndex].jumpEveryFloor) {
-      floorRules[ruleIndex].jumpIncrement = paramValue;
-    }
-  });
-  
-  // Calculate average PSF with these parameters
-  const avgPsf = calculateOverallAveragePsf(
-    // Filter units to only include selected bedroom types
-    units.filter(unit => selectedTypes.includes(unit.type)), 
-    pricingConfig, 
-    {
-      bedroomAdjustments,
-      viewAdjustments,
-      floorRules
-    }
-  );
-  
-  // Add constraint penalty to avoid large changes
-  const constraintFactor = 0.5;
-  let constraintPenalty = 0;
-  
-  for (let i = 0; i < params.length; i++) {
-    // Higher penalty for floor parameters to prevent large changes
-    const paramFactor = i >= floorParamStartIndex ? constraintFactor * 2 : constraintFactor;
-    constraintPenalty += paramFactor * Math.pow(safeParams[i] - originalParams[i], 2);
-  }
-  
-  // Add monotonicity constraints for floor parameters
-  let monotonicityPenalty = 0;
-  for (let i = 0; i < floorRules.length; i++) {
-    // Penalty for negative psfIncrement (should never happen due to safeParams)
-    if (floorRules[i].psfIncrement < 0) {
-      monotonicityPenalty += 1000 * Math.abs(floorRules[i].psfIncrement);
-    }
-    
-    // Penalty for negative jumpIncrement (should never happen due to safeParams)
-    if (floorRules[i].jumpIncrement !== undefined && floorRules[i].jumpIncrement < 0) {
-      monotonicityPenalty += 1000 * Math.abs(floorRules[i].jumpIncrement);
-    }
-  }
-  
-  // Ensure cumulative floor PSF is monotonically increasing
-  for (let floor = 2; floor < 50; floor++) {
-    const prevFloorPsf = calculateFloorPremium(floor - 1, floorRules);
-    const currFloorPsf = calculateFloorPremium(floor, floorRules);
-    
-    // Add penalty if current floor PSF is less than previous floor
-    if (currFloorPsf < prevFloorPsf) {
-      monotonicityPenalty += 1000 * Math.abs(prevFloorPsf - currFloorPsf);
-    }
-  }
-  
-  return Math.pow(avgPsf - targetPsf, 2) + constraintPenalty + monotonicityPenalty;
-};
-
-/**
- * Gradient Descent optimization algorithm
- * Uses numerical differentiation to estimate gradient
- */
-export const optimizeBasePsf = (
-  units: Unit[],
-  pricingConfig: PricingConfig,
-  bedroomType: string,
-  targetPsf: number,
-  originalBasePsf: number,
-  options = {
-    learningRate: 0.1,
-    maxIterations: 100,
-    convergenceThreshold: 0.01,
-    epsilon: 0.1, // For numerical differentiation
-    constraintFactor: 0.5, // Penalizes large deviations from original
-  }
-): { 
-  optimizedBasePsf: number; 
-  finalAvgPsf: number; 
-  iterations: number;
-  initialAvgPsf: number;
-} => {
-  const { 
-    learningRate, 
-    maxIterations, 
-    convergenceThreshold, 
-    epsilon,
-    constraintFactor
-  } = options;
-  
-  let currentBasePsf = originalBasePsf;
-  let iteration = 0;
-  let previousCost = Infinity;
-  
-  // Calculate initial average PSF
-  const initialAvgPsf = calculateAveragePsf(
-    units, 
-    pricingConfig, 
-    bedroomType, 
-    originalBasePsf
-  );
-  
-  while (iteration < maxIterations) {
-    // Calculate current cost
-    const currentCost = costFunction(
-      currentBasePsf, 
-      units, 
-      pricingConfig, 
-      bedroomType, 
-      targetPsf
-    ) + 
-    // Add constraint penalty to avoid large changes
-    constraintFactor * Math.pow(currentBasePsf - originalBasePsf, 2);
-    
-    // Check convergence
-    if (Math.abs(previousCost - currentCost) < convergenceThreshold) {
-      break;
-    }
-    
-    // Numerical differentiation to estimate gradient
-    const costPlus = costFunction(
-      currentBasePsf + epsilon, 
-      units, 
-      pricingConfig, 
-      bedroomType, 
-      targetPsf
-    ) + 
-    constraintFactor * Math.pow((currentBasePsf + epsilon) - originalBasePsf, 2);
-    
-    const costMinus = costFunction(
-      currentBasePsf - epsilon, 
-      units, 
-      pricingConfig, 
-      bedroomType, 
-      targetPsf
-    ) + 
-    constraintFactor * Math.pow((currentBasePsf - epsilon) - originalBasePsf, 2);
-    
-    // Estimate gradient using central difference
-    const gradient = (costPlus - costMinus) / (2 * epsilon);
-    
-    // Update base PSF using gradient descent
-    currentBasePsf = currentBasePsf - learningRate * gradient;
-    
-    // Ensure base PSF doesn't go negative
-    currentBasePsf = Math.max(currentBasePsf, 1);
-    
-    // Update previous cost for next iteration
-    previousCost = currentCost;
-    iteration++;
-  }
-  
-  // Calculate final average PSF with optimized base PSF
-  const finalAvgPsf = calculateAveragePsf(
-    units, 
-    pricingConfig, 
-    bedroomType, 
-    currentBasePsf
-  );
-  
-  return {
-    optimizedBasePsf: currentBasePsf,
-    finalAvgPsf,
-    iterations: iteration,
-    initialAvgPsf
-  };
-};
-
-/**
- * Mega Optimization algorithm that adjusts all bedroom types and views
- * to achieve a target overall PSF
- */
-export const megaOptimizePsf = (
-  units: Unit[],
-  pricingConfig: PricingConfig,
-  targetOverallPsf: number,
-  selectedTypes: string[] = [],
-  options = {
-    learningRate: 0.05,
-    maxIterations: 200,
-    convergenceThreshold: 0.01,
-    epsilon: 0.1,
-    constraintFactor: 0.5
-  }
-): {
-  optimizedParams: {
-    bedroomAdjustments: Record<string, number>,
-    viewAdjustments: Record<string, number>
-  },
-  finalAvgPsf: number,
-  iterations: number,
-  initialAvgPsf: number
-} => {
-  const {
-    learningRate,
-    maxIterations,
-    convergenceThreshold,
-    epsilon,
-    constraintFactor
-  } = options;
-  
-  // Extract all bedroom types and views for optimization
-  const bedroomTypes = pricingConfig.bedroomTypePricing.map(b => b.type);
-  const views = pricingConfig.viewPricing.map(v => v.view);
-  
-  // If no bedroom types are selected, use all types
-  if (selectedTypes.length === 0) {
-    selectedTypes = [...bedroomTypes];
-  }
-  
-  // Filter units to only include selected bedroom types
-  const filteredUnits = units.filter(unit => selectedTypes.includes(unit.type));
-  
-  // Parameter mapping for optimization
-  const paramMap = {
-    bedroomTypes,
-    views
-  };
-  
-  // Initial parameter values
-  const initialParams: number[] = [
-    ...bedroomTypes.map(type => {
-      const pricing = pricingConfig.bedroomTypePricing.find(b => b.type === type);
-      return pricing?.basePsf || pricingConfig.basePsf;
-    }),
-    ...views.map(view => {
-      const pricing = pricingConfig.viewPricing.find(v => v.view === view);
-      return pricing?.psfAdjustment || 0;
-    })
-  ];
-  
-  // Current parameters (will be updated during optimization)
-  let currentParams = [...initialParams];
-  
-  // Iteration control
-  let iteration = 0;
-  let previousCost = Infinity;
-  
-  // Calculate initial average PSF
-  const initialAvgPsf = calculateOverallAveragePsf(filteredUnits, pricingConfig);
-  
-  // Gradient descent loop
-  while (iteration < maxIterations) {
-    // Calculate current cost
-    const currentCost = megaCostFunction(
-      currentParams,
-      units,
-      pricingConfig,
-      paramMap,
-      targetOverallPsf,
-      initialParams,
-      selectedTypes
+      (v: any) => v.view === unit.view
     );
     
-    // Check convergence
-    if (Math.abs(previousCost - currentCost) < convergenceThreshold) {
-      break;
-    }
+    // Calculate base PSF with adjustments
+    const basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
+    const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
     
-    // Calculate gradient for each parameter
-    const gradient: number[] = [];
+    // Calculate floor adjustments
+    let floorAdjustment = 0;
+    const floorLevel = parseInt(unit.floor) || 1;
     
-    for (let i = 0; i < currentParams.length; i++) {
-      // Skip optimization for non-selected bedroom types
-      if (i < bedroomTypes.length && !selectedTypes.includes(bedroomTypes[i])) {
-        gradient.push(0); // No change for unselected types
-        continue;
-      }
-      
-      // Create parameter vectors for numerical differentiation
-      const paramsPlus = [...currentParams];
-      paramsPlus[i] += epsilon;
-      
-      const paramsMinus = [...currentParams];
-      paramsMinus[i] -= epsilon;
-      
-      // Calculate costs for +/- epsilon
-      const costPlus = megaCostFunction(
-        paramsPlus,
-        units,
-        pricingConfig,
-        paramMap,
-        targetOverallPsf,
-        initialParams,
-        selectedTypes
-      );
-      
-      const costMinus = megaCostFunction(
-        paramsMinus,
-        units,
-        pricingConfig,
-        paramMap,
-        targetOverallPsf,
-        initialParams,
-        selectedTypes
-      );
-      
-      // Estimate gradient component using central difference
-      gradient.push((costPlus - costMinus) / (2 * epsilon));
-    }
+    // Calculate floor adjustment using sorted rules
+    const sortedFloorRules = [...pricingConfig.floorRiseRules].sort(
+      (a: any, b: any) => a.startFloor - b.startFloor
+    );
     
-    // Update parameters using gradient descent
-    for (let i = 0; i < currentParams.length; i++) {
-      // Skip parameter updates for non-selected bedroom types
-      if (i < bedroomTypes.length && !selectedTypes.includes(bedroomTypes[i])) {
-        continue; // No change for unselected types
-      }
-      
-      // Update parameter with gradient descent
-      currentParams[i] = currentParams[i] - learningRate * gradient[i];
-      
-      // Ensure values don't go negative
-      currentParams[i] = Math.max(currentParams[i], 0);
-      
-      // For view adjustments, limit the change to +/- 10% of original value
-      if (i >= bedroomTypes.length) {
-        const viewIndex = i - bedroomTypes.length;
-        const originalValue = initialParams[i];
-        const maxChange = Math.max(originalValue * 0.1, 1); // 10% or at least 1
-        
-        if (currentParams[i] > originalValue + maxChange) {
-          currentParams[i] = originalValue + maxChange;
-        } else if (currentParams[i] < originalValue - maxChange) {
-          currentParams[i] = Math.max(0, originalValue - maxChange);
+    let cumulativeAdjustment = 0;
+    for (const rule of sortedFloorRules) {
+      const ruleEnd = rule.endFloor === null ? 999 : rule.endFloor;
+      if (floorLevel > ruleEnd) {
+        for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
+          cumulativeAdjustment += rule.psfIncrement;
+          if (rule.jumpEveryFloor && rule.jumpIncrement) {
+            if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+              cumulativeAdjustment += rule.jumpIncrement;
+            }
+          }
         }
+      } else if (floorLevel >= rule.startFloor) {
+        for (let floor = Math.max(rule.startFloor, 1); floor <= floorLevel; floor++) {
+          cumulativeAdjustment += rule.psfIncrement;
+          if (rule.jumpEveryFloor && rule.jumpIncrement) {
+            if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+              cumulativeAdjustment += rule.jumpIncrement;
+            }
+          }
+        }
+        break;
       }
     }
     
-    // Update previous cost
-    previousCost = currentCost;
-    iteration++;
-  }
-  
-  // Map optimized parameters back to bedroom types and views
-  const bedroomAdjustments: Record<string, number> = {};
-  bedroomTypes.forEach((type, index) => {
-    // Only include selected bedroom types
-    if (selectedTypes.includes(type)) {
-      bedroomAdjustments[type] = Math.max(0, currentParams[index]);
-    }
-  });
-  
-  const viewAdjustments: Record<string, number> = {};
-  views.forEach((view, index) => {
-    // Only include views that are related to selected bedroom types
-    if (filteredUnits.some(unit => unit.view === view)) {
-      viewAdjustments[view] = Math.max(0, currentParams[bedroomTypes.length + index]);
-    }
-  });
-  
-  // Calculate final average PSF
-  const finalAvgPsf = calculateOverallAveragePsf(filteredUnits, pricingConfig, {
-    bedroomAdjustments,
-    viewAdjustments
-  });
-  
-  return {
-    optimizedParams: {
-      bedroomAdjustments,
-      viewAdjustments
-    },
-    finalAvgPsf,
-    iterations: iteration,
-    initialAvgPsf
-  };
-};
-
-/**
- * Full Optimization algorithm that adjusts all parameters including floor rules
- * to achieve a target overall PSF
- */
-export const fullOptimizePsf = (
-  units: Unit[],
-  pricingConfig: PricingConfig,
-  targetOverallPsf: number,
-  selectedTypes: string[] = [],
-  options = {
-    learningRate: 0.03,
-    maxIterations: 300,
-    convergenceThreshold: 0.01,
-    epsilon: 0.1,
-    constraintFactor: 0.8
-  }
-): {
-  optimizedParams: {
-    bedroomAdjustments: Record<string, number>,
-    viewAdjustments: Record<string, number>,
-    floorRules: FloorRiseRule[]
-  },
-  finalAvgPsf: number,
-  iterations: number,
-  initialAvgPsf: number
-} => {
-  const {
-    learningRate,
-    maxIterations,
-    convergenceThreshold,
-    epsilon,
-    constraintFactor
-  } = options;
-  
-  // Extract all bedroom types and views for optimization
-  const bedroomTypes = pricingConfig.bedroomTypePricing.map(b => b.type);
-  const views = pricingConfig.viewPricing.map(v => v.view);
-  
-  // If no bedroom types are selected, use all types
-  if (selectedTypes.length === 0) {
-    selectedTypes = [...bedroomTypes];
-  }
-  
-  // Filter units to only include selected bedroom types
-  const filteredUnits = units.filter(unit => selectedTypes.includes(unit.type));
-  
-  // Find unique views used by the selected bedroom types
-  const usedViews = Array.from(new Set(
-    filteredUnits.map(unit => unit.view as string)
-  ));
-  
-  // Create a mapping of floor rule parameters
-  const floorRuleMap: Array<{ ruleIndex: number, paramType: string, originalValue: number }> = [];
-  pricingConfig.floorRiseRules.forEach((rule, index) => {
-    // Add psfIncrement parameter
-    floorRuleMap.push({
-      ruleIndex: index,
-      paramType: 'psfIncrement',
-      originalValue: rule.psfIncrement
-    });
+    floorAdjustment = cumulativeAdjustment;
     
-    // Add jumpIncrement if it exists
-    if (rule.jumpEveryFloor && rule.jumpIncrement !== undefined) {
-      floorRuleMap.push({
-        ruleIndex: index,
-        paramType: 'jumpIncrement',
-        originalValue: rule.jumpIncrement
+    // Add additional category adjustments if they exist
+    let additionalAdjustment = 0;
+    if (pricingConfig.additionalCategoryPricing) {
+      pricingConfig.additionalCategoryPricing.forEach((cat: any) => {
+        if (unit[`${cat.column}_value`] === cat.category) {
+          additionalAdjustment += cat.psfAdjustment;
+        }
       });
     }
+    
+    const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
+    
+    const unitTotalPrice = basePsfWithAdjustments * sellArea;
+    const unitFinalPrice = Math.ceil(unitTotalPrice / 1000) * 1000;
+    
+    totalSellArea += sellArea;
+    totalPrice += unitFinalPrice;
   });
   
-  // Parameter mapping for optimization
-  const paramMap = {
-    bedroomTypes,
-    views,
-    floorRuleParams: floorRuleMap.length,
-    floorRuleMap
-  };
+  if (totalSellArea === 0) return 0;
+  return totalPrice / totalSellArea;
+};
+
+// Add a new function to calculate Overall Average AC PSF
+export const calculateOverallAverageAcPsf = (data: any[], pricingConfig: any) => {
+  if (!data.length || !pricingConfig) return 0;
   
-  // Initial parameter values
-  const initialParams: number[] = [
-    // Bedroom type parameters
-    ...bedroomTypes.map(type => {
-      const pricing = pricingConfig.bedroomTypePricing.find(b => b.type === type);
-      return pricing?.basePsf || pricingConfig.basePsf;
-    }),
-    // View parameters
-    ...views.map(view => {
-      const pricing = pricingConfig.viewPricing.find(v => v.view === view);
-      return pricing?.psfAdjustment || 0;
-    }),
-    // Floor rule parameters
-    ...floorRuleMap.map(mapping => mapping.originalValue)
-  ];
+  let totalAcArea = 0;
+  let totalPrice = 0;
   
-  // Current parameters (will be updated during optimization)
-  let currentParams = [...initialParams];
-  
-  // Iteration control
-  let iteration = 0;
-  let previousCost = Infinity;
-  
-  // Calculate initial average PSF
-  const initialAvgPsf = calculateOverallAveragePsf(filteredUnits, pricingConfig);
-  
-  // Gradient descent loop
-  while (iteration < maxIterations) {
-    // Calculate current cost
-    const currentCost = fullCostFunction(
-      currentParams,
-      units,
-      pricingConfig,
-      paramMap,
-      targetOverallPsf,
-      initialParams,
-      selectedTypes
+  data.forEach(unit => {
+    const acArea = parseFloat(unit.acArea) || 0;
+    if (acArea <= 0) return; // Skip units with invalid AC area
+    
+    // Get bedroom type configuration
+    const bedroomType = pricingConfig.bedroomTypePricing.find(
+      (b: any) => b.type === unit.type
     );
     
-    // Check convergence
-    if (Math.abs(previousCost - currentCost) < convergenceThreshold) {
+    // Get view premium
+    const viewAdjustment = pricingConfig.viewPricing.find(
+      (v: any) => v.view === unit.view
+    );
+    
+    // Calculate base PSF with adjustments
+    const basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
+    const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
+    
+    // Calculate floor adjustments
+    let floorAdjustment = 0;
+    const floorLevel = parseInt(unit.floor) || 1;
+    
+    // Calculate floor adjustment using sorted rules
+    const sortedFloorRules = [...pricingConfig.floorRiseRules].sort(
+      (a: any, b: any) => a.startFloor - b.startFloor
+    );
+    
+    let cumulativeAdjustment = 0;
+    for (const rule of sortedFloorRules) {
+      const ruleEnd = rule.endFloor === null ? 999 : rule.endFloor;
+      if (floorLevel > ruleEnd) {
+        for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
+          cumulativeAdjustment += rule.psfIncrement;
+          if (rule.jumpEveryFloor && rule.jumpIncrement) {
+            if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+              cumulativeAdjustment += rule.jumpIncrement;
+            }
+          }
+        }
+      } else if (floorLevel >= rule.startFloor) {
+        for (let floor = Math.max(rule.startFloor, 1); floor <= floorLevel; floor++) {
+          cumulativeAdjustment += rule.psfIncrement;
+          if (rule.jumpEveryFloor && rule.jumpIncrement) {
+            if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+              cumulativeAdjustment += rule.jumpIncrement;
+            }
+          }
+        }
+        break;
+      }
+    }
+    
+    floorAdjustment = cumulativeAdjustment;
+    
+    // Add additional category adjustments if they exist
+    let additionalAdjustment = 0;
+    if (pricingConfig.additionalCategoryPricing) {
+      pricingConfig.additionalCategoryPricing.forEach((cat: any) => {
+        if (unit[`${cat.column}_value`] === cat.category) {
+          additionalAdjustment += cat.psfAdjustment;
+        }
+      });
+    }
+    
+    const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
+    
+    const sellArea = parseFloat(unit.sellArea) || 0;
+    if (sellArea <= 0) return; // Skip units with invalid sell area
+    
+    const unitTotalPrice = basePsfWithAdjustments * sellArea;
+    const unitFinalPrice = Math.ceil(unitTotalPrice / 1000) * 1000;
+    
+    totalAcArea += acArea;
+    totalPrice += unitFinalPrice;
+  });
+  
+  if (totalAcArea === 0) return 0;
+  return totalPrice / totalAcArea;
+};
+
+interface OptimizationResult {
+  optimizedParams: {
+    bedroomAdjustments: Record<string, number>;
+    viewAdjustments: Record<string, number>;
+    additionalCategoryAdjustments?: Record<string, Record<string, number>>;
+  };
+  summary: {
+    initialOverallPsf: number;
+    optimizedOverallPsf: number;
+    psfChange: number;
+  };
+}
+
+// Optimize base PSF values for selected bedroom types
+export const megaOptimizePsf = (
+  data: any[],
+  pricingConfig: any,
+  targetPsf: number,
+  selectedBedroomTypes: string[] = [],
+  psfType: "sellArea" | "acArea" = "sellArea"
+): OptimizationResult => {
+  const { bedroomTypePricing, viewPricing, floorRiseRules, additionalCategoryPricing } = pricingConfig;
+
+  // Initial overall PSF
+  const initialOverallPsf = calculateOverallAveragePsf(data, pricingConfig);
+
+  // Prepare adjustments storage
+  const bedroomAdjustments: Record<string, number> = {};
+
+  // Optimization parameters
+  const learningRate = 0.01;
+  const maxIterations = 100;
+  const convergenceThreshold = 0.001;
+
+  // Helper function to calculate overall PSF
+  const calculateCurrentOverallPsf = (adjustments: Record<string, number>) => {
+    let totalWeightedPsf = 0;
+    let totalWeight = 0;
+
+    data.forEach((unit) => {
+      if (!selectedBedroomTypes.includes(unit.type)) return;
+
+      const bedroomType = bedroomTypePricing.find((b: any) => b.type === unit.type);
+      const viewAdjustment = viewPricing.find((v: any) => v.view === unit.view);
+
+      let basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
+      basePsf += adjustments[unit.type] || 0; // Apply adjustment
+      const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
+
+      let floorAdjustment = 0;
+      const floorLevel = parseInt(unit.floor) || 1;
+
+      const sortedFloorRules = [...floorRiseRules].sort(
+        (a: any, b: any) => a.startFloor - b.startFloor
+      );
+
+      let cumulativeAdjustment = 0;
+      for (const rule of sortedFloorRules) {
+        const ruleEnd = rule.endFloor === null ? 999 : rule.endFloor;
+        if (floorLevel > ruleEnd) {
+          for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
+            cumulativeAdjustment += rule.psfIncrement;
+            if (rule.jumpEveryFloor && rule.jumpIncrement) {
+              if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+                cumulativeAdjustment += rule.jumpIncrement;
+              }
+            }
+          }
+        } else if (floorLevel >= rule.startFloor) {
+          for (let floor = Math.max(rule.startFloor, 1); floor <= floorLevel; floor++) {
+            cumulativeAdjustment += rule.psfIncrement;
+            if (rule.jumpEveryFloor && rule.jumpIncrement) {
+              if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+                cumulativeAdjustment += rule.jumpIncrement;
+              }
+            }
+          }
+          break;
+        }
+      }
+
+      floorAdjustment = cumulativeAdjustment;
+
+      // Add additional category adjustments if they exist
+      let additionalAdjustment = 0;
+      if (additionalCategoryPricing) {
+        additionalCategoryPricing.forEach((cat: any) => {
+          if (unit[`${cat.column}_value`] === cat.category) {
+            additionalAdjustment += cat.psfAdjustment;
+          }
+        });
+      }
+
+      const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
+
+      const sellArea = parseFloat(unit.sellArea) || 0;
+      const acArea = parseFloat(unit.acArea) || 0;
+      const unitArea = psfType === "sellArea" ? sellArea : acArea;
+
+      const totalPrice = basePsfWithAdjustments * sellArea; // Still use sellArea for price
+      const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+      const finalPsf = unitArea > 0 ? finalTotalPrice / unitArea : 0;
+
+      totalWeightedPsf += finalPsf * unitArea;
+      totalWeight += unitArea;
+    });
+
+    return totalWeight > 0 ? totalWeightedPsf / totalWeight : 0;
+  };
+
+  // Optimization loop
+  let previousPsf = initialOverallPsf;
+  for (let i = 0; i < maxIterations; i++) {
+    // Calculate gradients for each bedroom type
+    const gradients: Record<string, number> = {};
+    selectedBedroomTypes.forEach((type) => {
+      const positiveAdjustment = { ...bedroomAdjustments, [type]: (bedroomAdjustments[type] || 0) + convergenceThreshold };
+      const negativeAdjustment = { ...bedroomAdjustments, [type]: (bedroomAdjustments[type] || 0) - convergenceThreshold };
+
+      const psfPositive = calculateCurrentOverallPsf(positiveAdjustment);
+      const psfNegative = calculateCurrentOverallPsf(negativeAdjustment);
+
+      gradients[type] = (psfPositive - psfNegative) / (2 * convergenceThreshold);
+    });
+
+    // Update adjustments based on gradients
+    selectedBedroomTypes.forEach((type) => {
+      bedroomAdjustments[type] = (bedroomAdjustments[type] || 0) - learningRate * (gradients[type] * (calculateCurrentOverallPsf(bedroomAdjustments) - targetPsf));
+    });
+
+    // Check for convergence
+    const currentPsf = calculateCurrentOverallPsf(bedroomAdjustments);
+    if (Math.abs(currentPsf - previousPsf) < convergenceThreshold) {
+      console.log(`Optimization converged after ${i + 1} iterations.`);
       break;
     }
-    
-    // Calculate gradient for each parameter
-    const gradient: number[] = [];
-    
-    for (let i = 0; i < currentParams.length; i++) {
-      // Skip optimization for non-selected bedroom types
-      if (i < bedroomTypes.length && !selectedTypes.includes(bedroomTypes[i])) {
-        gradient.push(0); // No change for unselected types
-        continue;
-      }
-      
-      // Skip optimization for views not used by selected bedroom types
-      if (i >= bedroomTypes.length && i < bedroomTypes.length + views.length) {
-        const viewIndex = i - bedroomTypes.length;
-        const view = views[viewIndex];
-        if (!usedViews.includes(view)) {
-          gradient.push(0); // No change for unused views
-          continue;
-        }
-      }
-      
-      // Create parameter vectors for numerical differentiation
-      const paramsPlus = [...currentParams];
-      paramsPlus[i] += epsilon;
-      
-      const paramsMinus = [...currentParams];
-      paramsMinus[i] -= epsilon;
-      
-      // Calculate costs for +/- epsilon
-      const costPlus = fullCostFunction(
-        paramsPlus,
-        units,
-        pricingConfig,
-        paramMap,
-        targetOverallPsf,
-        initialParams,
-        selectedTypes
-      );
-      
-      const costMinus = fullCostFunction(
-        paramsMinus,
-        units,
-        pricingConfig,
-        paramMap,
-        targetOverallPsf,
-        initialParams,
-        selectedTypes
-      );
-      
-      // Estimate gradient component using central difference
-      gradient.push((costPlus - costMinus) / (2 * epsilon));
-    }
-    
-    // Update parameters using gradient descent
-    for (let i = 0; i < currentParams.length; i++) {
-      // Skip parameter updates for non-selected bedroom types
-      if (i < bedroomTypes.length && !selectedTypes.includes(bedroomTypes[i])) {
-        continue; // No change for unselected types
-      }
-      
-      // Skip updates for views not used by selected bedroom types
-      if (i >= bedroomTypes.length && i < bedroomTypes.length + views.length) {
-        const viewIndex = i - bedroomTypes.length;
-        const view = views[viewIndex];
-        if (!usedViews.includes(view)) {
-          continue; // No change for unused views
-        }
-      }
-      
-      // Update parameter with gradient descent
-      currentParams[i] = currentParams[i] - learningRate * gradient[i];
-      
-      // Apply constraints based on parameter type
-      const bedroomCount = bedroomTypes.length;
-      const viewCount = views.length;
-      
-      if (i < bedroomCount) { 
-        // Bedroom PSF - ensure positive
-        currentParams[i] = Math.max(currentParams[i], 1);
-      } else if (i >= bedroomCount && i < bedroomCount + viewCount) {
-        // View adjustment - ensure positive and limit change to +/- 10%
-        const originalValue = initialParams[i];
-        const maxChange = Math.max(originalValue * 0.1, 1); // 10% or at least 1
-        
-        currentParams[i] = Math.max(0, currentParams[i]); // Ensure non-negative
-        
-        if (currentParams[i] > originalValue + maxChange) {
-          currentParams[i] = originalValue + maxChange;
-        } else if (currentParams[i] < originalValue - maxChange) {
-          currentParams[i] = Math.max(0, originalValue - maxChange);
-        }
-      } else if (i >= bedroomCount + viewCount) {
-        // Floor rule parameter - apply appropriate constraints
-        const floorParamIndex = i - (bedroomCount + viewCount);
-        const paramMapping = floorRuleMap[floorParamIndex];
-        
-        if (paramMapping.paramType === 'psfIncrement') {
-          // Ensure psfIncrement is positive but not too large
-          currentParams[i] = Math.max(currentParams[i], 0.01);
-          const maxIncrement = Math.max(paramMapping.originalValue * 1.5, 1); // Limit to 1.5x original
-          currentParams[i] = Math.min(currentParams[i], maxIncrement);
-        } else if (paramMapping.paramType === 'jumpIncrement') {
-          // Ensure jumpIncrement is positive but not too large
-          currentParams[i] = Math.max(currentParams[i], 0);
-          const maxJumpIncrement = Math.max(paramMapping.originalValue * 1.5, 1); // Limit to 1.5x original
-          currentParams[i] = Math.min(currentParams[i], maxJumpIncrement);
-        }
-      }
-    }
-    
-    // Update previous cost
-    previousCost = currentCost;
-    iteration++;
+    previousPsf = currentPsf;
   }
-  
-  // Map optimized parameters back to bedroom types and views
-  const bedroomAdjustments: Record<string, number> = {};
-  bedroomTypes.forEach((type, index) => {
-    // Only include selected bedroom types
-    if (selectedTypes.includes(type)) {
-      bedroomAdjustments[type] = Math.max(0, currentParams[index]);
-    }
-  });
-  
-  const viewAdjustments: Record<string, number> = {};
-  views.forEach((view, index) => {
-    // Only include views that are related to selected bedroom types
-    if (usedViews.includes(view)) {
-      viewAdjustments[view] = Math.max(0, currentParams[bedroomTypes.length + index]);
-    }
-  });
-  
-  // Create optimized floor rules
-  const optimizedFloorRules = [...pricingConfig.floorRiseRules]; // Clone original rules
-  const floorParamStartIndex = bedroomTypes.length + views.length;
-  
-  floorRuleMap.forEach((mapping, index) => {
-    const paramValue = Math.max(0, currentParams[floorParamStartIndex + index]);
-    const { ruleIndex, paramType } = mapping;
-    
-    if (paramType === 'psfIncrement') {
-      optimizedFloorRules[ruleIndex].psfIncrement = paramValue;
-    } else if (paramType === 'jumpIncrement') {
-      optimizedFloorRules[ruleIndex].jumpIncrement = paramValue;
-    }
-  });
-  
-  // Calculate final average PSF
-  const finalAvgPsf = calculateOverallAveragePsf(filteredUnits, pricingConfig, {
-    bedroomAdjustments,
-    viewAdjustments,
-    floorRules: optimizedFloorRules
-  });
-  
+
+  // Final optimized PSF
+  const optimizedOverallPsf = calculateCurrentOverallPsf(bedroomAdjustments);
+  const psfChange = optimizedOverallPsf - initialOverallPsf;
+
+  console.log("Optimized adjustments:", bedroomAdjustments);
+  console.log("Initial PSF:", initialOverallPsf);
+  console.log("Optimized PSF:", optimizedOverallPsf);
+  console.log("PSF Change:", psfChange);
+
   return {
-    optimizedParams: {
-      bedroomAdjustments,
-      viewAdjustments,
-      floorRules: optimizedFloorRules
-    },
-    finalAvgPsf,
-    iterations: iteration,
-    initialAvgPsf
+    optimizedParams: { bedroomAdjustments, viewAdjustments: {} },
+    summary: { initialOverallPsf, optimizedOverallPsf, psfChange },
   };
 };
 
-// Export utility functions for use in components
-export {
-  calculateUnitPsf,
-  calculateAveragePsf,
-  calculateOverallAveragePsf,
-  calculateFloorPremium
+// Full optimization function including floor, view, and additional category adjustments
+export const fullOptimizePsf = (
+  data: any[],
+  pricingConfig: any,
+  targetPsf: number,
+  selectedBedroomTypes: string[] = [],
+  psfType: "sellArea" | "acArea" = "sellArea"
+): OptimizationResult => {
+  const { bedroomTypePricing, viewPricing, floorRiseRules, additionalCategoryPricing } = pricingConfig;
+
+  // Initial overall PSF
+  const initialOverallPsf = calculateOverallAveragePsf(data, pricingConfig);
+
+  // Prepare adjustments storage
+  const bedroomAdjustments: Record<string, number> = {};
+  const viewAdjustments: Record<string, number> = {};
+  const additionalCategoryAdjustments: Record<string, Record<string, number>> = {};
+
+  // Initialize adjustments with current values
+  viewPricing.forEach(view => {
+    viewAdjustments[view.view] = view.psfAdjustment;
+  });
+
+  if (additionalCategoryPricing) {
+    additionalCategoryPricing.forEach(cat => {
+      if (!additionalCategoryAdjustments[cat.column]) {
+        additionalCategoryAdjustments[cat.column] = {};
+      }
+      additionalCategoryAdjustments[cat.column][cat.category] = cat.psfAdjustment;
+    });
+  }
+
+  // Optimization parameters
+  const learningRate = 0.01;
+  const maxIterations = 100;
+  const convergenceThreshold = 0.001;
+
+  // Helper function to calculate overall PSF with all adjustments
+  const calculateCurrentOverallPsf = (
+    bedroomAdj: Record<string, number>,
+    viewAdj: Record<string, number>,
+    categoryAdj: Record<string, Record<string, number>>
+  ) => {
+    let totalWeightedPsf = 0;
+    let totalWeight = 0;
+
+    data.forEach((unit) => {
+      if (!selectedBedroomTypes.includes(unit.type)) return;
+
+      const bedroomType = bedroomTypePricing.find((b: any) => b.type === unit.type);
+      const viewAdjustment = viewPricing.find((v: any) => v.view === unit.view);
+
+      let basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
+      basePsf += bedroomAdj[unit.type] || 0; // Apply bedroom adjustment
+      const viewPsfAdjustment = (viewAdj[unit.view] !== undefined ? viewAdj[unit.view] : viewAdjustment?.psfAdjustment) || 0; // Apply view adjustment
+
+      let floorAdjustment = 0;
+      const floorLevel = parseInt(unit.floor) || 1;
+
+      const sortedFloorRules = [...floorRiseRules].sort(
+        (a: any, b: any) => a.startFloor - b.startFloor
+      );
+
+      let cumulativeAdjustment = 0;
+      for (const rule of sortedFloorRules) {
+        const ruleEnd = rule.endFloor === null ? 999 : rule.endFloor;
+        if (floorLevel > ruleEnd) {
+          for (let floor = Math.max(rule.startFloor, 1); floor <= ruleEnd; floor++) {
+            cumulativeAdjustment += rule.psfIncrement;
+            if (rule.jumpEveryFloor && rule.jumpIncrement) {
+              if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+                cumulativeAdjustment += rule.jumpIncrement;
+              }
+            }
+          }
+        } else if (floorLevel >= rule.startFloor) {
+          for (let floor = Math.max(rule.startFloor, 1); floor <= floorLevel; floor++) {
+            cumulativeAdjustment += rule.psfIncrement;
+            if (rule.jumpEveryFloor && rule.jumpIncrement) {
+              if ((floor - rule.startFloor + 1) % rule.jumpEveryFloor === 0) {
+                cumulativeAdjustment += rule.jumpIncrement;
+              }
+            }
+          }
+          break;
+        }
+      }
+
+      floorAdjustment = cumulativeAdjustment;
+
+      // Apply additional category adjustments
+      let additionalAdjustment = 0;
+      if (additionalCategoryPricing) {
+        additionalCategoryPricing.forEach((cat: any) => {
+          const categoryValue = unit[`${cat.column}_value`];
+          const adjustment = categoryAdj?.[cat.column]?.[cat.category];
+
+          if (categoryValue === cat.category && adjustment !== undefined) {
+            additionalAdjustment += adjustment;
+          } else if (categoryValue === cat.category) {
+            additionalAdjustment += cat.psfAdjustment;
+          }
+        });
+      }
+
+      const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
+
+      const sellArea = parseFloat(unit.sellArea) || 0;
+      const acArea = parseFloat(unit.acArea) || 0;
+      const unitArea = psfType === "sellArea" ? sellArea : acArea;
+
+      const totalPrice = basePsfWithAdjustments * sellArea; // Still use sellArea for price
+      const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+      const finalPsf = unitArea > 0 ? finalTotalPrice / unitArea : 0;
+
+      totalWeightedPsf += finalPsf * unitArea;
+      totalWeight += unitArea;
+    });
+
+    return totalWeight > 0 ? totalWeightedPsf / totalWeight : 0;
+  };
+
+  // Optimization loop
+  let previousPsf = initialOverallPsf;
+  for (let i = 0; i < maxIterations; i++) {
+    // Calculate gradients for each parameter
+    const bedroomGradients: Record<string, number> = {};
+    selectedBedroomTypes.forEach((type) => {
+      const positiveAdjustment = { ...bedroomAdjustments, [type]: (bedroomAdjustments[type] || 0) + convergenceThreshold };
+      const negativeAdjustment = { ...bedroomAdjustments, [type]: (bedroomAdjustments[type] || 0) - convergenceThreshold };
+
+      const psfPositive = calculateCurrentOverallPsf(positiveAdjustment, viewAdjustments, additionalCategoryAdjustments);
+      const psfNegative = calculateCurrentOverallPsf(negativeAdjustment, viewAdjustments, additionalCategoryAdjustments);
+
+      bedroomGradients[type] = (psfPositive - psfNegative) / (2 * convergenceThreshold);
+    });
+
+    const viewGradients: Record<string, number> = {};
+    viewPricing.forEach((view) => {
+      const positiveAdjustment = { ...viewAdjustments, [view.view]: (viewAdjustments[view.view] || 0) + convergenceThreshold };
+      const negativeAdjustment = { ...viewAdjustments, [view.view]: (viewAdjustments[view.view] || 0) - convergenceThreshold };
+
+      const psfPositive = calculateCurrentOverallPsf(bedroomAdjustments, positiveAdjustment, additionalCategoryAdjustments);
+      const psfNegative = calculateCurrentOverallPsf(bedroomAdjustments, negativeAdjustment, additionalCategoryAdjustments);
+
+      viewGradients[view.view] = (psfPositive - psfNegative) / (2 * convergenceThreshold);
+    });
+
+    const categoryGradients: Record<string, Record<string, number>> = {};
+    if (additionalCategoryPricing) {
+      additionalCategoryPricing.forEach(cat => {
+        const column = cat.column;
+        const category = cat.category;
+
+        if (!categoryGradients[column]) {
+          categoryGradients[column] = {};
+        }
+
+        const originalValue = additionalCategoryAdjustments[column]?.[category] || cat.psfAdjustment;
+        const positiveAdjustment = {
+          ...additionalCategoryAdjustments,
+          [column]: { ...additionalCategoryAdjustments[column], [category]: originalValue + convergenceThreshold }
+        };
+        const negativeAdjustment = {
+          ...additionalCategoryAdjustments,
+          [column]: { ...additionalCategoryAdjustments[column], [category]: originalValue - convergenceThreshold }
+        };
+
+        const psfPositive = calculateCurrentOverallPsf(bedroomAdjustments, viewAdjustments, positiveAdjustment);
+        const psfNegative = calculateCurrentOverallPsf(bedroomAdjustments, viewAdjustments, negativeAdjustment);
+
+        categoryGradients[column][category] = (psfPositive - psfNegative) / (2 * convergenceThreshold);
+      });
+    }
+
+    // Update adjustments based on gradients
+    selectedBedroomTypes.forEach((type) => {
+      bedroomAdjustments[type] = (bedroomAdjustments[type] || 0) - learningRate * (bedroomGradients[type] * (calculateCurrentOverallPsf(bedroomAdjustments, viewAdjustments, additionalCategoryAdjustments) - targetPsf));
+    });
+
+    viewPricing.forEach((view) => {
+      viewAdjustments[view.view] = (viewAdjustments[view.view] || 0) - learningRate * (viewGradients[view.view] * (calculateCurrentOverallPsf(bedroomAdjustments, viewAdjustments, additionalCategoryAdjustments) - targetPsf));
+    });
+
+    if (additionalCategoryPricing) {
+      additionalCategoryPricing.forEach(cat => {
+        const column = cat.column;
+        const category = cat.category;
+        const gradient = categoryGradients[column]?.[category];
+
+        if (gradient !== undefined) {
+          if (!additionalCategoryAdjustments[column]) {
+            additionalCategoryAdjustments[column] = {};
+          }
+          additionalCategoryAdjustments[column][category] = (additionalCategoryAdjustments[column][category] || 0) - learningRate * (gradient * (calculateCurrentOverallPsf(bedroomAdjustments, viewAdjustments, additionalCategoryAdjustments) - targetPsf));
+        }
+      });
+    }
+
+    // Check for convergence
+    const currentPsf = calculateCurrentOverallPsf(bedroomAdjustments, viewAdjustments, additionalCategoryAdjustments);
+    if (Math.abs(currentPsf - previousPsf) < convergenceThreshold) {
+      console.log(`Optimization converged after ${i + 1} iterations.`);
+      break;
+    }
+    previousPsf = currentPsf;
+  }
+
+  // Final optimized PSF
+  const optimizedOverallPsf = calculateCurrentOverallPsf(bedroomAdjustments, viewAdjustments, additionalCategoryAdjustments);
+  const psfChange = optimizedOverallPsf - initialOverallPsf;
+
+  console.log("Optimized bedroom adjustments:", bedroomAdjustments);
+  console.log("Optimized view adjustments:", viewAdjustments);
+  console.log("Optimized category adjustments:", additionalCategoryAdjustments);
+  console.log("Initial PSF:", initialOverallPsf);
+  console.log("Optimized PSF:", optimizedOverallPsf);
+  console.log("PSF Change:", psfChange);
+
+  return {
+    optimizedParams: { bedroomAdjustments, viewAdjustments, additionalCategoryAdjustments },
+    summary: { initialOverallPsf, optimizedOverallPsf, psfChange },
+  };
 };

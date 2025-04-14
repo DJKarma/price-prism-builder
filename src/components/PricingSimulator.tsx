@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -50,7 +51,8 @@ interface UnitWithPricing extends Record<string, any> {
   basePriceComponent?: number;
   floorPriceComponent?: number;
   viewPriceComponent?: number;
-  finalPsf: number; // Now the primary PSF value
+  finalPsf: number; // SA PSF value
+  finalAcPsf: number; // AC PSF value
   isOptimized?: boolean; // Flag to indicate if this unit's price was optimized
   additionalCategoryPriceComponents?: Record<string, number>; // Store additional category price contributions
 }
@@ -96,7 +98,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   // Column visibility
   const defaultVisibleColumns = [
     "name", "type", "floor", "view", "sellArea", "acArea", 
-    "finalTotalPrice", "finalPsf", "isOptimized"
+    "finalTotalPrice", "finalPsf", "finalAcPsf", "isOptimized"
   ];
   
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleColumns);
@@ -108,14 +110,15 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "floor", label: "Floor", required: true },
     { id: "view", label: "View", required: true },
     { id: "sellArea", label: "Sell Area", required: true },
-    { id: "acArea", label: "AC Area", required: false },
+    { id: "acArea", label: "AC Area", required: true },
     { id: "balconyArea", label: "Balcony", required: false },
     { id: "balconyPercentage", label: "Balcony %", required: false },
     { id: "basePsf", label: "Base PSF", required: false },
     { id: "floorAdjustment", label: "Floor Premium", required: false },
     { id: "viewPsfAdjustment", label: "View Premium", required: false },
     { id: "finalTotalPrice", label: "Final Price", required: true },
-    { id: "finalPsf", label: "Final PSF", required: true },
+    { id: "finalPsf", label: "SA PSF", required: true },
+    { id: "finalAcPsf", label: "AC PSF", required: true },
     { id: "isOptimized", label: "Optimized", required: true },
   ];
 
@@ -235,8 +238,11 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       const totalPrice = basePsfWithAdjustments * sellArea;
       const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
       
-      // Calculate finalPsf exactly as in PricingSummary - based on finalTotalPrice / sellArea
+      // Calculate finalPsf (SA PSF) based on finalTotalPrice / sellArea
       const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
+      
+      // Calculate finalAcPsf (AC PSF) based on finalTotalPrice / acArea
+      const finalAcPsf = acArea > 0 ? finalTotalPrice / acArea : 0;
       
       const basePriceComponent = basePsf * sellArea;
       const floorPriceComponent = floorAdjustment * sellArea;
@@ -247,6 +253,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         totalPrice,
         finalTotalPrice,
         finalPsf,
+        finalAcPsf,
         balconyArea,
         balconyPercentage,
         basePriceComponent,
@@ -675,7 +682,18 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     onClick={() => handleSort("finalPsf")}
                   >
                     <div className="flex items-center">
-                      Final PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                      SA PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("finalAcPsf") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("finalAcPsf")}
+                  >
+                    <div className="flex items-center">
+                      AC PSF <ArrowUpDown className="ml-1 h-4 w-4" />
                     </div>
                   </TableHead>
                 )}
@@ -759,6 +777,12 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     {visibleColumns.includes("finalPsf") && (
                       <TableCell className="font-medium text-right">
                         {unit.finalPsf.toFixed(2)}
+                      </TableCell>
+                    )}
+                    
+                    {visibleColumns.includes("finalAcPsf") && (
+                      <TableCell className="font-medium text-right">
+                        {unit.finalAcPsf ? unit.finalAcPsf.toFixed(2) : "-"}
                       </TableCell>
                     )}
                     

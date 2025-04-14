@@ -128,6 +128,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   const [processedData, setProcessedData] = useState<any[]>([]);
   const [highlightedTypes, setHighlightedTypes] = useState<string[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [optimizePsfType, setOptimizePsfType] = useState<"sellArea" | "acArea">("sellArea");
 
   const {
     isOptimizing,
@@ -135,6 +136,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     targetPsf,
     optimizationMode,
     currentOverallPsf,
+    currentOverallAcPsf,
     setOptimizationMode,
     handleTargetPsfChange,
     runMegaOptimization,
@@ -203,10 +205,12 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
       
       const sellArea = parseFloat(unit.sellArea) || 0;
+      const acArea = parseFloat(unit.acArea) || 0; 
       
       const totalPrice = basePsfWithAdjustments * sellArea;
       const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
       const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
+      const finalAcPsf = acArea > 0 ? finalTotalPrice / acArea : 0;
       
       const processedUnit = {
         ...unit,
@@ -217,7 +221,9 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         totalPrice,
         finalTotalPrice,
         finalPsf,
-        sellArea: Number(sellArea.toFixed(2)) // Round sellArea to 2 decimal places
+        finalAcPsf,
+        sellArea: Number(sellArea.toFixed(2)), // Round sellArea to 2 decimal places
+        acArea: Number(acArea.toFixed(2))  // Round acArea to 2 decimal places
       };
       
       return processedUnit;
@@ -236,7 +242,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     
     toast.promise(
       new Promise(resolve => {
-        runMegaOptimization(selectedTypes);
+        runMegaOptimization(selectedTypes, optimizePsfType);
         setHighlightedTypes([...selectedTypes]);
         setTimeout(() => {
           setHighlightedTypes([]);
@@ -316,11 +322,13 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg p-4 text-center mb-4 transform transition-transform hover:scale-105 shadow-md">
-              <h3 className="text-lg font-medium text-indigo-700">Current Overall PSF</h3>
+              <h3 className="text-lg font-medium text-indigo-700">
+                Current Overall PSF ({optimizePsfType === "sellArea" ? "SA" : "AC"})
+              </h3>
               <p className="text-3xl font-bold text-indigo-900 flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-yellow-500 mr-2 animate-pulse" />
                 <SlotMachineNumber 
-                  value={currentOverallPsf} 
+                  value={optimizePsfType === "sellArea" ? currentOverallPsf : currentOverallAcPsf} 
                   isAnimating={isAnimating} 
                   formatAsCurrency={false} 
                 />
@@ -364,14 +372,37 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               setSelectedTypes={setSelectedTypes}
             />
             
+            <div className="bg-white rounded-lg border border-indigo-100 p-4 mb-4">
+              <h3 className="text-sm font-medium mb-3 text-indigo-700">Select PSF Type to Optimize</h3>
+              <div className="flex space-x-2">
+                <Button
+                  variant={optimizePsfType === "sellArea" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setOptimizePsfType("sellArea")}
+                  className="flex-1"
+                >
+                  SA PSF (Sell Area)
+                </Button>
+                <Button
+                  variant={optimizePsfType === "acArea" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setOptimizePsfType("acArea")}
+                  className="flex-1"
+                >
+                  AC PSF (AC Area)
+                </Button>
+              </div>
+            </div>
+            
             <OptimizationControls
-              currentOverallPsf={currentOverallPsf}
+              currentOverallPsf={optimizePsfType === "sellArea" ? currentOverallPsf : currentOverallAcPsf}
               targetPsf={targetPsf}
               isOptimizing={isOptimizing}
               isOptimized={isOptimized}
               onTargetPsfChange={handleTargetPsfChange}
               onOptimize={handleRunOptimization}
               onRevert={handleRevert}
+              psfTypeLabel={optimizePsfType === "sellArea" ? "SA" : "AC"}
             />
             
             <OptimizationModeSelector
@@ -385,6 +416,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               data={processedData.length > 0 ? processedData : data} 
               showDollarSign={false} 
               highlightedTypes={highlightedTypes}
+              showAcPsf={true}
             />
           </div>
         </div>

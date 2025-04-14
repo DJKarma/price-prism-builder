@@ -1,11 +1,13 @@
+
 import { useState, useEffect } from "react";
-import { megaOptimizePsf, calculateOverallAveragePsf, fullOptimizePsf } from "@/utils/psfOptimizer";
+import { megaOptimizePsf, calculateOverallAveragePsf, fullOptimizePsf, calculateOverallAverageAcPsf } from "@/utils/psfOptimizer";
 import { toast } from "sonner";
 
 export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (optimizedConfig: any) => void) => {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isOptimized, setIsOptimized] = useState(false);
   const [currentOverallPsf, setCurrentOverallPsf] = useState(calculateOverallAveragePsf(data, pricingConfig));
+  const [currentOverallAcPsf, setCurrentOverallAcPsf] = useState(calculateOverallAverageAcPsf(data, pricingConfig));
   const [targetPsf, setTargetPsf] = useState(
     pricingConfig.targetOverallPsf || 
     pricingConfig.bedroomTypePricing.reduce(
@@ -18,11 +20,12 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
   // Recalculate current overall PSF whenever pricingConfig changes
   useEffect(() => {
     setCurrentOverallPsf(calculateOverallAveragePsf(data, pricingConfig));
+    setCurrentOverallAcPsf(calculateOverallAverageAcPsf(data, pricingConfig));
     setIsOptimized(!!pricingConfig.isOptimized);
   }, [data, pricingConfig]);
   
   // Calculate average PSF per bedroom type using finalPsf only
-  const calculateBedroomTypesAvgPsf = (config: any) => {
+  const calculateBedroomTypesAvgPsf = (config: any, psfType: "sellArea" | "acArea" = "sellArea") => {
     // Group data by bedroom type
     const typeGroups: Record<string, any[]> = {};
     data.forEach((unit: any) => {
@@ -51,7 +54,12 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       
       // Loop through units and calculate finalPsf using the PricingSimulator logic
       unitsOfType.forEach((unit: any) => {
-        const area = parseFloat(unit.sellArea) || 0;
+        const sellArea = parseFloat(unit.sellArea) || 0;
+        const acArea = parseFloat(unit.acArea) || 0;
+        const area = psfType === "sellArea" ? sellArea : acArea;
+        
+        if (area <= 0) return; // Skip units with invalid area
+        
         totalArea += area;
         
         const floorNum = parseInt(unit.floor) || 0;
@@ -87,16 +95,16 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         // Compute unit's base PSF (before rounding)
         const unitBasePsf = typeConfig.basePsf + floorPremium + viewPremium + additionalCategoryAdjustment;
         // Calculate total price for the unit
-        const totalPrice = unitBasePsf * area;
+        const totalPrice = unitBasePsf * sellArea; // Always use sellArea for total price
         // Apply ceiling to total price to mimic final pricing
         const finalPrice = Math.ceil(totalPrice / 1000) * 1000;
-        // Calculate final PSF based on ceiled price
-        const finalPsf = area > 0 ? finalPrice / area : 0;
+        // Calculate final PSF based on ceiled price and the selected area type
+        const finalPsf = finalPrice / area;
         psfs.push(finalPsf);
       });
       
-      const avgPsf = psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length;
-      const avgSize = totalArea / unitsOfType.length;
+      const avgPsf = psfs.length > 0 ? psfs.reduce((sum, psf) => sum + psf, 0) / psfs.length : 0;
+      const avgSize = unitsOfType.length > 0 ? totalArea / unitsOfType.length : 0;
       
       bedroomAvgData[typeConfig.type] = { 
         avgPsf,
@@ -108,7 +116,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
     return bedroomAvgData;
   };
   
-  const runMegaOptimization = async (selectedTypes: string[] = []) => {
+  const runMegaOptimization = async (selectedTypes: string[] = [], psfType: "sellArea" | "acArea" = "sellArea") => {
     if (selectedTypes.length === 0) {
       toast.warning("Please select at least one bedroom type to optimize");
       return;
@@ -128,7 +136,8 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       
       const configWithProcessedRules = {
         ...pricingConfig,
-        floorRiseRules: processedFloorRules
+        floorRiseRules: processedFloorRules,
+        optimizePsfType: psfType
       };
       
       let result;
@@ -136,7 +145,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       
       if (optimizationMode === "basePsf") {
         // Run standard bedroom PSF optimization – only for selected bedroom types
-        result = megaOptimizePsf(data, configWithProcessedRules, targetPsf, selectedTypes);
+        result = megaOptimizePsf(data, configWithProcessedRules, targetPsf, selectedTypes, psfType);
         
         optimizedConfig = {
           ...pricingConfig,
@@ -160,11 +169,12 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
           targetOverallPsf: targetPsf,
           isOptimized: true,
           optimizationMode: "basePsf",
-          optimizedTypes: selectedTypes
+          optimizedTypes: selectedTypes,
+          optimizePsfType: psfType
         };
       } else {
         // Run full optimization including floor, view, and additional category adjustments
-        result = fullOptimizePsf(data, configWithProcessedRules, targetPsf, selectedTypes);
+        result = fullOptimizePsf(data, configWithProcessedRules, targetPsf, selectedTypes, psfType);
         
         optimizedConfig = {
           ...pricingConfig,
@@ -214,12 +224,13 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
           targetOverallPsf: targetPsf,
           isOptimized: true,
           optimizationMode: "allParams",
-          optimizedTypes: selectedTypes
+          optimizedTypes: selectedTypes,
+          optimizePsfType: psfType
         };
       }
       
       // Recalculate bedroom type averages using finalPsf only (consistent with PricingSimulator)
-      const avgDataByType = calculateBedroomTypesAvgPsf(optimizedConfig);
+      const avgDataByType = calculateBedroomTypesAvgPsf(optimizedConfig, psfType);
       
       optimizedConfig.bedroomTypePricing = optimizedConfig.bedroomTypePricing.map((type: any) => {
         const typeData = avgDataByType[type.type] || { avgPsf: 0, avgSize: 0, unitCount: 0 };
@@ -234,10 +245,12 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       // Update overall pricing values and UI
       onOptimized(optimizedConfig);
       setCurrentOverallPsf(calculateOverallAveragePsf(data, optimizedConfig));
+      setCurrentOverallAcPsf(calculateOverallAverageAcPsf(data, optimizedConfig));
       setIsOptimized(true);
       
+      const psfTypeLabel = psfType === "sellArea" ? "SA" : "AC";
       toast.success(`Optimization complete for ${selectedTypes.length} bedroom type(s)`, {
-        description: `Optimized to target PSF of ${targetPsf.toFixed(2)}`
+        description: `Optimized to target ${psfTypeLabel} PSF of ${targetPsf.toFixed(2)}`
       });
     } catch (error) {
       console.error("Optimization error:", error);
@@ -276,7 +289,8 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         pricingConfig.additionalCategoryPricing,
       floorRiseRules: pricingConfig.originalFloorRiseRules || pricingConfig.floorRiseRules,
       isOptimized: false,
-      optimizedTypes: []
+      optimizedTypes: [],
+      optimizePsfType: undefined
     };
     
     // Recalculate averages based on finalPsf only
@@ -294,6 +308,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
     
     onOptimized(revertedConfig);
     setCurrentOverallPsf(calculateOverallAveragePsf(data, revertedConfig));
+    setCurrentOverallAcPsf(calculateOverallAverageAcPsf(data, revertedConfig));
     setIsOptimized(false);
     
     toast.success("Optimization reverted", {
@@ -311,6 +326,7 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
     targetPsf,
     optimizationMode,
     currentOverallPsf,
+    currentOverallAcPsf,
     setOptimizationMode,
     handleTargetPsfChange,
     runMegaOptimization,
