@@ -133,11 +133,11 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         });
         
         // If there's a reasonable number of unique values, it might be categorical
-        if (uniqueValues.size > 1 && uniqueValues.size <= 15) {
+        if (uniqueValues.size > 1 && uniqueValues.size <= 20) { // Increased limit to 20
           potentialCategories.push({
             column,
             categories: Array.from(uniqueValues).sort(),
-            selectedCategories: []
+            selectedCategories: [] // Initially empty, user will select which to use
           });
         }
       }
@@ -168,6 +168,21 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
           [...updated[columnIndex].selectedCategories, category];
       }
       
+      return updated;
+    });
+  };
+
+  // Toggle selection of all categories in a column
+  const toggleAllCategoriesInColumn = (columnIndex: number, select: boolean) => {
+    setAdditionalCategories(prev => {
+      const updated = [...prev];
+      if (select) {
+        // Select all categories
+        updated[columnIndex].selectedCategories = [...updated[columnIndex].categories];
+      } else {
+        // Deselect all categories
+        updated[columnIndex].selectedCategories = [];
+      }
       return updated;
     });
   };
@@ -452,18 +467,39 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
             </div>
             
             {additionalCategories.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium mb-3">Additional Categories Detected</h3>
-                <Alert className="mb-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    We've detected additional categorical data in your CSV. Select any categories you'd like to include in pricing calculations.
+              <div className="mt-8">
+                <h3 className="text-lg font-medium mb-3 text-indigo-800">Additional Pricing Factors</h3>
+                <Alert className="mb-4 bg-indigo-50 border-indigo-200">
+                  <AlertTriangle className="h-4 w-4 text-indigo-600" />
+                  <AlertDescription className="text-indigo-700">
+                    We've detected additional columns in your data that can be used for pricing adjustments. 
+                    Select the categories you'd like to include in PSF calculations.
                   </AlertDescription>
                 </Alert>
                 
                 {additionalCategories.map((cat, catIndex) => (
-                  <div key={cat.column} className="mb-6">
-                    <h4 className="text-sm font-medium mb-2">{cat.column}</h4>
+                  <div key={cat.column} className="mb-8 border rounded-lg p-4 bg-white">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-md font-medium text-indigo-700">{cat.column}</h4>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-xs h-7 px-2 border-indigo-200 hover:bg-indigo-50"
+                          onClick={() => toggleAllCategoriesInColumn(catIndex, true)}
+                        >
+                          Select All
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-xs h-7 px-2 border-indigo-200 hover:bg-indigo-50"
+                          onClick={() => toggleAllCategoriesInColumn(catIndex, false)}
+                        >
+                          Clear All
+                        </Button>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                       {cat.categories.map((category) => {
                         const isSelected = cat.selectedCategories.includes(category);
@@ -472,7 +508,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                             key={category} 
                             className={`p-2 rounded border cursor-pointer flex items-center ${
                               isSelected 
-                                ? 'bg-primary/10 border-primary/30' 
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-800' 
                                 : 'bg-background border-input'
                             }`}
                             onClick={() => toggleAdditionalCategory(catIndex, category)}
@@ -481,12 +517,15 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleAdditionalCategory(catIndex, category)}
-                              className="mr-2"
+                              className="mr-2 text-indigo-600"
                             />
                             <span className="text-sm truncate">{category}</span>
                           </div>
                         );
                       })}
+                    </div>
+                    <div className="mt-2 text-xs text-indigo-600">
+                      {cat.selectedCategories.length} of {cat.categories.length} categories selected
                     </div>
                   </div>
                 ))}
@@ -495,7 +534,10 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
           </div>
         </CardContent>
         <CardFooter className="flex justify-end">
-          <Button onClick={handleSubmit} className="w-full sm:w-auto">
+          <Button 
+            onClick={handleSubmit} 
+            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
             Confirm Mapping and Continue
           </Button>
         </CardFooter>
