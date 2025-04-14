@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { MapPin, AlertTriangle, ArrowLeft, CheckCircle2, PanelRight, Database } from "lucide-react";
+import { MapPin, AlertTriangle, ArrowLeft, CheckCircle2, PanelRight, Database, XCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -77,7 +77,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   useEffect(() => {
     if (!data.length) return;
     
-    const mappedColumns = new Set(Object.values(mapping));
+    const mappedColumns = new Set(Object.values(mapping).filter(val => val !== "not_available"));
     const unmappedColumns = headers.filter(header => !mappedColumns.has(header));
     
     const potentialCategories: AdditionalCategory[] = [];
@@ -128,7 +128,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
 
   // Update available headers whenever mappings change
   useEffect(() => {
-    const mappedColumns = new Set(Object.values(mapping));
+    const mappedColumns = new Set(Object.values(mapping).filter(val => val !== "not_available"));
     setAvailableHeaders(headers.filter(header => !mappedColumns.has(header)));
   }, [headers, mapping]);
 
@@ -293,7 +293,11 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       const preview: Record<string, any> = {};
       
       Object.entries(mapping).forEach(([fieldId, headerName]) => {
-        preview[fieldId] = data[0][headerName];
+        if (headerName !== "not_available") {
+          preview[fieldId] = data[0][headerName];
+        } else {
+          preview[fieldId] = getDefaultValue(fieldId);
+        }
       });
       
       setPreviewData(preview);
@@ -313,16 +317,18 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       if (!headerName) {
         delete newMapping[fieldId];
       } else {
-        // Check if this header is already mapped to another field
-        const existingField = Object.entries(newMapping).find(
-          ([id, header]) => id !== fieldId && header === headerName
-        );
-        
-        if (existingField) {
-          toast.warning(`Column "${headerName}" is already mapped to ${existingField[0]}`, {
-            description: "We've removed the previous mapping",
-          });
-          delete newMapping[existingField[0]];
+        // Check if this header is already mapped to another field (skip for "not_available")
+        if (headerName !== "not_available") {
+          const existingField = Object.entries(newMapping).find(
+            ([id, header]) => id !== fieldId && header === headerName
+          );
+          
+          if (existingField) {
+            toast.warning(`Column "${headerName}" is already mapped to ${existingField[0]}`, {
+              description: "We've removed the previous mapping",
+            });
+            delete newMapping[existingField[0]];
+          }
         }
         
         // Add the new mapping
@@ -369,7 +375,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
 
     Object.entries(mapping).forEach(([fieldId, headerName]) => {
       const field = allFields.find(f => f.id === fieldId);
-      if (field) {
+      if (field && headerName !== "not_available") {
         const blankCount = data.filter(row => 
           !row[headerName] || row[headerName].toString().trim() === ""
         ).length;
@@ -412,12 +418,18 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
 
       allFields.forEach(field => {
         if (mapping[field.id]) {
-          let value = row[mapping[field.id]];
+          let value;
+          
+          if (mapping[field.id] === "not_available") {
+            value = getDefaultValue(field.id);
+          } else {
+            value = row[mapping[field.id]];
 
-          if (field.id === "floor") {
-            value = parseFloorValue(value);
-          } else if (["sellArea", "acArea", "balcony"].includes(field.id)) {
-            value = parseNumericValue(value, 0);
+            if (field.id === "floor") {
+              value = parseFloorValue(value);
+            } else if (["sellArea", "acArea", "balcony"].includes(field.id)) {
+              value = parseNumericValue(value, 0);
+            }
           }
 
           transformedRow[field.id] = value !== undefined && value !== null && value !== "" 
@@ -518,6 +530,14 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
 
   const renderColumnPreview = (fieldId: string) => {
     if (!mapping[fieldId] || !data.length) return null;
+    
+    if (mapping[fieldId] === "not_available") {
+      return (
+        <div className="text-xs text-muted-foreground mt-1 bg-gray-100 p-1 rounded overflow-hidden text-ellipsis max-w-xs animate-fade-in">
+          Using default: <span className="font-mono">{getDefaultValue(fieldId)}</span>
+        </div>
+      );
+    }
 
     return (
       <div className="text-xs text-muted-foreground mt-1 bg-muted p-1 rounded overflow-hidden text-ellipsis max-w-xs animate-fade-in">
@@ -543,7 +563,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     
     // If this field already has a mapping, include that header in the options
     const currentMapping = mapping[fieldId];
-    if (currentMapping && !selectableHeaders.includes(currentMapping)) {
+    if (currentMapping && currentMapping !== "not_available" && !selectableHeaders.includes(currentMapping)) {
       selectableHeaders.push(currentMapping);
     }
     
@@ -566,7 +586,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
           </CardTitle>
           <CardDescription>
             Match each property attribute to the corresponding column in your CSV file.
-            Unmapped fields will use default values.
+            Select "Not Available" for fields you don't have data for.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -598,6 +618,12 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                         <SelectValue placeholder="Select a column" />
                       </SelectTrigger>
                       <SelectContent className="max-h-60">
+                        <SelectItem value="not_available" className="text-red-500 font-medium">
+                          <div className="flex items-center">
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Not Available (use default)
+                          </div>
+                        </SelectItem>
                         {getSelectableHeaders(field.id).map((header) => (
                           <SelectItem key={header} value={header}>
                             {header}
@@ -629,6 +655,12 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                         <SelectValue placeholder="Select a column" />
                       </SelectTrigger>
                       <SelectContent className="max-h-60">
+                        <SelectItem value="not_available" className="text-red-500 font-medium">
+                          <div className="flex items-center">
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Not Available (use default)
+                          </div>
+                        </SelectItem>
                         {getSelectableHeaders(field.id).map((header) => (
                           <SelectItem key={header} value={header}>
                             {header}
