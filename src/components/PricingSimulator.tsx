@@ -36,6 +36,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import * as XLSX from 'xlsx';
+import PricingSummary from "./PricingSummary";
 
 interface PricingSimulatorProps {
   data: any[];
@@ -94,6 +96,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   const [selectedViews, setSelectedViews] = useState<string[]>([]);
   const [selectedFloors, setSelectedFloors] = useState<string[]>([]);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
+  const [additionalColumnValues, setAdditionalColumnValues] = useState<Record<string, string[]>>({});
   
   // Column visibility
   const defaultVisibleColumns = [
@@ -122,6 +125,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "isOptimized", label: "Optimized", required: true },
   ];
 
+  // Additional category filters
+  const [selectedAdditionalFilters, setSelectedAdditionalFilters] = useState<Record<string, string[]>>({});
+
   useEffect(() => {
     if (pricingConfig?.optimizedTypes?.length && selectedTypes.length === 0) {
       const optimizedTypes = pricingConfig.optimizedTypes;
@@ -138,15 +144,40 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     // Detect additional category columns
     if (pricingConfig.additionalCategoryPricing && pricingConfig.additionalCategoryPricing.length > 0) {
       const columnsSet = new Set<string>();
+      const columnValuesMap: Record<string, Set<string>> = {};
       
       pricingConfig.additionalCategoryPricing.forEach((item: any) => {
         if (typeof item.column === 'string') {
           columnsSet.add(item.column);
+          
+          // Initialize set for column values if it doesn't exist
+          if (!columnValuesMap[item.column]) {
+            columnValuesMap[item.column] = new Set<string>();
+          }
+          
+          // Add the category value
+          if (item.category) {
+            columnValuesMap[item.column].add(item.category);
+          }
         }
       });
       
       const columns = Array.from(columnsSet) as string[];
       setAdditionalColumns(columns);
+      
+      // Convert sets to arrays
+      const valuesMap: Record<string, string[]> = {};
+      Object.entries(columnValuesMap).forEach(([col, valuesSet]) => {
+        valuesMap[col] = Array.from(valuesSet);
+      });
+      setAdditionalColumnValues(valuesMap);
+      
+      // Initialize filters for additional columns
+      const initialFilters: Record<string, string[]> = {};
+      columns.forEach(col => {
+        initialFilters[col] = [];
+      });
+      setSelectedAdditionalFilters(initialFilters);
     }
 
     const calculatedUnits = data.map((unit) => {
@@ -286,6 +317,16 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       result = result.filter((unit) => selectedFloors.includes(unit.floor));
     }
     
+    // Apply additional category filters
+    Object.entries(selectedAdditionalFilters).forEach(([column, selectedValues]) => {
+      if (selectedValues.length > 0) {
+        const columnKey = `${column}_value`;
+        result = result.filter(unit => 
+          selectedValues.includes(unit[columnKey])
+        );
+      }
+    });
+    
     if (sortConfig) {
       result.sort((a, b) => {
         if (sortConfig.key === 'floor') {
@@ -303,12 +344,20 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       });
     }
     setFilteredUnits(result);
-  }, [units, selectedTypes, selectedViews, selectedFloors, sortConfig]);
+  }, [units, selectedTypes, selectedViews, selectedFloors, selectedAdditionalFilters, sortConfig]);
 
   const resetFilters = () => {
     setSelectedTypes([]);
     setSelectedViews([]);
     setSelectedFloors([]);
+    
+    // Reset additional category filters
+    const resetAdditionalFilters: Record<string, string[]> = {};
+    additionalColumns.forEach(col => {
+      resetAdditionalFilters[col] = [];
+    });
+    setSelectedAdditionalFilters(resetAdditionalFilters);
+    
     toast.success("Filters have been reset");
   };
 
@@ -330,6 +379,17 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     if (fieldName === 'floor') {
       return Array.from(values).sort((a, b) => parseInt(a) - parseInt(b));
     }
+    return Array.from(values).sort();
+  };
+
+  const getUniqueAdditionalValues = (column: string): string[] => {
+    const values = new Set<string>();
+    units.forEach((unit) => {
+      const columnKey = `${column}_value`;
+      if (unit[columnKey]) {
+        values.add(unit[columnKey]);
+      }
+    });
     return Array.from(values).sort();
   };
 
@@ -364,23 +424,41 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       return;
     }
     
-    // Only include visible columns
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Only include visible columns for Units sheet
     const allColumnDefs = [
       ...allColumns,
-      ...additionalColumns.map(col => ({ id: col, label: `${col} Premium`, required: false }))
+      ...additionalColumns.map(col => ({ id: col, label: `${col}`, required: false })),
+      ...additionalColumns.map(col => ({ id: `${col}_premium`, label: `${col} Premium`, required: false }))
     ];
     
     const visibleColumnDefs = allColumnDefs.filter(col => 
       visibleColumns.includes(col.id) || 
-      (additionalColumns.includes(col.id) && visibleColumns.includes(`additional_${col.id}`))
+      (additionalColumns.includes(col.id) && visibleColumns.includes(col.id)) ||
+      (col.id.endsWith('_premium') && visibleColumns.includes(col.id))
     );
     
     // Build headers from visible columns
     const headers = visibleColumnDefs.map(col => col.label);
     
-    // Create each row of data
+    // Create each row of data for Units sheet
     const rows = filteredUnits.map((unit) => {
       return visibleColumnDefs.map(col => {
+        // Handle additional column premium values
+        if (col.id.endsWith('_premium')) {
+          const columnName = col.id.replace('_premium', '');
+          const columnKey = `${columnName}: ${unit[`${columnName}_value`]}`;
+          const premium = unit.additionalCategoryPriceComponents?.[columnKey] || 0;
+          return premium;
+        }
+        
+        // Handle additional column values
+        if (additionalColumns.includes(col.id)) {
+          return unit[`${col.id}_value`] || '';
+        }
+        
         const value = unit[col.id];
         
         // Format based on column type
@@ -400,17 +478,134 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       });
     });
     
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers, ...rows].map((row) => row.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "pricing_simulation.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("CSV file downloaded successfully");
+    // Create Units sheet
+    const unitsWs = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    XLSX.utils.book_append_sheet(wb, unitsWs, "Units");
+    
+    // Create Pricing Summary sheet
+    const summaryHeaders = [
+      "Type", "Units", "Avg Size", "Total Value", 
+      "Min SA PSF", "Avg SA PSF", "Max SA PSF",
+      "Min AC PSF", "Avg AC PSF", "Max AC PSF"
+    ];
+    
+    // Group by bedroom type for summary
+    const typeGroups: Record<string, any[]> = {};
+    filteredUnits.forEach((item) => {
+      const type = item.type || "Unknown";
+      if (!typeGroups[type]) {
+        typeGroups[type] = [];
+      }
+      typeGroups[type].push(item);
+    });
+    
+    // Calculate metrics for each type
+    const summaryRows = Object.keys(typeGroups).map((type) => {
+      const items = typeGroups[type];
+      
+      // Filter out items with missing essential data
+      const validItems = items.filter(item => {
+        const hasValidSellArea = parseFloat(item.sellArea) > 0;
+        const hasValidPrice = typeof item.finalTotalPrice === 'number' && item.finalTotalPrice > 0;
+        return hasValidSellArea && hasValidPrice;
+      });
+      
+      if (validItems.length === 0) {
+        return [type, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      }
+      
+      // Calculate metrics
+      const unitCount = validItems.length;
+      const totalArea = validItems.reduce((sum, item) => sum + parseFloat(item.sellArea || 0), 0);
+      const avgSize = totalArea / unitCount;
+      const totalValue = validItems.reduce((sum, item) => sum + (item.finalTotalPrice || 0), 0);
+      
+      // SA PSF
+      const psfs = validItems.map(item => item.finalPsf || (item.finalTotalPrice / parseFloat(item.sellArea || 1)));
+      const avgPsf = psfs.reduce((sum, psf) => sum + psf, 0) / unitCount;
+      const minPsf = Math.min(...psfs);
+      const maxPsf = Math.max(...psfs);
+      
+      // AC PSF
+      const validItemsWithAcArea = validItems.filter(item => parseFloat(item.acArea) > 0);
+      let avgAcPsf = 0, minAcPsf = 0, maxAcPsf = 0;
+      
+      if (validItemsWithAcArea.length > 0) {
+        const acPsfs = validItemsWithAcArea.map(item => item.finalAcPsf || (item.finalTotalPrice / parseFloat(item.acArea || 1)));
+        avgAcPsf = acPsfs.reduce((sum, psf) => sum + psf, 0) / validItemsWithAcArea.length;
+        minAcPsf = Math.min(...acPsfs);
+        maxAcPsf = Math.max(...acPsfs);
+      }
+      
+      return [
+        type, 
+        unitCount, 
+        avgSize.toFixed(2), 
+        totalValue,
+        minPsf.toFixed(2),
+        avgPsf.toFixed(2),
+        maxPsf.toFixed(2),
+        minAcPsf.toFixed(2),
+        avgAcPsf.toFixed(2),
+        maxAcPsf.toFixed(2)
+      ];
+    });
+    
+    // Add total row
+    const allValidItems = filteredUnits.filter(item => {
+      const hasValidSellArea = parseFloat(item.sellArea) > 0;
+      const hasValidPrice = typeof item.finalTotalPrice === 'number' && item.finalTotalPrice > 0;
+      return hasValidSellArea && hasValidPrice;
+    });
+    
+    if (allValidItems.length > 0) {
+      const totalUnitCount = allValidItems.length;
+      const totalSellArea = allValidItems.reduce((sum, item) => sum + parseFloat(item.sellArea || 0), 0);
+      const avgSize = totalSellArea / totalUnitCount;
+      const totalValue = allValidItems.reduce((sum, item) => sum + (item.finalTotalPrice || 0), 0);
+      
+      // Overall average PSF based on total value divided by total area
+      const overallAvgPsf = totalValue / totalSellArea;
+      
+      // Min and max PSF across all units
+      const allPsfs = allValidItems.map(item => item.finalPsf || (item.finalTotalPrice / parseFloat(item.sellArea || 1)));
+      const minPsf = Math.min(...allPsfs);
+      const maxPsf = Math.max(...allPsfs);
+      
+      // AC PSF calculations for all units
+      const validItemsWithAcArea = allValidItems.filter(item => parseFloat(item.acArea) > 0);
+      let overallAvgAcPsf = 0, minAcPsf = 0, maxAcPsf = 0;
+      
+      if (validItemsWithAcArea.length > 0) {
+        const totalAcArea = validItemsWithAcArea.reduce((sum, item) => sum + parseFloat(item.acArea || 0), 0);
+        const acPsfs = validItemsWithAcArea.map(item => item.finalAcPsf || (item.finalTotalPrice / parseFloat(item.acArea || 1)));
+        
+        overallAvgAcPsf = totalValue / totalAcArea;
+        minAcPsf = Math.min(...acPsfs);
+        maxAcPsf = Math.max(...acPsfs);
+      }
+      
+      summaryRows.push([
+        "TOTAL",
+        totalUnitCount,
+        avgSize.toFixed(2),
+        totalValue,
+        minPsf.toFixed(2),
+        overallAvgPsf.toFixed(2),
+        maxPsf.toFixed(2),
+        minAcPsf.toFixed(2),
+        overallAvgAcPsf.toFixed(2),
+        maxAcPsf.toFixed(2)
+      ]);
+    }
+    
+    // Create Summary sheet
+    const summaryWs = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryRows]);
+    XLSX.utils.book_append_sheet(wb, summaryWs, "Pricing Summary");
+    
+    // Export to Excel file
+    XLSX.writeFile(wb, "pricing_simulation.xlsx");
+    toast.success("Excel file with Units and Summary downloaded successfully");
   };
 
   // Get unique bedroom types, views, and floors for filters
@@ -422,7 +617,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   const activeFiltersCount = 
     (selectedTypes.length > 0 ? 1 : 0) +
     (selectedViews.length > 0 ? 1 : 0) +
-    (selectedFloors.length > 0 ? 1 : 0);
+    (selectedFloors.length > 0 ? 1 : 0) +
+    Object.values(selectedAdditionalFilters).reduce((count, values) => count + (values.length > 0 ? 1 : 0), 0);
 
   return (
     <Card className="w-full mb-6">
@@ -496,15 +692,29 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                       {column.label}
                     </DropdownMenuCheckboxItem>
                   ))}
+                  
+                  {/* Add additional pricing factor columns */}
                   {additionalColumns.map(column => (
                     <DropdownMenuCheckboxItem
                       key={column}
                       checked={visibleColumns.includes(column)}
                       onCheckedChange={() => toggleColumnVisibility(column)}
                     >
+                      {column}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  
+                  {/* Add additional pricing factor premium columns */}
+                  {additionalColumns.map(column => (
+                    <DropdownMenuCheckboxItem
+                      key={`${column}_premium`}
+                      checked={visibleColumns.includes(`${column}_premium`)}
+                      onCheckedChange={() => toggleColumnVisibility(`${column}_premium`)}
+                    >
                       {column} Premium
                     </DropdownMenuCheckboxItem>
                   ))}
+                  
                   <DropdownMenuSeparator />
                   <div className="px-2 py-1.5">
                     <Button
@@ -531,6 +741,28 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </div>
           </div>
         </div>
+        
+        {/* Additional category filters section */}
+        {additionalColumns.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
+            {additionalColumns.map(column => (
+              <div className="md:col-span-3" key={column}>
+                <BedroomTypeSelector
+                  bedroomTypes={getUniqueAdditionalValues(column)}
+                  selectedTypes={selectedAdditionalFilters[column] || []}
+                  setSelectedTypes={(selected) => {
+                    setSelectedAdditionalFilters(prev => ({
+                      ...prev,
+                      [column]: selected
+                    }));
+                  }}
+                  label={`Filter by ${column}`}
+                  placeholder={`Select ${column}...`}
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         <FixedHeaderTable maxHeight="650px" className="scrollbar-always-visible">
           <Table>
@@ -572,6 +804,18 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                 {visibleColumns.includes("view") && (
                   <TableHead className="whitespace-nowrap">View</TableHead>
                 )}
+                
+                {/* Additional category columns */}
+                {additionalColumns.map(column => (
+                  visibleColumns.includes(column) && (
+                    <TableHead
+                      key={column}
+                      className="whitespace-nowrap"
+                    >
+                      {column}
+                    </TableHead>
+                  )
+                ))}
                 
                 {visibleColumns.includes("sellArea") && (
                   <TableHead
@@ -650,11 +894,11 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </TableHead>
                 )}
                 
-                {/* Additional category columns */}
+                {/* Additional category premium columns */}
                 {additionalColumns.map(column => (
-                  visibleColumns.includes(column) && (
+                  visibleColumns.includes(`${column}_premium`) && (
                     <TableHead
-                      key={column}
+                      key={`${column}_premium`}
                       className="cursor-pointer whitespace-nowrap"
                       onClick={() => handleSort("additionalCategoryAdjustment")}
                     >
@@ -715,6 +959,15 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                     {visibleColumns.includes("floor") && <TableCell>{unit.floor}</TableCell>}
                     {visibleColumns.includes("view") && <TableCell>{unit.view}</TableCell>}
                     
+                    {/* Additional category columns */}
+                    {additionalColumns.map(column => (
+                      visibleColumns.includes(column) && (
+                        <TableCell key={column}>
+                          {unit[`${column}_value`] || "-"}
+                        </TableCell>
+                      )
+                    ))}
+                    
                     {visibleColumns.includes("sellArea") && (
                       <TableCell className="text-right">
                         {parseFloat(unit.sellArea).toFixed(2)}
@@ -757,12 +1010,12 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                       </TableCell>
                     )}
                     
-                    {/* Additional category columns */}
+                    {/* Additional category premium columns */}
                     {additionalColumns.map(column => (
-                      visibleColumns.includes(column) && (
-                        <TableCell key={column} className="text-right">
+                      visibleColumns.includes(`${column}_premium`) && (
+                        <TableCell key={`${column}_premium`} className="text-right">
                           {(unit.additionalCategoryPriceComponents && 
-                           unit.additionalCategoryPriceComponents[`${column}: ${unit[`${column}_value`]}`]) || 
+                           unit.additionalCategoryPriceComponents[`${column}: ${unit[`${column}_value`]}`])?.toFixed(2) || 
                            "0.00"}
                         </TableCell>
                       )
@@ -808,6 +1061,15 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             </TableBody>
           </Table>
         </FixedHeaderTable>
+        
+        {/* Pricing Summary Component */}
+        <div className="mt-8">
+          <PricingSummary 
+            data={filteredUnits} 
+            showDollarSign={true} 
+            showAcPsf={true}
+          />
+        </div>
       </CardContent>
     </Card>
   );
