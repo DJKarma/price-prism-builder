@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import FloorPsfChart from '@/components/FloorPsfChart';
 import PremiumEditor from '@/components/PremiumEditor';
-import { Download, Save, LineChart, Sliders, BarChart3 } from 'lucide-react';
+import { Download, LineChart, Sliders, BarChart3 } from 'lucide-react';
 import { PricingConfig } from '@/components/PricingConfiguration';
 import PricingSummary from '@/components/PricingSummary';
 import { simulatePricing } from '@/utils/psfOptimizer';
@@ -44,17 +44,30 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     setSimulatedData(simulatedUnits);
     
     // Convert summary to array for export
-    const summaryArray = Object.entries(summaryByType).map(([type, stats]) => ({
-      Type: type,
-      Count: stats.count,
-      'Min PSF': stats.minPsf.toFixed(2),
-      'Max PSF': stats.maxPsf.toFixed(2),
-      'Avg PSF': stats.avgPsf.toFixed(2),
-      'Min Price': stats.minPrice.toLocaleString(),
-      'Max Price': stats.maxPrice.toLocaleString(),
-      'Avg Price': stats.avgPrice.toLocaleString(),
-      'Total Sales': stats.totalSales.toLocaleString()
-    }));
+    const summaryArray = Object.entries(summaryByType).map(([type, stats]) => {
+      const typedStats = stats as {
+        count: number;
+        minPsf: number;
+        maxPsf: number;
+        avgPsf: number;
+        minPrice: number;
+        maxPrice: number;
+        avgPrice: number;
+        totalSales: number;
+      };
+      
+      return {
+        Type: type,
+        Count: typedStats.count,
+        'Min PSF': typedStats.minPsf.toFixed(2),
+        'Max PSF': typedStats.maxPsf.toFixed(2),
+        'Avg PSF': typedStats.avgPsf.toFixed(2),
+        'Min Price': typedStats.minPrice.toLocaleString(),
+        'Max Price': typedStats.maxPrice.toLocaleString(),
+        'Avg Price': typedStats.avgPrice.toLocaleString(),
+        'Total Sales': typedStats.totalSales.toLocaleString()
+      };
+    });
     
     setSummaryData(summaryArray);
   };

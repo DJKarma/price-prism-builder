@@ -605,3 +605,130 @@ export const calculateFloorPremium = (
   
   return cumulativePremium;
 };
+
+/**
+ * Simulate pricing for all units based on pricing configuration
+ */
+export const simulatePricing = (
+  data: any[],
+  pricingConfig: any
+): { simulatedUnits: any[], summaryByType: Record<string, any> } => {
+  if (!data.length || !pricingConfig) {
+    return { simulatedUnits: [], summaryByType: {} };
+  }
+  
+  const { bedroomTypePricing, viewPricing, floorRiseRules, additionalCategoryPricing } = pricingConfig;
+  
+  // Create a copy of the data to avoid modifying the original
+  const simulatedUnits = data.map(unit => {
+    const unitCopy = { ...unit };
+    
+    // Get bedroom type configuration
+    const bedroomType = bedroomTypePricing.find(
+      (b: any) => b.type === unit.type
+    );
+    
+    // Get view premium
+    const viewAdjustment = viewPricing.find(
+      (v: any) => v.view === unit.view
+    );
+    
+    // Calculate base PSF with adjustments
+    const basePsf = bedroomType?.basePsf || pricingConfig.basePsf;
+    const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
+    
+    // Calculate floor premium using the existing function
+    const floorLevel = parseInt(unit.floor) || 1;
+    const floorAdjustment = calculateFloorPremium(floorLevel, floorRiseRules);
+    
+    // Add additional category adjustments if they exist
+    let additionalAdjustment = 0;
+    if (additionalCategoryPricing) {
+      additionalCategoryPricing.forEach((cat: any) => {
+        if (unit[`${cat.column}_value`] === cat.category) {
+          additionalAdjustment += cat.psfAdjustment;
+        }
+      });
+    }
+    
+    const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
+    
+    const sellArea = parseFloat(unit.sellArea) || 0;
+    const acArea = parseFloat(unit.acArea) || 0;
+    
+    if (sellArea > 0) {
+      const totalPrice = basePsfWithAdjustments * sellArea;
+      const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
+      const finalPsf = finalTotalPrice / sellArea;
+      const finalAcPsf = acArea > 0 ? finalTotalPrice / acArea : 0;
+      
+      // Add calculated values to the unit
+      unitCopy.basePsf = basePsf;
+      unitCopy.floorPremium = floorAdjustment;
+      unitCopy.viewPremium = viewPsfAdjustment;
+      unitCopy.adjustmentPremium = additionalAdjustment;
+      unitCopy.totalPsf = basePsfWithAdjustments;
+      unitCopy.finalTotalPrice = finalTotalPrice;
+      unitCopy.finalPsf = finalPsf;
+      unitCopy.finalAcPsf = finalAcPsf;
+    }
+    
+    return unitCopy;
+  });
+  
+  // Calculate summary statistics by type
+  const summaryByType: Record<string, any> = {};
+  
+  simulatedUnits.forEach(unit => {
+    const type = unit.type;
+    if (!type) return;
+    
+    if (!summaryByType[type]) {
+      summaryByType[type] = {
+        count: 0,
+        minPsf: Infinity,
+        maxPsf: -Infinity,
+        totalPsf: 0,
+        avgPsf: 0,
+        minPrice: Infinity,
+        maxPrice: -Infinity,
+        totalPrice: 0,
+        avgPrice: 0,
+        totalSales: 0
+      };
+    }
+    
+    const summary = summaryByType[type];
+    const finalPsf = unit.finalPsf || 0;
+    const finalPrice = unit.finalTotalPrice || 0;
+    
+    if (finalPsf > 0 && finalPrice > 0) {
+      summary.count += 1;
+      summary.minPsf = Math.min(summary.minPsf, finalPsf);
+      summary.maxPsf = Math.max(summary.maxPsf, finalPsf);
+      summary.totalPsf += finalPsf;
+      
+      summary.minPrice = Math.min(summary.minPrice, finalPrice);
+      summary.maxPrice = Math.max(summary.maxPrice, finalPrice);
+      summary.totalPrice += finalPrice;
+      
+      summary.totalSales += finalPrice;
+    }
+  });
+  
+  // Calculate averages
+  Object.values(summaryByType).forEach(summary => {
+    if (summary.count > 0) {
+      summary.avgPsf = summary.totalPsf / summary.count;
+      summary.avgPrice = summary.totalPrice / summary.count;
+    }
+    
+    // Clean up infinity values if no valid units were found
+    if (summary.minPsf === Infinity) summary.minPsf = 0;
+    if (summary.maxPsf === -Infinity) summary.maxPsf = 0;
+    if (summary.minPrice === Infinity) summary.minPrice = 0;
+    if (summary.maxPrice === -Infinity) summary.maxPrice = 0;
+  });
+  
+  return { simulatedUnits, summaryByType };
+};

@@ -6,6 +6,7 @@ import ColumnMapper from "@/components/ColumnMapper";
 import PricingConfiguration, { PricingConfig } from "@/components/PricingConfiguration";
 import PricingSimulator from "@/components/PricingSimulator";
 import MegaOptimize from "@/components/MegaOptimize";
+import ConfigImporter from "@/components/ConfigImporter";
 import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Upload, FileSpreadsheet, Settings, LineChart, ArrowRight, PieChart } from "lucide-react";
