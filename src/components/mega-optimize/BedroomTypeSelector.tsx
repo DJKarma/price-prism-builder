@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { X, Check } from "lucide-react";
+import { X, Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -89,13 +89,13 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
             {safeSelectedTypes.length > 0
               ? `${safeSelectedTypes.length} ${safeSelectedTypes.length === 1 ? "type" : "types"} selected`
               : placeholder}
-            <span className="ml-2">▼</span>
+            <ChevronDown className="h-4 w-4 ml-2" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-full min-w-[200px] p-2 bg-background">
           <DropdownMenuLabel>Bedroom Types</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {/* Deselect All option */}
+          {/* Toggle All option */}
           <DropdownMenuCheckboxItem
             checked={allSelected}
             onSelect={(e) => {

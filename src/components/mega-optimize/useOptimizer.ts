@@ -238,7 +238,8 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
       })),
       viewPricing: pricingConfig.viewPricing.map((view: any) => ({
         ...view,
-        psfAdjustment: view.originalPsfAdjustment || view.psfAdjustment
+        // Ensure we properly revert to original value (which might be 0)
+        psfAdjustment: view.originalPsfAdjustment !== undefined ? view.originalPsfAdjustment : view.psfAdjustment,
       })),
       floorRiseRules: pricingConfig.originalFloorRiseRules || pricingConfig.floorRiseRules,
       isOptimized: false,

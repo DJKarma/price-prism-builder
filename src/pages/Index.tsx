@@ -7,6 +7,8 @@ import PricingConfiguration, { PricingConfig } from "@/components/PricingConfigu
 import PricingSimulator from "@/components/PricingSimulator";
 import MegaOptimize from "@/components/MegaOptimize";
 import { Toaster } from "sonner";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<string>("upload");
@@ -15,6 +17,7 @@ const Index = () => {
   const [mappedData, setMappedData] = useState<any[]>([]);
   const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null);
   const [forceUpdate, setForceUpdate] = useState<number>(0);
+  const [newFileUploaded, setNewFileUploaded] = useState<boolean>(false);
 
   const maxFloor = useMemo(() => {
     if (!mappedData.length) return 50; // Default
@@ -31,6 +34,7 @@ const Index = () => {
   const handleDataParsed = (data: any[], headers: string[]) => {
     setCsvData(data);
     setCsvHeaders(headers);
+    setNewFileUploaded(true);
     setActiveTab("map");
   };
 
@@ -40,13 +44,16 @@ const Index = () => {
   };
 
   const handleConfigurationComplete = useCallback((config: PricingConfig) => {
+    // Remove base PSF from config as it's not needed
+    const { basePsf, ...rest } = config;
+    
     const targetOverallPsf = config.bedroomTypePricing.reduce(
       (sum, type) => sum + type.targetAvgPsf, 
       0
     ) / config.bedroomTypePricing.length;
     
     const updatedConfig = {
-      ...config,
+      ...rest,
       targetOverallPsf,
       maxFloor: maxFloor
     };
@@ -61,6 +68,18 @@ const Index = () => {
     setPricingConfig(updatedConfig);
     setForceUpdate(prev => prev + 1);
   }, []);
+
+  const handleBackToUpload = () => {
+    setActiveTab("upload");
+  };
+  
+  const handleBackToMap = () => {
+    setActiveTab("map");
+  };
+  
+  const handleBackToConfigure = () => {
+    setActiveTab("configure");
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -111,23 +130,39 @@ const Index = () => {
                 headers={csvHeaders}
                 data={csvData}
                 onMappingComplete={handleMappingComplete}
+                onBack={handleBackToUpload}
               />
             )}
           </TabsContent>
 
           <TabsContent value="configure" className="mt-0">
             {mappedData.length > 0 && (
-              <PricingConfiguration
-                data={mappedData}
-                onConfigurationComplete={handleConfigurationComplete}
-                maxFloor={maxFloor}
-              />
+              <>
+                <div className="mb-4">
+                  <Button variant="outline" size="sm" onClick={handleBackToMap}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Map Columns
+                  </Button>
+                </div>
+                <PricingConfiguration
+                  data={mappedData}
+                  onConfigurationComplete={handleConfigurationComplete}
+                  maxFloor={maxFloor}
+                  hideBasePsf={true} // New prop to hide base PSF
+                />
+              </>
             )}
           </TabsContent>
 
           <TabsContent value="simulate" className="mt-0">
             {pricingConfig && (
               <>
+                <div className="mb-4">
+                  <Button variant="outline" size="sm" onClick={handleBackToConfigure}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Configure Pricing
+                  </Button>
+                </div>
                 <MegaOptimize 
                   data={mappedData} 
                   pricingConfig={pricingConfig} 

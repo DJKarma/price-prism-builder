@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { MapPin, AlertTriangle } from "lucide-react";
+import { MapPin, AlertTriangle, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -34,6 +34,7 @@ interface ColumnMapperProps {
   headers: string[];
   data: any[];
   onMappingComplete: (mapping: Record<string, string>, data: any[]) => void;
+  onBack: () => void; // New prop for back button
 }
 
 const requiredFields = [
@@ -55,12 +56,15 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   headers,
   data,
   onMappingComplete,
+  onBack,
 }) => {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [previewData, setPreviewData] = useState<Record<string, any>>({});
   const [showWarningDialog, setShowWarningDialog] = useState<boolean>(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [blankValues, setBlankValues] = useState<{field: string, count: number}[]>([]);
+  const [additionalCategories, setAdditionalCategories] = useState<{column: string, categories: string[]}[]>([]);
+  const [selectedAdditionalCategories, setSelectedAdditionalCategories] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     // Auto-map columns based on similar names
@@ -78,7 +82,10 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     });
     
     setMapping(initialMapping);
-  }, [headers]);
+    
+    // Detect potential additional categories in unmapped columns
+    detectAdditionalCategories();
+  }, [headers, data]);
 
   useEffect(() => {
     // Update preview data when mapping changes
@@ -93,6 +100,54 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     }
   }, [mapping, data]);
 
+  const detectAdditionalCategories = () => {
+    if (!data.length) return;
+    
+    // Find unmapped columns that might contain categorical data
+    const mappedColumns = new Set(Object.values(mapping));
+    const unmappedColumns = headers.filter(header => !mappedColumns.has(header));
+    
+    const potentialCategories: {column: string, categories: string[]}[] = [];
+    
+    unmappedColumns.forEach(column => {
+      // Skip columns that seem to contain numerical data
+      const firstFewValues = data.slice(0, 10).map(row => row[column]);
+      const seemsNumerical = firstFewValues.every(val => 
+        val === undefined || val === null || val === "" || !isNaN(Number(val))
+      );
+      
+      if (!seemsNumerical) {
+        // Extract unique values from this column
+        const uniqueValues = new Set<string>();
+        data.forEach(row => {
+          const value = row[column];
+          if (value !== undefined && value !== null && value !== "") {
+            uniqueValues.add(String(value));
+          }
+        });
+        
+        // If there's a reasonable number of unique values, it might be categorical
+        if (uniqueValues.size > 1 && uniqueValues.size <= 15) {
+          potentialCategories.push({
+            column,
+            categories: Array.from(uniqueValues)
+          });
+        }
+      }
+    });
+    
+    setAdditionalCategories(potentialCategories);
+    
+    // Initialize selected categories state
+    const initialSelectedState: Record<string, boolean> = {};
+    potentialCategories.forEach(cat => {
+      cat.categories.forEach(category => {
+        initialSelectedState[`${cat.column}:${category}`] = false;
+      });
+    });
+    setSelectedAdditionalCategories(initialSelectedState);
+  };
+
   const handleMappingChange = (fieldId: string, headerName: string) => {
     setMapping(prev => ({
       ...prev,
@@ -100,9 +155,20 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     }));
   };
 
+  const toggleAdditionalCategory = (column: string, category: string) => {
+    const key = `${column}:${category}`;
+    setSelectedAdditionalCategories(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
   const validateData = () => {
     // Check for missing required field mappings
     const missing = requiredFields.filter(field => !mapping[field.id]);
+    
+    // Special check for floor mapping
+    const floorMapped = mapping["floor"] !== undefined;
     
     // Check for blank values in mapped fields
     const blanks: {field: string, count: number}[] = [];
@@ -125,6 +191,11 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     
     setMissingFields(missing.map(f => f.label));
     setBlankValues(blanks);
+    
+    // Add special warning for floor if not mapped
+    if (!floorMapped) {
+      toast.warning("Floor column not detected. Units will default to floor 0 in simulation.");
+    }
     
     // Show warning dialog if there are issues
     if (missing.length > 0 || blanks.length > 0) {
@@ -172,6 +243,18 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         }
       });
       
+      // Add selected additional categories as attributes
+      Object.entries(selectedAdditionalCategories).forEach(([key, isSelected]) => {
+        if (isSelected) {
+          const [column, category] = key.split(':');
+          // Check if this row has this category value
+          if (row[column] === category) {
+            // Add this as a boolean attribute
+            transformedRow[`has_${column}_${category}`.replace(/\s+/g, '_').toLowerCase()] = true;
+          }
+        }
+      });
+      
       return transformedRow;
     });
     
@@ -181,13 +264,21 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       toast.info(`Using default values for: ${unmappedFields.map(f => f.label).join(", ")}`);
     }
     
+    // Pass the selected additional categories info to the next step
+    const selectedCategories = Object.entries(selectedAdditionalCategories)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([key, _]) => {
+        const [column, category] = key.split(':');
+        return { column, category };
+      });
+    
     onMappingComplete(mapping, transformedData);
   };
 
   // Helper function to parse floor values
   const parseFloorValue = (value: any): string => {
     if (value === undefined || value === null || value.toString().trim() === "") {
-      return "1"; // Default floor value
+      return "0"; // Default floor value changed to 0
     }
     
     const strValue = value.toString().trim().toUpperCase();
@@ -229,7 +320,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       case "balcony":
         return 0;
       case "floor":
-        return "1";
+        return "0"; // Changed from "1" to "0"
       case "type":
         return "Standard";
       case "view":
@@ -264,7 +355,13 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     <>
       <Card className="w-full">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <div className="flex justify-between items-center">
+            <Button variant="outline" size="sm" onClick={onBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Upload
+            </Button>
+          </div>
+          <CardTitle className="flex items-center gap-2 mt-4">
             <MapPin className="h-5 w-5" />
             Map Your CSV Columns
           </CardTitle>
@@ -340,6 +437,48 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                 ))}
               </div>
             </div>
+            
+            {additionalCategories.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium mb-3">Additional Categories Detected</h3>
+                <Alert className="mb-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    We've detected additional categorical data in your CSV. Select any categories you'd like to include in pricing calculations.
+                  </AlertDescription>
+                </Alert>
+                
+                {additionalCategories.map((cat) => (
+                  <div key={cat.column} className="mb-6">
+                    <h4 className="text-sm font-medium mb-2">{cat.column}</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      {cat.categories.map((category) => {
+                        const key = `${cat.column}:${category}`;
+                        return (
+                          <div 
+                            key={key} 
+                            className={`p-2 rounded border cursor-pointer flex items-center ${
+                              selectedAdditionalCategories[key] 
+                                ? 'bg-primary/10 border-primary/30' 
+                                : 'bg-background border-input'
+                            }`}
+                            onClick={() => toggleAdditionalCategory(cat.column, category)}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedAdditionalCategories[key] || false}
+                              onChange={() => toggleAdditionalCategory(cat.column, category)}
+                              className="mr-2"
+                            />
+                            <span className="text-sm truncate">{category}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
         <CardFooter className="flex justify-end">
