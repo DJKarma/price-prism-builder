@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -138,7 +137,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       }))
     );
 
-    // Initialize additional category pricing - ensure we're setting this correctly
     const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
     
     if (additionalCategories && additionalCategories.length > 0) {
@@ -266,7 +264,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     });
   };
 
-  // Group additional categories by column - ensure we're using the proper category data
   const groupedAdditionalCategories = additionalCategoryPricing.reduce((acc, item) => {
     if (!acc[item.column]) {
       acc[item.column] = [];
@@ -287,21 +284,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8 p-6">
-        <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-          <Label htmlFor="base-psf" className="text-lg font-medium text-indigo-700 mb-2 block">Base PSF (Per Sqft)</Label>
-          <Input
-            id="base-psf"
-            type="number"
-            min="0"
-            value={basePsf}
-            onChange={handleBasePsfChange}
-            className="w-full md:w-64 border-indigo-200 focus:border-indigo-400"
-          />
-          <p className="text-sm text-indigo-500 mt-2">
-            This is the starting point for all price calculations
-          </p>
-        </div>
-
         <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-indigo-700 flex items-center">
@@ -507,7 +489,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </div>
         )}
 
-        {/* Additional Category Pricing */}
         {Object.keys(groupedAdditionalCategories).length > 0 && (
           <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
             <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">

@@ -1,5 +1,3 @@
-
-// This is the existing file start, focusing only on the change needed to remove target PSF input
 import React, { useState, useEffect } from "react";
 import { 
   Card, 
@@ -41,7 +39,6 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(pricingConfig);
   
-  // Update local config when props change
   useEffect(() => {
     setLocalConfig(pricingConfig);
   }, [pricingConfig]);
@@ -94,7 +91,6 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
   };
   
   const addFloorRule = () => {
-    // Find the highest endFloor from existing rules
     let maxEndFloor = 0;
     localConfig.floorRiseRules.forEach((rule: any) => {
       const endFloor = rule.endFloor === null ? (localConfig.maxFloor || 99) : rule.endFloor;
@@ -103,9 +99,8 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
       }
     });
     
-    // New rule starts after the highest endFloor
     const newStartFloor = maxEndFloor + 1;
-    const newEndFloor = null; // Will be treated as maxFloor
+    const newEndFloor = null;
     
     setLocalConfig({
       ...localConfig,
@@ -133,7 +128,6 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
   };
   
   const applyChanges = () => {
-    // Process the floor rules to ensure endFloor is set properly
     const processedConfig = {
       ...localConfig,
       floorRiseRules: localConfig.floorRiseRules.map((rule: any) => ({
@@ -150,7 +144,6 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
   };
   
   const calculateCumulativePsfForFloor = (floor: number) => {
-    // Process rules to ensure endFloor is properly handled
     const processedRules = localConfig.floorRiseRules.map((rule: any) => ({
       ...rule,
       endFloor: rule.endFloor === null ? (localConfig.maxFloor || 99) : rule.endFloor
@@ -158,17 +151,14 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
     
     const psfValue = calculateFloorPremium(floor, processedRules);
     
-    // Determine if this is a jump floor
     let isJumpFloor = false;
     let appliedRule = null;
     
-    // Find the rule that applies to this floor
     const applicableRule = processedRules.find(
       (r: any) => floor >= r.startFloor && floor <= r.endFloor
     );
     
     if (applicableRule && applicableRule.jumpEveryFloor && applicableRule.jumpIncrement) {
-      // Check if this is a jump floor based on the rule
       const floorsFromStart = floor - applicableRule.startFloor;
       isJumpFloor = floorsFromStart > 0 && 
                    floorsFromStart % applicableRule.jumpEveryFloor === 0;
@@ -185,7 +175,6 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
     };
   };
   
-  // Determine max floor to display in preview
   const previewMaxFloor = localConfig.maxFloor || 50;
   
   return (
@@ -232,7 +221,7 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
             <CardHeader>
               <CardTitle>Bedroom Type Pricing</CardTitle>
               <CardDescription>
-                Base PSF values and target average PSF by bedroom type
+                Base PSF values by bedroom type
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -241,7 +230,6 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
                   <TableRow>
                     <TableHead>Type</TableHead>
                     <TableHead>Base PSF</TableHead>
-                    <TableHead>Target PSF</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -258,21 +246,6 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
                             handleBedroomPsfChange(
                               index, 
                               "basePsf", 
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={type.targetAvgPsf}
-                          onChange={(e) => 
-                            handleBedroomPsfChange(
-                              index, 
-                              "targetAvgPsf", 
                               parseFloat(e.target.value) || 0
                             )
                           }

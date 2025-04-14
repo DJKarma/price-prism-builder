@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -44,16 +43,16 @@ export interface AdditionalCategory {
 }
 
 const requiredFields = [
-  { id: "name", label: "Unit Name" },
-  { id: "sellArea", label: "Sell Area" },
+  { id: "name", label: "Unit Name", keywords: ["unit", "name", "id", "number", "no"] },
+  { id: "sellArea", label: "Sell Area", keywords: ["sell", "area", "sellable", "saleable", "sales", "sqft", "sq ft", "sqm", "sq m", "square", "size"] },
 ];
 
 const optionalFields = [
-  { id: "acArea", label: "AC Area" },
-  { id: "balcony", label: "Balcony" },
-  { id: "view", label: "View" },
-  { id: "type", label: "Bedroom Type" },
-  { id: "floor", label: "Floor Level" },
+  { id: "acArea", label: "AC Area", keywords: ["ac", "air", "conditioning", "climate", "cool", "controlled"] },
+  { id: "balcony", label: "Balcony", keywords: ["balcony", "patio", "outdoor", "terrace", "deck"] },
+  { id: "floor", label: "Floor Level", keywords: ["floor", "level", "story", "storey", "elevation"] },
+  { id: "view", label: "View", keywords: ["view", "facing", "outlook", "aspect", "direction", "overlook"] },
+  { id: "type", label: "Bedroom Type", keywords: ["bed", "bedroom", "room", "type", "unit type", "layout", "configuration"] },
 ];
 
 const allFields = [...requiredFields, ...optionalFields];
@@ -70,31 +69,88 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [blankValues, setBlankValues] = useState<{field: string, count: number}[]>([]);
   const [additionalCategories, setAdditionalCategories] = useState<AdditionalCategory[]>([]);
-  const [selectedAdditionalCategories, setSelectedAdditionalCategories] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    // Auto-map columns based on similar names
     const initialMapping: Record<string, string> = {};
+    const usedHeaders = new Set<string>();
     
     allFields.forEach(field => {
-      const matchedHeader = headers.find(header => 
-        header.toLowerCase().includes(field.id.toLowerCase()) ||
-        field.label.toLowerCase().includes(header.toLowerCase())
+      const exactMatch = headers.find(header => 
+        header.toLowerCase() === field.id.toLowerCase() || 
+        header.toLowerCase() === field.label.toLowerCase()
       );
       
-      if (matchedHeader) {
-        initialMapping[field.id] = matchedHeader;
+      if (exactMatch && !usedHeaders.has(exactMatch)) {
+        initialMapping[field.id] = exactMatch;
+        usedHeaders.add(exactMatch);
+      }
+    });
+    
+    allFields.forEach(field => {
+      if (initialMapping[field.id]) return;
+      
+      const keywordMatch = headers.find(header => {
+        const headerLower = header.toLowerCase();
+        return !usedHeaders.has(header) && 
+               field.keywords.some(keyword => headerLower.includes(keyword.toLowerCase()));
+      });
+      
+      if (keywordMatch) {
+        initialMapping[field.id] = keywordMatch;
+        usedHeaders.add(keywordMatch);
+      }
+    });
+    
+    allFields.forEach(field => {
+      if (initialMapping[field.id]) return;
+      
+      const containsMatch = headers.find(header => {
+        if (usedHeaders.has(header)) return false;
+        
+        const headerLower = header.toLowerCase();
+        const fieldIdLower = field.id.toLowerCase();
+        const fieldLabelLower = field.label.toLowerCase();
+        
+        return headerLower.includes(fieldIdLower) || 
+               fieldIdLower.includes(headerLower) ||
+               headerLower.includes(fieldLabelLower) || 
+               fieldLabelLower.includes(headerLower);
+      });
+      
+      if (containsMatch) {
+        initialMapping[field.id] = containsMatch;
+        usedHeaders.add(containsMatch);
       }
     });
     
     setMapping(initialMapping);
     
-    // Detect potential additional categories in unmapped columns
     detectAdditionalCategories();
   }, [headers, data]);
 
   useEffect(() => {
-    // Update preview data when mapping changes
+    if (!data.length) return;
+
+    headers.forEach(header => {
+      const headerLower = header.toLowerCase();
+      
+      if (!mapping["type"] && 
+          (headerLower.includes("bed") || 
+           headerLower.includes("type") || 
+           headerLower.includes("layout"))) {
+        setMapping(prev => ({...prev, "type": header}));
+      }
+      
+      if (!mapping["view"] && 
+          (headerLower.includes("view") || 
+           headerLower.includes("facing") || 
+           headerLower.includes("direction"))) {
+        setMapping(prev => ({...prev, "view": header}));
+      }
+    });
+  }, [headers, data, mapping]);
+
+  useEffect(() => {
     if (data.length > 0) {
       const preview: Record<string, any> = {};
       
@@ -109,21 +165,18 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   const detectAdditionalCategories = () => {
     if (!data.length) return;
     
-    // Find unmapped columns that might contain categorical data
     const mappedColumns = new Set(Object.values(mapping));
     const unmappedColumns = headers.filter(header => !mappedColumns.has(header));
     
     const potentialCategories: AdditionalCategory[] = [];
     
     unmappedColumns.forEach(column => {
-      // Skip columns that seem to contain numerical data
       const firstFewValues = data.slice(0, 10).map(row => row[column]);
       const seemsNumerical = firstFewValues.every(val => 
         val === undefined || val === null || val === "" || !isNaN(Number(val))
       );
       
       if (!seemsNumerical) {
-        // Extract unique values from this column
         const uniqueValues = new Set<string>();
         data.forEach(row => {
           const value = row[column];
@@ -132,12 +185,11 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
           }
         });
         
-        // If there's a reasonable number of unique values, it might be categorical
-        if (uniqueValues.size > 1 && uniqueValues.size <= 20) { // Increased limit to 20
+        if (uniqueValues.size > 1 && uniqueValues.size <= 20) {
           potentialCategories.push({
             column,
             categories: Array.from(uniqueValues).sort(),
-            selectedCategories: [] // Initially empty, user will select which to use
+            selectedCategories: []
           });
         }
       }
@@ -159,11 +211,9 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       const categoryIndex = updated[columnIndex].selectedCategories.indexOf(category);
       
       if (categoryIndex > -1) {
-        // Remove if already selected
         updated[columnIndex].selectedCategories = 
           updated[columnIndex].selectedCategories.filter(cat => cat !== category);
       } else {
-        // Add if not already selected
         updated[columnIndex].selectedCategories = 
           [...updated[columnIndex].selectedCategories, category];
       }
@@ -172,15 +222,12 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     });
   };
 
-  // Toggle selection of all categories in a column
   const toggleAllCategoriesInColumn = (columnIndex: number, select: boolean) => {
     setAdditionalCategories(prev => {
       const updated = [...prev];
       if (select) {
-        // Select all categories
         updated[columnIndex].selectedCategories = [...updated[columnIndex].categories];
       } else {
-        // Deselect all categories
         updated[columnIndex].selectedCategories = [];
       }
       return updated;
@@ -188,15 +235,10 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   };
 
   const validateData = () => {
-    // Check for missing required field mappings
     const missing = requiredFields.filter(field => !mapping[field.id]);
-    
-    // Special check for floor mapping
     const floorMapped = mapping["floor"] !== undefined;
-    
-    // Check for blank values in mapped fields
     const blanks: {field: string, count: number}[] = [];
-    
+
     Object.entries(mapping).forEach(([fieldId, headerName]) => {
       const field = allFields.find(f => f.id === fieldId);
       if (field) {
@@ -212,131 +254,111 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         }
       }
     });
-    
+
     setMissingFields(missing.map(f => f.label));
     setBlankValues(blanks);
-    
-    // Add special warning for floor if not mapped
+
     if (!floorMapped) {
       toast.warning("Floor column not detected. Units will default to floor 0 in simulation.");
     }
-    
-    // Show warning dialog if there are issues
+
     if (missing.length > 0 || blanks.length > 0) {
       setShowWarningDialog(true);
       return false;
     }
-    
+
     return true;
   };
 
   const handleSubmit = () => {
-    // Validate data first
     if (!validateData()) {
       return;
     }
-    
+
     proceedWithMapping();
   };
 
   const proceedWithMapping = () => {
-    // Transform data based on mapping, with default values for unmapped fields
     const transformedData = data.map(row => {
       const transformedRow: Record<string, any> = {};
-      
-      // Include default values for all fields, even if not mapped
+
       allFields.forEach(field => {
         if (mapping[field.id]) {
-          // Use the mapped column value if available
           let value = row[mapping[field.id]];
-          
-          // Handle special cases and blank values
+
           if (field.id === "floor") {
             value = parseFloorValue(value);
           } else if (["sellArea", "acArea", "balcony"].includes(field.id)) {
-            // Convert area values to numbers, handle blanks with default 0
             value = parseNumericValue(value, 0);
           }
-          
+
           transformedRow[field.id] = value !== undefined && value !== null && value !== "" 
             ? value 
             : getDefaultValue(field.id);
         } else {
-          // Use default value for unmapped fields
           transformedRow[field.id] = getDefaultValue(field.id);
         }
       });
-      
-      // Add additional category values to each row
+
       additionalCategories.forEach(cat => {
         if (cat.selectedCategories.length > 0) {
           const columnValue = row[cat.column];
-          
-          // Add a property for each selected category in this column
+
           cat.selectedCategories.forEach(category => {
             const key = `additional_${cat.column}_${category}`.replace(/\s+/g, '_').toLowerCase();
             transformedRow[key] = columnValue === category;
           });
-          
-          // Also store the raw column value
+
           transformedRow[`${cat.column}_value`] = columnValue;
         }
       });
-      
+
       return transformedRow;
     });
-    
-    // Show a toast if some fields were not mapped
+
     const unmappedFields = allFields.filter(field => !mapping[field.id]);
     if (unmappedFields.length > 0) {
       toast.info(`Using default values for: ${unmappedFields.map(f => f.label).join(", ")}`);
     }
-    
-    // Filter to only include categories that have selections
+
     const selectedCategoriesData = additionalCategories
       .filter(cat => cat.selectedCategories.length > 0)
       .map(cat => ({
         column: cat.column,
         categories: cat.selectedCategories
       }));
-    
+
     onMappingComplete(mapping, transformedData, selectedCategoriesData);
   };
 
-  // Helper function to parse floor values
   const parseFloorValue = (value: any): string => {
     if (value === undefined || value === null || value.toString().trim() === "") {
-      return "0"; // Default floor value changed to 0
+      return "0";
     }
-    
+
     const strValue = value.toString().trim().toUpperCase();
-    
-    // Handle various forms of ground floor notation
+
     if (["G", "GF", "GROUND", "GROUND FLOOR", "G FLOOR", "G F"].includes(strValue)) {
       return "0";
     }
-    
-    // Handle numeric values
+
     const numValue = parseInt(strValue);
     if (!isNaN(numValue)) {
       return numValue.toString();
     }
-    
-    // For other non-numeric floor labels (like "B" for basement), keep as is
+
     return strValue;
   };
 
-  // Helper function to parse numeric values with defaults
   const parseNumericValue = (value: any, defaultValue: number): number => {
     if (value === undefined || value === null || value.toString().trim() === "") {
       return defaultValue;
     }
-    
+
     const numValue = parseFloat(value.toString().replace(/,/g, ''));
     return isNaN(numValue) ? defaultValue : numValue;
   };
 
-  // Helper function to get default values
   const getDefaultValue = (fieldId: string): any => {
     switch (fieldId) {
       case "name":
@@ -360,7 +382,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
 
   const renderColumnPreview = (fieldId: string) => {
     if (!mapping[fieldId] || !data.length) return null;
-    
+
     return (
       <div className="text-xs text-muted-foreground mt-1 bg-muted p-1 rounded overflow-hidden text-ellipsis max-w-xs">
         Sample: <span className="font-mono">{data[0][mapping[fieldId]] || "N/A"}</span>
@@ -368,10 +390,9 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     );
   };
 
-  // Helper to render default value preview for unmapped fields
   const renderDefaultPreview = (fieldId: string) => {
     if (mapping[fieldId] || !data.length) return null;
-    
+
     return (
       <div className="text-xs text-muted-foreground mt-1 bg-amber-100 p-1 rounded overflow-hidden text-ellipsis max-w-xs">
         Default: <span className="font-mono">{getDefaultValue(fieldId)}</span>
@@ -543,7 +564,6 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         </CardFooter>
       </Card>
       
-      {/* Warning Dialog for missing fields or blank values */}
       <AlertDialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
