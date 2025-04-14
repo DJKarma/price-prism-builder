@@ -9,36 +9,19 @@ import MegaOptimize from "@/components/MegaOptimize";
 import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Upload, FileSpreadsheet, Settings, LineChart, ArrowRight, PieChart } from "lucide-react";
-import { useAppStore } from "@/store/appStore";
-import ConfigImport from "@/components/ConfigImport";
 
 const Index = () => {
-  // Local UI state
   const [activeTab, setActiveTab] = useState<string>("upload");
+  const [csvData, setCsvData] = useState<any[]>([]);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [mappedData, setMappedData] = useState<any[]>([]);
+  const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null);
+  const [forceUpdate, setForceUpdate] = useState<number>(0);
+  const [newFileUploaded, setNewFileUploaded] = useState<boolean>(false);
+  const [additionalCategories, setAdditionalCategories] = useState<any[]>([]);
   const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward');
   const [tabChanging, setTabChanging] = useState<boolean>(false);
-  
-  // Global state from Zustand
-  const {
-    csvData, 
-    csvHeaders, 
-    mappedData, 
-    pricingConfig,
-    additionalCategories,
-    setCsvData,
-    setMappedData,
-    setPricingConfig,
-    updatePricingConfig
-  } = useAppStore();
-  
-  // Force PricingSimulator to update when config changes
-  const [forceUpdate, setForceUpdate] = useState<number>(0);
-  
-  useEffect(() => {
-    // When pricingConfig changes, force update the PricingSimulator
-    setForceUpdate(prev => prev + 1);
-  }, [pricingConfig]);
-  
+
   const maxFloor = useMemo(() => {
     if (!mappedData.length) return 50; // Default
     
@@ -52,12 +35,15 @@ const Index = () => {
   }, [mappedData]);
 
   const handleDataParsed = (data: any[], headers: string[]) => {
-    setCsvData(data, headers);
+    setCsvData(data);
+    setCsvHeaders(headers);
+    setNewFileUploaded(true);
     changeTab('map', 'forward');
   };
 
   const handleMappingComplete = (mapping: Record<string, string>, data: any[], categories: any[]) => {
-    setMappedData(data, categories);
+    setMappedData(data);
+    setAdditionalCategories(categories);
     changeTab('configure', 'forward');
   };
 
@@ -74,14 +60,15 @@ const Index = () => {
     };
     
     setPricingConfig(updatedConfig);
+    
     setForceUpdate(prev => prev + 1);
     changeTab('simulate', 'forward');
-  }, [maxFloor, setPricingConfig]);
+  }, [maxFloor]);
 
   const handleConfigUpdate = useCallback((updatedConfig: PricingConfig) => {
-    updatePricingConfig(updatedConfig);
+    setPricingConfig(updatedConfig);
     setForceUpdate(prev => prev + 1);
-  }, [updatePricingConfig]);
+  }, []);
 
   const handleBackToUpload = () => {
     changeTab('upload', 'backward');
@@ -216,12 +203,11 @@ const Index = () => {
             <TabsContent value="configure" className="mt-0 animate-fade-in">
               {mappedData.length > 0 && (
                 <>
-                  <div className="mb-4 flex justify-between items-center">
+                  <div className="mb-4">
                     <Button variant="outline" size="sm" onClick={handleBackToMap} className="hover-scale">
                       <ArrowLeft className="mr-2 h-4 w-4" />
                       Back to Map Columns
                     </Button>
-                    <ConfigImport />
                   </div>
                   <PricingConfiguration
                     data={mappedData}
