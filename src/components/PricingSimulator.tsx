@@ -20,6 +20,9 @@ import {
 import {
   ArrowUpDown,
   Download,
+  Filter,
+  Table as TableIcon,
+  Check,
   RotateCcw,
   Settings,
 } from "lucide-react";
@@ -419,6 +422,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     <Card className="w-full mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
+          <TableIcon className="h-5 w-5" />
           Unit Pricing Details
         </CardTitle>
         <CardDescription>
@@ -454,25 +458,20 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               placeholder="Select floors..."
             />
           </div>
-          <div className="md:col-span-3 flex flex-col justify-end">
-            <div className="flex space-x-2 overflow-x-auto">
+          <div className="md:col-span-3 flex flex-col justify-end gap-2">
+            <div className="flex gap-2">
               <Button 
                 variant="outline" 
-                size="sm" 
+                className="w-full" 
                 onClick={resetFilters}
-                className="flex-shrink-0 whitespace-nowrap"
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
-                Reset
+                Reset Filters
               </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-shrink-0 whitespace-nowrap"
-                  >
+                  <Button variant="outline" className="w-full">
                     <Settings className="h-4 w-4 mr-2" />
                     Columns
                   </Button>
@@ -515,9 +514,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               
               <Button 
                 variant="outline" 
-                size="sm"
+                className="w-full"
                 onClick={exportCSV}
-                className="flex-shrink-0 whitespace-nowrap"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export
