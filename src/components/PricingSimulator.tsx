@@ -24,9 +24,18 @@ import {
   Table as TableIcon,
   Check,
   RotateCcw,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import BedroomTypeSelector from "./mega-optimize/BedroomTypeSelector";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface PricingSimulatorProps {
   data: any[];
@@ -62,6 +71,11 @@ const formatNumber = (num: number, isTotalPrice: boolean = false): string => {
   return num.toFixed(2);
 };
 
+// Format numbers with thousand separators
+const formatNumberWithCommas = (num: number): string => {
+  return num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+};
+
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
   pricingConfig,
@@ -79,6 +93,32 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   const [selectedViews, setSelectedViews] = useState<string[]>([]);
   const [selectedFloors, setSelectedFloors] = useState<string[]>([]);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
+  
+  // Column visibility
+  const defaultVisibleColumns = [
+    "name", "type", "floor", "view", "sellArea", "acArea", 
+    "finalTotalPrice", "finalPsf", "isOptimized"
+  ];
+  
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleColumns);
+  
+  // Column definitions
+  const allColumns = [
+    { id: "name", label: "Unit", required: true },
+    { id: "type", label: "Type", required: true },
+    { id: "floor", label: "Floor", required: true },
+    { id: "view", label: "View", required: true },
+    { id: "sellArea", label: "Sell Area", required: true },
+    { id: "acArea", label: "AC Area", required: false },
+    { id: "balconyArea", label: "Balcony", required: false },
+    { id: "balconyPercentage", label: "Balcony %", required: false },
+    { id: "basePsf", label: "Base PSF", required: false },
+    { id: "floorAdjustment", label: "Floor Premium", required: false },
+    { id: "viewPsfAdjustment", label: "View Premium", required: false },
+    { id: "finalTotalPrice", label: "Final Price", required: true },
+    { id: "finalPsf", label: "Final PSF", required: true },
+    { id: "isOptimized", label: "Optimized", required: true },
+  ];
 
   useEffect(() => {
     if (pricingConfig?.optimizedTypes?.length && selectedTypes.length === 0) {
@@ -287,81 +327,71 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     return Array.from(values).sort();
   };
 
+  const toggleColumnVisibility = (columnId: string) => {
+    setVisibleColumns(prev => {
+      // Check if the column should be visible
+      const isCurrentlyVisible = prev.includes(columnId);
+      
+      // For required columns, they can't be toggled off
+      const column = allColumns.find(col => col.id === columnId);
+      if (column?.required && isCurrentlyVisible) {
+        return prev;
+      }
+      
+      // Toggle visibility
+      if (isCurrentlyVisible) {
+        return prev.filter(id => id !== columnId);
+      } else {
+        return [...prev, columnId];
+      }
+    });
+  };
+
+  const resetColumnVisibility = () => {
+    setVisibleColumns(defaultVisibleColumns);
+    toast.success("Column visibility reset to default");
+  };
+
   const exportCSV = () => {
     if (!filteredUnits.length) {
       toast.error("No data to export");
       return;
     }
     
-    // Build the headers including additional category columns
-    let headers = [
-      "Unit",
-      "Bedroom Type",
-      "Floor",
-      "View",
-      "Sell Area",
-      "AC Area",
-      "Balcony Area",
-      "Balcony %",
-      "Base PSF",
-      "Floor Premium PSF",
-      "View Premium PSF"
+    // Only include visible columns
+    const allColumnDefs = [
+      ...allColumns,
+      ...additionalColumns.map(col => ({ id: col, label: `${col} Premium`, required: false }))
     ];
     
-    // Add additional category headers if they exist
-    if (additionalColumns.length > 0) {
-      additionalColumns.forEach(column => {
-        headers.push(`${column} Premium PSF`);
-      });
-    }
+    const visibleColumnDefs = allColumnDefs.filter(col => 
+      visibleColumns.includes(col.id) || 
+      (additionalColumns.includes(col.id) && visibleColumns.includes(`additional_${col.id}`))
+    );
     
-    // Add the rest of the headers
-    headers = headers.concat([
-      "Total Price (Raw)",
-      "Final Total Price",
-      "Final PSF",
-      "Optimized"
-    ]);
+    // Build headers from visible columns
+    const headers = visibleColumnDefs.map(col => col.label);
     
     // Create each row of data
     const rows = filteredUnits.map((unit) => {
-      const basicData = [
-        unit.name,
-        unit.type,
-        unit.floor,
-        unit.view,
-        unit.sellArea,
-        unit.acArea || 0,
-        unit.balconyArea ? unit.balconyArea.toFixed(2) : 0,
-        unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : 0,
-        unit.basePsf.toFixed(2),
-        unit.floorAdjustment.toFixed(2),
-        unit.viewPsfAdjustment.toFixed(2)
-      ];
-      
-      // Add additional category values
-      if (additionalColumns.length > 0) {
-        additionalColumns.forEach(column => {
-          // Find the adjustment for this column if it exists
-          let adjustment = 0;
-          if (unit.additionalCategoryPriceComponents) {
-            Object.entries(unit.additionalCategoryPriceComponents).forEach(([key, value]) => {
-              if (key.startsWith(column + ":")) {
-                adjustment += Number(value);
-              }
-            });
-          }
-          basicData.push(adjustment.toFixed(2));
-        });
-      }
-      
-      // Add the rest of the data
-      return basicData.concat([
-        unit.totalPrice.toFixed(2),
-        unit.finalTotalPrice.toFixed(2),
-        unit.finalPsf ? unit.finalPsf.toFixed(2) : "0",
-        unit.isOptimized ? "Yes" : "No"
-      ]);
+      return visibleColumnDefs.map(col => {
+        const value = unit[col.id];
+        
+        // Format based on column type
+        if (col.id === "isOptimized") {
+          return value ? "Yes" : "No";
+        } else if (["sellArea", "acArea", "balconyArea"].includes(col.id)) {
+          return typeof value === 'number' ? value.toFixed(2) : value;
+        } else if (col.id === "balconyPercentage") {
+          return typeof value === 'number' ? value.toFixed(2) + "%" : value;
+        } else if (col.id === "finalTotalPrice") {
+          return value;
+        } else if (typeof value === 'number') {
+          return value.toFixed(2);
+        }
+        
+        return value !== undefined && value !== null ? value : "";
+      });
     });
     
     const csvContent =
@@ -438,6 +468,50 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Reset Filters
               </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Columns
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                  <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {allColumns.map(column => (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      checked={visibleColumns.includes(column.id)}
+                      onCheckedChange={() => toggleColumnVisibility(column.id)}
+                      disabled={column.required && visibleColumns.includes(column.id)}
+                    >
+                      {column.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  {additionalColumns.map(column => (
+                    <DropdownMenuCheckboxItem
+                      key={column}
+                      checked={visibleColumns.includes(column)}
+                      onCheckedChange={() => toggleColumnVisibility(column)}
+                    >
+                      {column} Premium
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={resetColumnVisibility}
+                    >
+                      Reset to Default
+                    </Button>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
               <Button 
                 variant="outline" 
                 className="w-full"
@@ -454,181 +528,265 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("name")}
-                >
-                  <div className="flex items-center">
-                    Unit <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("type")}
-                >
-                  <div className="flex items-center">
-                    Type <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("floor")}
-                >
-                  <div className="flex items-center">
-                    Floor <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead className="whitespace-nowrap">View</TableHead>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("sellArea")}
-                >
-                  <div className="flex items-center">
-                    Sell Area <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("acArea")}
-                >
-                  <div className="flex items-center">
-                    AC Area <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("balconyArea")}
-                >
-                  <div className="flex items-center">
-                    Balcony <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("balconyPercentage")}
-                >
-                  <div className="flex items-center">
-                    Balcony % <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("basePsf")}
-                >
-                  <div className="flex items-center">
-                    Base PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("floorAdjustment")}
-                >
-                  <div className="flex items-center">
-                    Floor Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("viewPsfAdjustment")}
-                >
-                  <div className="flex items-center">
-                    View Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
+                {visibleColumns.includes("name") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("name")}
+                  >
+                    <div className="flex items-center">
+                      Unit <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("type") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("type")}
+                  >
+                    <div className="flex items-center">
+                      Type <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("floor") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("floor")}
+                  >
+                    <div className="flex items-center">
+                      Floor <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("view") && (
+                  <TableHead className="whitespace-nowrap">View</TableHead>
+                )}
+                
+                {visibleColumns.includes("sellArea") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("sellArea")}
+                  >
+                    <div className="flex items-center">
+                      Sell Area <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("acArea") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("acArea")}
+                  >
+                    <div className="flex items-center">
+                      AC Area <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("balconyArea") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("balconyArea")}
+                  >
+                    <div className="flex items-center">
+                      Balcony <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("balconyPercentage") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("balconyPercentage")}
+                  >
+                    <div className="flex items-center">
+                      Balcony % <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("basePsf") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("basePsf")}
+                  >
+                    <div className="flex items-center">
+                      Base PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("floorAdjustment") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("floorAdjustment")}
+                  >
+                    <div className="flex items-center">
+                      Floor Premium <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("viewPsfAdjustment") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("viewPsfAdjustment")}
+                  >
+                    <div className="flex items-center">
+                      View Premium <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
                 
                 {/* Additional category columns */}
                 {additionalColumns.map(column => (
-                  <TableHead
-                    key={column}
-                    className="cursor-pointer whitespace-nowrap"
-                    onClick={() => handleSort("additionalCategoryAdjustment")}
-                  >
-                    <div className="flex items-center">
-                      {column} Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </div>
-                  </TableHead>
+                  visibleColumns.includes(column) && (
+                    <TableHead
+                      key={column}
+                      className="cursor-pointer whitespace-nowrap"
+                      onClick={() => handleSort("additionalCategoryAdjustment")}
+                    >
+                      <div className="flex items-center">
+                        {column} Premium <ArrowUpDown className="ml-1 h-4 w-4" />
+                      </div>
+                    </TableHead>
+                  )
                 ))}
                 
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("finalTotalPrice")}
-                >
-                  <div className="flex items-center">
-                    Final Price <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("finalPsf")}
-                >
-                  <div className="flex items-center">
-                    Final PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-                <TableHead className="whitespace-nowrap">
-                  <div className="flex items-center justify-center">
-                    Optimized
-                  </div>
-                </TableHead>
+                {visibleColumns.includes("finalTotalPrice") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("finalTotalPrice")}
+                  >
+                    <div className="flex items-center">
+                      Final Price <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("finalPsf") && (
+                  <TableHead
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("finalPsf")}
+                  >
+                    <div className="flex items-center">
+                      Final PSF <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                )}
+                
+                {visibleColumns.includes("isOptimized") && (
+                  <TableHead className="whitespace-nowrap">
+                    <div className="flex items-center justify-center">
+                      Optimized
+                    </div>
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredUnits.map((unit, index) => (
                 <TableRow key={index} className={unit.isOptimized ? "bg-green-50 dark:bg-green-950/20" : ""}>
-                  <TableCell className="font-medium">{unit.name}</TableCell>
-                  <TableCell>{unit.type || "—"}</TableCell>
-                  <TableCell>{unit.floor || "—"}</TableCell>
-                  <TableCell>{unit.view || "—"}</TableCell>
-                  <TableCell>{unit.sellArea || "0"}</TableCell>
-                  <TableCell>{unit.acArea || "0"}</TableCell>
-                  <TableCell>
-                    {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0"}
-                  </TableCell>
-                  <TableCell>
-                    {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0"}%
-                  </TableCell>
-                  <TableCell>
-                    {unit.basePsf.toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    {unit.floorAdjustment.toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    {unit.viewPsfAdjustment.toFixed(2)}
-                  </TableCell>
+                  {visibleColumns.includes("name") && (
+                    <TableCell className="font-medium">{unit.name}</TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("type") && (
+                    <TableCell>{unit.type || "—"}</TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("floor") && (
+                    <TableCell>{unit.floor || "—"}</TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("view") && (
+                    <TableCell>{unit.view || "—"}</TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("sellArea") && (
+                    <TableCell>{parseFloat(unit.sellArea).toFixed(2) || "0.00"}</TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("acArea") && (
+                    <TableCell>{parseFloat(unit.acArea).toFixed(2) || "0.00"}</TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("balconyArea") && (
+                    <TableCell>
+                      {unit.balconyArea ? unit.balconyArea.toFixed(2) : "0.00"}
+                    </TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("balconyPercentage") && (
+                    <TableCell>
+                      {unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : "0.00"}%
+                    </TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("basePsf") && (
+                    <TableCell>
+                      {unit.basePsf.toFixed(2)}
+                    </TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("floorAdjustment") && (
+                    <TableCell>
+                      {unit.floorAdjustment.toFixed(2)}
+                    </TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("viewPsfAdjustment") && (
+                    <TableCell>
+                      {unit.viewPsfAdjustment.toFixed(2)}
+                    </TableCell>
+                  )}
                   
                   {/* Add additional category columns */}
-                  {additionalColumns.map(column => {
-                    // Calculate total adjustment for this column
-                    let adjustment = 0;
-                    if (unit.additionalCategoryPriceComponents) {
-                      Object.entries(unit.additionalCategoryPriceComponents).forEach(([key, value]) => {
-                        if (key.startsWith(column + ":")) {
-                          adjustment += Number(value);
-                        }
-                      });
-                    }
-                    return (
+                  {additionalColumns.map(column => (
+                    visibleColumns.includes(column) && (
                       <TableCell key={column}>
-                        {adjustment.toFixed(2)}
+                        {(() => {
+                          // Calculate total adjustment for this column
+                          let adjustment = 0;
+                          if (unit.additionalCategoryPriceComponents) {
+                            Object.entries(unit.additionalCategoryPriceComponents).forEach(([key, value]) => {
+                              if (key.startsWith(column + ":")) {
+                                adjustment += Number(value);
+                              }
+                            });
+                          }
+                          return adjustment.toFixed(2);
+                        })()}
                       </TableCell>
-                    );
-                  })}
+                    )
+                  ))}
                   
-                  <TableCell>
-                    {formatNumber(unit.finalTotalPrice, true)}
-                  </TableCell>
-                  <TableCell>
-                    {unit.finalPsf?.toFixed(2) || "0.00"}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {unit.isOptimized ? <Check className="h-4 w-4 text-green-600 inline" /> : "—"}
-                  </TableCell>
+                  {visibleColumns.includes("finalTotalPrice") && (
+                    <TableCell>
+                      {formatNumberWithCommas(unit.finalTotalPrice)}
+                    </TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("finalPsf") && (
+                    <TableCell>
+                      {unit.finalPsf?.toFixed(2) || "0.00"}
+                    </TableCell>
+                  )}
+                  
+                  {visibleColumns.includes("isOptimized") && (
+                    <TableCell className="text-center">
+                      {unit.isOptimized ? <Check className="h-4 w-4 text-green-600 inline" /> : "—"}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
               {filteredUnits.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={15 + additionalColumns.length} className="text-center py-4">
+                  <TableCell colSpan={visibleColumns.length} className="text-center py-4">
                     No units match your filter criteria
                   </TableCell>
                 </TableRow>

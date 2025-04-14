@@ -70,6 +70,9 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [blankValues, setBlankValues] = useState<{field: string, count: number}[]>([]);
   const [additionalCategories, setAdditionalCategories] = useState<AdditionalCategory[]>([]);
+  const [duplicateSelectionAlert, setDuplicateSelectionAlert] = useState<{ show: boolean, field: string, existingField: string }>({ 
+    show: false, field: '', existingField: '' 
+  });
 
   useEffect(() => {
     const initialMapping: Record<string, string> = {};
@@ -150,7 +153,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     const potentialCategories: AdditionalCategory[] = [];
     
     unmappedColumns.forEach(column => {
-      // Exclude columns that would be mapped to view or type
+      // Exclude view and bedroom type columns
       const columnLower = column.toLowerCase();
       const isViewOrType = 
         columnLower.includes("view") || 
@@ -193,11 +196,38 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     setAdditionalCategories(potentialCategories);
   };
 
+  const findExistingMappingForHeader = (headerName: string): string | null => {
+    for (const [fieldId, mappedHeader] of Object.entries(mapping)) {
+      if (mappedHeader === headerName) {
+        return fieldId;
+      }
+    }
+    return null;
+  };
+
   const handleMappingChange = (fieldId: string, headerName: string) => {
+    // Check if this header is already mapped to another field
+    const existingFieldId = findExistingMappingForHeader(headerName);
+    
+    if (existingFieldId && existingFieldId !== fieldId) {
+      // Show alert about duplicate mapping
+      const existingField = allFields.find(f => f.id === existingFieldId);
+      setDuplicateSelectionAlert({
+        show: true,
+        field: allFields.find(f => f.id === fieldId)?.label || fieldId,
+        existingField: existingField?.label || existingFieldId
+      });
+      return;
+    }
+    
     setMapping(prev => ({
       ...prev,
       [fieldId]: headerName
     }));
+  };
+
+  const handleDuplicateSelectionConfirm = () => {
+    setDuplicateSelectionAlert({ show: false, field: '', existingField: '' });
   };
 
   const toggleAdditionalCategory = (columnIndex: number, category: string) => {
@@ -599,6 +629,28 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={proceedWithMapping}>
               Continue with Defaults
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert for duplicate column selection */}
+      <AlertDialog open={duplicateSelectionAlert.show} onOpenChange={(open) => {
+        if (!open) setDuplicateSelectionAlert({...duplicateSelectionAlert, show: false});
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Column Already Mapped</AlertDialogTitle>
+            <AlertDialogDescription>
+              This column is already mapped to <strong>{duplicateSelectionAlert.existingField}</strong>. 
+              Each column can only be mapped to one field.
+              
+              Please select a different column for <strong>{duplicateSelectionAlert.field}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleDuplicateSelectionConfirm}>
+              Ok, I Understand
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
