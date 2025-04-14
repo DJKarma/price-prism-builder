@@ -44,14 +44,16 @@ export interface AdditionalCategory {
 }
 
 const requiredFields = [
-  { id: "name", label: "Unit Name", keywords: ["unit", "name", "id", "number", "no", "apartment", "apt", "property", "lot"] },
-  { id: "sellArea", label: "Sell Area", keywords: ["sell", "area", "sellable", "saleable", "sales", "sqft", "sq ft", "sqm", "sq m", "square", "size", "built up", "gross", "net", "usable", "carpet"] },
+  { id: "name", label: "Unit Name", keywords: ["unit", "name", "id", "number", "no"] },
+  { id: "sellArea", label: "Sell Area", keywords: ["sell", "area", "sellable", "saleable", "sales", "sqft", "sq ft", "sqm", "sq m", "square", "size"] },
 ];
 
 const optionalFields = [
-  { id: "acArea", label: "AC Area", keywords: ["ac", "air", "conditioning", "climate", "cool", "controlled", "hvac"] },
-  { id: "balcony", label: "Balcony", keywords: ["balcony", "patio", "outdoor", "terrace", "deck", "veranda", "porch"] },
-  { id: "floor", label: "Floor Level", keywords: ["floor", "level", "story", "storey", "elevation", "height", "tier"] },
+  { id: "acArea", label: "AC Area", keywords: ["ac", "air", "conditioning", "climate", "cool", "controlled"] },
+  { id: "balcony", label: "Balcony", keywords: ["balcony", "patio", "outdoor", "terrace", "deck"] },
+  { id: "floor", label: "Floor Level", keywords: ["floor", "level", "story", "storey", "elevation"] },
+  { id: "view", label: "View", keywords: ["view", "facing", "outlook", "aspect", "direction", "overlook"] },
+  { id: "type", label: "Bedroom Type", keywords: ["bed", "bedroom", "room", "type", "unit type", "layout", "configuration"] },
 ];
 
 const allFields = [...requiredFields, ...optionalFields];
@@ -68,10 +70,81 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [blankValues, setBlankValues] = useState<{field: string, count: number}[]>([]);
   const [additionalCategories, setAdditionalCategories] = useState<AdditionalCategory[]>([]);
-  const [availableHeaders, setAvailableHeaders] = useState<string[]>([]);
-  
-  // Detect unmapped columns that could be used for additional categories
+  const [duplicateSelectionAlert, setDuplicateSelectionAlert] = useState<{ show: boolean, field: string, existingField: string }>({ 
+    show: false, field: '', existingField: '' 
+  });
+
   useEffect(() => {
+    const initialMapping: Record<string, string> = {};
+    const usedHeaders = new Set<string>();
+    
+    allFields.forEach(field => {
+      const exactMatch = headers.find(header => 
+        header.toLowerCase() === field.id.toLowerCase() || 
+        header.toLowerCase() === field.label.toLowerCase()
+      );
+      
+      if (exactMatch && !usedHeaders.has(exactMatch)) {
+        initialMapping[field.id] = exactMatch;
+        usedHeaders.add(exactMatch);
+      }
+    });
+    
+    allFields.forEach(field => {
+      if (initialMapping[field.id]) return;
+      
+      const keywordMatch = headers.find(header => {
+        const headerLower = header.toLowerCase();
+        return !usedHeaders.has(header) && 
+               field.keywords.some(keyword => headerLower.includes(keyword.toLowerCase()));
+      });
+      
+      if (keywordMatch) {
+        initialMapping[field.id] = keywordMatch;
+        usedHeaders.add(keywordMatch);
+      }
+    });
+    
+    allFields.forEach(field => {
+      if (initialMapping[field.id]) return;
+      
+      const containsMatch = headers.find(header => {
+        if (usedHeaders.has(header)) return false;
+        
+        const headerLower = header.toLowerCase();
+        const fieldIdLower = field.id.toLowerCase();
+        const fieldLabelLower = field.label.toLowerCase();
+        
+        return headerLower.includes(fieldIdLower) || 
+               fieldIdLower.includes(headerLower) ||
+               headerLower.includes(fieldLabelLower) || 
+               fieldLabelLower.includes(headerLower);
+      });
+      
+      if (containsMatch) {
+        initialMapping[field.id] = containsMatch;
+        usedHeaders.add(containsMatch);
+      }
+    });
+    
+    setMapping(initialMapping);
+    
+    detectAdditionalCategories();
+  }, [headers, data]);
+
+  useEffect(() => {
+    if (data.length > 0) {
+      const preview: Record<string, any> = {};
+      
+      Object.entries(mapping).forEach(([fieldId, headerName]) => {
+        preview[fieldId] = data[0][headerName];
+      });
+      
+      setPreviewData(preview);
+    }
+  }, [mapping, data]);
+
+  const detectAdditionalCategories = () => {
     if (!data.length) return;
     
     const mappedColumns = new Set(Object.values(mapping));
@@ -80,7 +153,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     const potentialCategories: AdditionalCategory[] = [];
     
     unmappedColumns.forEach(column => {
-      // Exclude view and bedroom type columns 
+      // Exclude view and bedroom type columns
       const columnLower = column.toLowerCase();
       const isViewOrType = 
         columnLower.includes("view") || 
@@ -121,188 +194,40 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     });
     
     setAdditionalCategories(potentialCategories);
-  }, [headers, data, mapping]);
-
-  // Update available headers whenever mappings change
-  useEffect(() => {
-    const mappedHeaders = new Set(Object.values(mapping));
-    setAvailableHeaders(headers.filter(header => !mappedHeaders.has(header)));
-  }, [headers, mapping]);
-
-  // Initialize mappings with smart detection based on enhanced fuzzy matching
-  useEffect(() => {
-    const initialMapping: Record<string, string> = {};
-    const usedHeaders = new Set<string>();
-    
-    // Exact matches have highest priority
-    allFields.forEach(field => {
-      if (initialMapping[field.id]) return;
-      
-      // Try exact match (case insensitive)
-      const exactMatch = headers.find(header => {
-        const headerLower = header.toLowerCase();
-        return !usedHeaders.has(header) && (
-          headerLower === field.id.toLowerCase() || 
-          headerLower === field.label.toLowerCase()
-        );
-      });
-      
-      if (exactMatch) {
-        initialMapping[field.id] = exactMatch;
-        usedHeaders.add(exactMatch);
-      }
-    });
-    
-    // Look for keyword matches next
-    allFields.forEach(field => {
-      if (initialMapping[field.id]) return;
-      
-      // Score-based fuzzy matching for keywords
-      const scoredHeaders = headers
-        .filter(header => !usedHeaders.has(header))
-        .map(header => {
-          const headerLower = header.toLowerCase();
-          let score = 0;
-          
-          // Score each keyword match
-          field.keywords.forEach(keyword => {
-            const keywordLower = keyword.toLowerCase();
-            if (headerLower === keywordLower) {
-              score += 10; // Exact keyword match
-            } else if (headerLower.includes(keywordLower)) {
-              score += 5; // Partial keyword match
-            } else if (keywordLower.includes(headerLower)) {
-              score += 3; // Header is contained in keyword
-            }
-            
-            // Distance-based scoring for fuzzy matching
-            const distance = levenshteinDistance(headerLower, keywordLower);
-            if (distance <= 2) {
-              score += (3 - distance); // Close matches get higher scores
-            }
-          });
-          
-          return { header, score };
-        })
-        .filter(item => item.score > 0)
-        .sort((a, b) => b.score - a.score);
-      
-      if (scoredHeaders.length > 0) {
-        initialMapping[field.id] = scoredHeaders[0].header;
-        usedHeaders.add(scoredHeaders[0].header);
-      }
-    });
-    
-    // Additional contextual matching
-    allFields.forEach(field => {
-      if (initialMapping[field.id]) return;
-      
-      // For area fields, check for numerical columns
-      if (field.id.includes("Area") && data.length > 0) {
-        const numericalHeaders = headers
-          .filter(header => !usedHeaders.has(header))
-          .filter(header => {
-            // Check if the column contains mostly numbers
-            const sample = data.slice(0, 5).map(row => row[header]);
-            return sample.every(val => val === undefined || val === null || val === "" || !isNaN(Number(val)));
-          });
-        
-        // Choose the best match based on name and content
-        const bestMatch = numericalHeaders.find(header => 
-          header.toLowerCase().includes("area") || 
-          header.toLowerCase().includes("size") || 
-          header.toLowerCase().includes("sqft") ||
-          header.toLowerCase().includes("sq") ||
-          header.toLowerCase().includes("sqm")
-        );
-        
-        if (bestMatch) {
-          initialMapping[field.id] = bestMatch;
-          usedHeaders.add(bestMatch);
-        }
-      }
-      
-      // For floor field, look for numerical columns that could represent floors
-      if (field.id === "floor" && data.length > 0) {
-        const potentialFloorHeaders = headers
-          .filter(header => !usedHeaders.has(header))
-          .filter(header => {
-            const headerLower = header.toLowerCase();
-            return headerLower.includes("fl") || 
-                  headerLower.includes("level") || 
-                  headerLower.includes("storey");
-          });
-        
-        if (potentialFloorHeaders.length > 0) {
-          initialMapping[field.id] = potentialFloorHeaders[0];
-          usedHeaders.add(potentialFloorHeaders[0]);
-        }
-      }
-    });
-    
-    setMapping(initialMapping);
-  }, [headers, data]);
-
-  // Calculate Levenshtein distance for fuzzy matching
-  const levenshteinDistance = (a: string, b: string): number => {
-    if (a.length === 0) return b.length;
-    if (b.length === 0) return a.length;
-  
-    const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
-  
-    for (let i = 0; i <= a.length; i++) {
-      matrix[0][i] = i;
-    }
-  
-    for (let j = 0; j <= b.length; j++) {
-      matrix[j][0] = j;
-    }
-  
-    for (let j = 1; j <= b.length; j++) {
-      for (let i = 1; i <= a.length; i++) {
-        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-        matrix[j][i] = Math.min(
-          matrix[j][i - 1] + 1, // deletion
-          matrix[j - 1][i] + 1, // insertion
-          matrix[j - 1][i - 1] + cost // substitution
-        );
-      }
-    }
-  
-    return matrix[b.length][a.length];
   };
 
-  useEffect(() => {
-    if (data.length > 0) {
-      const preview: Record<string, any> = {};
-      
-      Object.entries(mapping).forEach(([fieldId, headerName]) => {
-        preview[fieldId] = data[0][headerName];
-      });
-      
-      setPreviewData(preview);
+  const findExistingMappingForHeader = (headerName: string): string | null => {
+    for (const [fieldId, mappedHeader] of Object.entries(mapping)) {
+      if (mappedHeader === headerName) {
+        return fieldId;
+      }
     }
-  }, [mapping, data]);
+    return null;
+  };
 
-  const handleMappingChange = (fieldId: string, headerName: string | null) => {
-    setMapping(prev => {
-      const newMapping = { ...prev };
-      
-      // If there was a previous mapping for this field, remove it
-      if (newMapping[fieldId]) {
-        // No action needed since we'll update it or delete it below
-      }
-      
-      // If headerName is null (unselected) or empty, delete the mapping
-      if (!headerName) {
-        delete newMapping[fieldId];
-      } else {
-        // Add the new mapping
-        newMapping[fieldId] = headerName;
-      }
-      
-      return newMapping;
-    });
+  const handleMappingChange = (fieldId: string, headerName: string) => {
+    // Check if this header is already mapped to another field
+    const existingFieldId = findExistingMappingForHeader(headerName);
+    
+    if (existingFieldId && existingFieldId !== fieldId) {
+      // Show alert about duplicate mapping
+      const existingField = allFields.find(f => f.id === existingFieldId);
+      setDuplicateSelectionAlert({
+        show: true,
+        field: allFields.find(f => f.id === fieldId)?.label || fieldId,
+        existingField: existingField?.label || existingFieldId
+      });
+      return;
+    }
+    
+    setMapping(prev => ({
+      ...prev,
+      [fieldId]: headerName
+    }));
+  };
+
+  const handleDuplicateSelectionConfirm = () => {
+    setDuplicateSelectionAlert({ show: false, field: '', existingField: '' });
   };
 
   const toggleAdditionalCategory = (columnIndex: number, category: string) => {
@@ -500,16 +425,6 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     );
   };
 
-  // Get currently available headers for a field's dropdown
-  const getSelectableHeaders = (fieldId: string): string[] => {
-    // If this field already has a mapping, include that header in the options
-    const currentMapping = mapping[fieldId];
-    if (currentMapping) {
-      return [...availableHeaders, currentMapping];
-    }
-    return availableHeaders;
-  };
-
   return (
     <>
       <Card className="w-full">
@@ -548,14 +463,14 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                       {field.label} <span className="text-amber-500">*</span>
                     </label>
                     <Select
-                      value={mapping[field.id] || ""}
-                      onValueChange={(value) => handleMappingChange(field.id, value || null)}
+                      value={mapping[field.id] || undefined}
+                      onValueChange={(value) => handleMappingChange(field.id, value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a column" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getSelectableHeaders(field.id).map((header) => (
+                        {headers.map((header) => (
                           <SelectItem key={header} value={header}>
                             {header}
                           </SelectItem>
@@ -576,14 +491,14 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                   <div key={field.id} className="space-y-1">
                     <label className="text-sm font-medium">{field.label}</label>
                     <Select
-                      value={mapping[field.id] || ""}
-                      onValueChange={(value) => handleMappingChange(field.id, value || null)}
+                      value={mapping[field.id] || undefined}
+                      onValueChange={(value) => handleMappingChange(field.id, value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a column" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getSelectableHeaders(field.id).map((header) => (
+                        {headers.map((header) => (
                           <SelectItem key={header} value={header}>
                             {header}
                           </SelectItem>
@@ -714,6 +629,28 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={proceedWithMapping}>
               Continue with Defaults
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert for duplicate column selection */}
+      <AlertDialog open={duplicateSelectionAlert.show} onOpenChange={(open) => {
+        if (!open) setDuplicateSelectionAlert({...duplicateSelectionAlert, show: false});
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Column Already Mapped</AlertDialogTitle>
+            <AlertDialogDescription>
+              This column is already mapped to <strong>{duplicateSelectionAlert.existingField}</strong>. 
+              Each column can only be mapped to one field.
+              
+              Please select a different column for <strong>{duplicateSelectionAlert.field}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleDuplicateSelectionConfirm}>
+              Ok, I Understand
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
