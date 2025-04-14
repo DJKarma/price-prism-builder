@@ -1,34 +1,44 @@
-import React, { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import React, { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { Settings, PlusCircle, MinusCircle, Ruler, Building2, Eye, Tag } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface PricingConfigurationProps {
   data: any[];
   onConfigurationComplete: (config: PricingConfig) => void;
-  maxFloor?: number;
-  additionalCategories?: Array<{column: string, categories: string[]}>;
+  maxFloor: number;
+  additionalCategories: any[];
 }
 
-export interface FloorRiseRule {
+export interface PricingConfig {
+  basePsf: number;
+  bedroomTypePricing: BedroomTypePricing[];
+  viewPricing: ViewPricing[];
+  floorRiseRules: FloorRiseRule[];
+  additionalCategoryPricing: AdditionalCategoryPricing[];
+  targetOverallPsf: number;
+  optimizedTypes: string[];
+  maxFloor: number;
+}
+
+interface BedroomTypePricing {
+  type: string;
+  basePsf: number;
+  targetAvgPsf: number;
+  isOptimized?: boolean;
+}
+
+interface ViewPricing {
+  view: string;
+  psfAdjustment: number;
+}
+
+interface FloorRiseRule {
   startFloor: number;
   endFloor: number | null;
   psfIncrement: number;
@@ -36,520 +46,371 @@ export interface FloorRiseRule {
   jumpIncrement?: number;
 }
 
-export interface BedroomTypePricing {
-  type: string;
-  basePsf: number;
-  targetAvgPsf: number;
-}
-
-export interface ViewPricing {
-  view: string;
-  psfAdjustment: number;
-}
-
-export interface AdditionalCategoryPricing {
+interface AdditionalCategoryPricing {
   column: string;
   category: string;
   psfAdjustment: number;
 }
 
-export interface PricingConfig {
-  basePsf: number;
-  bedroomTypePricing: Array<{
-    type: string;
-    basePsf: number;
-    targetAvgPsf: number;
-    originalBasePsf?: number;
-  }>;
-  viewPricing: Array<{
-    view: string;
-    psfAdjustment: number;
-    originalPsfAdjustment?: number;
-  }>;
-  floorRiseRules: Array<{
-    startFloor: number;
-    endFloor: number | null;
-    psfIncrement: number;
-    jumpEveryFloor?: number;
-    jumpIncrement?: number;
-  }>;
-  additionalCategoryPricing?: AdditionalCategoryPricing[];
-  targetOverallPsf?: number;
-  isOptimized?: boolean;
-  maxFloor?: number;
-}
-
 const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   data,
   onConfigurationComplete,
-  maxFloor = 50,
-  additionalCategories = []
+  maxFloor,
+  additionalCategories,
 }) => {
-  const [basePsf, setBasePsf] = useState<number>(1000);
+  const [basePsf, setBasePsf] = useState<number>(650);
+  const [bedroomTypePricing, setBedroomTypePricing] = useState<BedroomTypePricing[]>([]);
+  const [viewPricing, setViewPricing] = useState<ViewPricing[]>([]);
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
-    { startFloor: 1, endFloor: maxFloor, psfIncrement: 10, jumpEveryFloor: 10, jumpIncrement: 20 },
+    { startFloor: 1, endFloor: 10, psfIncrement: 5 },
   ]);
-  const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
-  const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
   const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>([]);
+  const [targetOverallPsf, setTargetOverallPsf] = useState<number>(0);
+  const [optimizedTypes, setOptimizedTypes] = useState<string[]>([]);
 
   useEffect(() => {
-    if (floorRiseRules.length > 0) {
-      const updatedRules = [...floorRiseRules];
-      if (updatedRules[updatedRules.length - 1].endFloor === null) {
-        updatedRules[updatedRules.length - 1].endFloor = maxFloor;
-        setFloorRiseRules(updatedRules);
-      }
-    }
-  }, [maxFloor]);
+    if (data.length > 0) {
+      // Extract unique bedroom types from the data
+      const uniqueBedroomTypes = [...new Set(data.map((item) => item.type))];
 
-  useEffect(() => {
-    if (!data.length) return;
-
-    const uniqueTypes = Array.from(
-      new Set(
-        data
-          .map((item) => item.type)
-          .filter((type) => type && type.trim() !== "")
-      )
-    ) as string[];
-
-    setBedroomTypes(
-      uniqueTypes.map((type) => ({
+      // Initialize bedroom type pricing with default values
+      const initialBedroomTypePricing = uniqueBedroomTypes.map((type) => ({
         type,
         basePsf: basePsf,
         targetAvgPsf: basePsf,
-      }))
-    );
+        isOptimized: false,
+      }));
+      setBedroomTypePricing(initialBedroomTypePricing);
 
-    const uniqueViews = Array.from(
-      new Set(
-        data
-          .map((item) => item.view)
-          .filter((view) => view && view.trim() !== "")
-      )
-    ) as string[];
+      // Extract unique views from the data
+      const uniqueViews = [...new Set(data.map((item) => item.view))];
 
-    setViewTypes(
-      uniqueViews.map((view) => ({
+      // Initialize view pricing with default values
+      const initialViewPricing = uniqueViews.map((view) => ({
         view,
         psfAdjustment: 0,
-      }))
-    );
-
-    const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
-    
-    if (additionalCategories && additionalCategories.length > 0) {
-      additionalCategories.forEach(category => {
-        if (category.categories && category.categories.length > 0) {
-          category.categories.forEach(value => {
-            initialAdditionalCategories.push({
-              column: category.column,
-              category: value,
-              psfAdjustment: 0
-            });
-          });
-        }
-      });
+      }));
+      setViewPricing(initialViewPricing);
     }
-    
-    setAdditionalCategoryPricing(initialAdditionalCategories);
-    
-  }, [data, basePsf, additionalCategories]);
+  }, [data, basePsf]);
 
-  const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      setBasePsf(value);
-      setBedroomTypes(prev =>
-        prev.map(item => ({
-          ...item,
-          basePsf: value,
-          targetAvgPsf: value
-        }))
-      );
-    }
+  const handleBasePsfChange = (index: number, value: number) => {
+    const updatedBedroomTypePricing = [...bedroomTypePricing];
+    updatedBedroomTypePricing[index] = {
+      ...updatedBedroomTypePricing[index],
+      basePsf: value,
+    };
+    setBedroomTypePricing(updatedBedroomTypePricing);
   };
 
-  const handleAddFloorRiseRule = () => {
-    const lastRule = floorRiseRules[floorRiseRules.length - 1];
-    const newStartFloor = lastRule ? 
-      (lastRule.endFloor === null ? maxFloor : lastRule.endFloor) + 1 : 1;
-    
+  const handleTargetAvgPsfChange = (index: number, value: number) => {
+    const updatedBedroomTypePricing = [...bedroomTypePricing];
+    updatedBedroomTypePricing[index] = {
+      ...updatedBedroomTypePricing[index],
+      targetAvgPsf: value,
+    };
+    setBedroomTypePricing(updatedBedroomTypePricing);
+  };
+
+  const handleViewPsfChange = (index: number, value: number) => {
+    const updatedViewPricing = [...viewPricing];
+    updatedViewPricing[index] = {
+      ...updatedViewPricing[index],
+      psfAdjustment: value,
+    };
+    setViewPricing(updatedViewPricing);
+  };
+
+  const handleFloorRuleChange = (
+    index: number,
+    field: string,
+    value: number | null
+  ) => {
+    const updatedFloorRiseRules = [...floorRiseRules];
+    updatedFloorRiseRules[index] = {
+      ...updatedFloorRiseRules[index],
+      [field]: value,
+    };
+    setFloorRiseRules(updatedFloorRiseRules);
+  };
+
+  const addFloorRule = () => {
     setFloorRiseRules([
       ...floorRiseRules,
-      {
-        startFloor: newStartFloor,
-        endFloor: maxFloor,
-        psfIncrement: 10,
-        jumpEveryFloor: 10,
-        jumpIncrement: 20,
-      },
+      { startFloor: 1, endFloor: 10, psfIncrement: 5 },
     ]);
   };
 
-  const handleRemoveFloorRiseRule = (index: number) => {
-    if (floorRiseRules.length <= 1) {
-      toast.error("You must have at least one floor rise rule");
-      return;
-    }
-    setFloorRiseRules(floorRiseRules.filter((_, i) => i !== index));
+  const removeFloorRule = (index: number) => {
+    const updatedFloorRiseRules = [...floorRiseRules];
+    updatedFloorRiseRules.splice(index, 1);
+    setFloorRiseRules(updatedFloorRiseRules);
   };
 
-  const updateFloorRiseRule = (index: number, field: keyof FloorRiseRule, value: number | null) => {
-    const newRules = [...floorRiseRules];
-    newRules[index] = { ...newRules[index], [field]: value };
-    setFloorRiseRules(newRules);
+  const handleAdditionalCategoryChange = (
+    index: number,
+    field: string,
+    value: string | number
+  ) => {
+    const updatedCategoryPricing = [...additionalCategoryPricing];
+    updatedCategoryPricing[index] = {
+      ...updatedCategoryPricing[index],
+      [field]: value,
+    };
+    setAdditionalCategoryPricing(updatedCategoryPricing);
   };
 
-  const updateBedroomTypePrice = (index: number, field: keyof BedroomTypePricing, value: number) => {
-    const newPricing = [...bedroomTypes];
-    newPricing[index] = { ...newPricing[index], [field]: value };
-    setBedroomTypes(newPricing);
+  const addAdditionalCategory = () => {
+    setAdditionalCategoryPricing([
+      ...additionalCategoryPricing,
+      { column: "", category: "", psfAdjustment: 0 },
+    ]);
   };
 
-  const updateViewPricing = (index: number, value: number) => {
-    const newViewPricing = [...viewTypes];
-    newViewPricing[index] = { ...newViewPricing[index], psfAdjustment: value };
-    setViewTypes(newViewPricing);
-  };
-
-  const updateAdditionalCategoryPricing = (index: number, value: number) => {
-    const newCategoryPricing = [...additionalCategoryPricing];
-    newCategoryPricing[index] = { ...newCategoryPricing[index], psfAdjustment: value };
-    setAdditionalCategoryPricing(newCategoryPricing);
+  const removeAdditionalCategory = (index: number) => {
+    const updatedCategoryPricing = [...additionalCategoryPricing];
+    updatedCategoryPricing.splice(index, 1);
+    setAdditionalCategoryPricing(updatedCategoryPricing);
   };
 
   const handleSubmit = () => {
-    if (basePsf <= 0) {
-      toast.error("Base PSF must be greater than zero");
+    // Validate that all bedroom types have a targetAvgPsf
+    if (bedroomTypePricing.some((type) => type.targetAvgPsf === undefined)) {
+      toast.error("Please set a Target Avg PSF for all bedroom types.");
       return;
     }
 
-    for (let i = 0; i < floorRiseRules.length; i++) {
-      const rule = floorRiseRules[i];
-      
-      if (rule.endFloor !== null && rule.startFloor > rule.endFloor) {
-        toast.error(`Floor rise rule #${i+1} has start floor greater than end floor`);
-        return;
-      }
-      
-      for (let j = i + 1; j < floorRiseRules.length; j++) {
-        const otherRule = floorRiseRules[j];
-        const ruleEnd = rule.endFloor === null ? maxFloor : rule.endFloor;
-        const otherRuleEnd = otherRule.endFloor === null ? maxFloor : otherRule.endFloor;
-        
-        if (
-          (rule.startFloor <= otherRuleEnd && ruleEnd >= otherRule.startFloor) ||
-          (otherRule.startFloor <= ruleEnd && otherRuleEnd >= rule.startFloor)
-        ) {
-          toast.error(`Floor rise rules #${i+1} and #${j+1} have overlapping floor ranges`);
-          return;
-        }
-      }
+    // Validate that all floor rise rules have valid values
+    if (floorRiseRules.some((rule) => rule.startFloor === undefined || rule.psfIncrement === undefined)) {
+      toast.error("Please set valid values for all floor rise rules.");
+      return;
     }
 
-    const processedRules = floorRiseRules.map(rule => ({
-      ...rule,
-      endFloor: rule.endFloor === null ? maxFloor : rule.endFloor
-    }));
+    // Validate that all additional category pricing rules have valid values
+    if (additionalCategoryPricing.some((rule) => rule.column === "" || rule.category === "" || rule.psfAdjustment === undefined)) {
+      toast.error("Please set valid values for all additional category pricing rules.");
+      return;
+    }
 
-    onConfigurationComplete({
+    const config: PricingConfig = {
       basePsf,
-      floorRiseRules: processedRules,
-      bedroomTypePricing: bedroomTypes,
-      viewPricing: viewTypes,
-      additionalCategoryPricing: additionalCategoryPricing,
-      maxFloor,
-    });
+      bedroomTypePricing,
+      viewPricing,
+      floorRiseRules,
+      additionalCategoryPricing,
+      targetOverallPsf,
+      optimizedTypes,
+      maxFloor: maxFloor
+    };
+    onConfigurationComplete(config);
+    toast.success("Pricing configuration saved successfully!");
   };
 
-  const groupedAdditionalCategories = additionalCategoryPricing.reduce((acc, item) => {
-    if (!acc[item.column]) {
-      acc[item.column] = [];
-    }
-    acc[item.column].push(item);
-    return acc;
-  }, {} as Record<string, AdditionalCategoryPricing[]>);
-
   return (
-    <Card className="w-full border-2 border-indigo-100 shadow-md">
-      <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50">
-        <CardTitle className="flex items-center gap-2 text-xl text-indigo-800">
-          <Settings className="h-5 w-5 text-indigo-600" />
-          Pricing Configuration
-        </CardTitle>
-        <CardDescription className="text-indigo-600">
-          Set up base pricing and adjustment factors
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-8 p-6">
-        <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-indigo-700 flex items-center">
-              <Ruler className="h-5 w-5 mr-2 text-indigo-600" />
-              Floor Rise PSF Rules
-            </h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddFloorRiseRule}
-              className="h-9 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-indigo-700"
-            >
-              <PlusCircle className="h-4 w-4 mr-2 text-indigo-600" /> Add Rule
-            </Button>
-          </div>
-          
-          <div className="rounded-lg border border-indigo-100 overflow-hidden">
-            <Table>
-              <TableHeader className="bg-indigo-50">
-                <TableRow>
-                  <TableHead className="text-indigo-700">Start Floor</TableHead>
-                  <TableHead className="text-indigo-700">End Floor</TableHead>
-                  <TableHead className="text-indigo-700">PSF Increment</TableHead>
-                  <TableHead className="text-indigo-700">Jump Every</TableHead>
-                  <TableHead className="text-indigo-700">Jump PSF</TableHead>
-                  <TableHead className="w-24 text-indigo-700">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {floorRiseRules.map((rule, index) => (
-                  <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
-                    <TableCell>
+    <div className="space-y-6">
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Base Pricing Configuration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            {bedroomTypePricing.map((typeConfig, index) => (
+              <Card 
+                key={typeConfig.type} 
+                className="hover:shadow-sm transition-shadow"
+              >
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary">{typeConfig.type}</Badge>
+                    <div className="flex items-center space-x-2">
+                      <Label className="text-sm">Target Avg PSF</Label>
                       <Input
                         type="number"
-                        min="1"
-                        value={rule.startFloor}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            index,
-                            "startFloor",
-                            parseInt(e.target.value) || 1
-                          )
-                        }
-                        className="border-indigo-200"
+                        min="0"
+                        step="0.01"
+                        value={typeConfig.targetAvgPsf}
+                        onChange={(e) => handleTargetAvgPsfChange(index, parseFloat(e.target.value))}
+                        className="w-24 h-8 text-sm"
                       />
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Base PSF</Label>
+                    <div className="flex items-center space-x-4">
                       <Input
                         type="number"
-                        min={rule.startFloor}
-                        value={rule.endFloor === null ? '' : rule.endFloor}
-                        placeholder={`${maxFloor} (Default)`}
-                        onChange={(e) => {
-                          const value = e.target.value.trim() === '' ? null : parseInt(e.target.value);
-                          updateFloorRiseRule(
-                            index,
-                            "endFloor",
-                            value
-                          );
-                        }}
-                        className="border-indigo-200"
+                        min="0"
+                        step="0.01"
+                        value={typeConfig.basePsf}
+                        onChange={(e) => handleBasePsfChange(index, parseFloat(e.target.value))}
+                        className="flex-1 h-8 text-sm"
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={rule.psfIncrement}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            index,
-                            "psfIncrement",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={rule.jumpEveryFloor || 10}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            index,
-                            "jumpEveryFloor",
-                            parseInt(e.target.value) || 10
-                          )
-                        }
-                        placeholder="e.g., 10"
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={rule.jumpIncrement || 20}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            index,
-                            "jumpIncrement",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        placeholder="e.g., 20"
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveFloorRiseRule(index)}
-                        className="hover:bg-red-50 hover:text-red-500"
-                      >
-                        <MinusCircle className="h-4 w-4 text-red-400 hover:text-red-500" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-
-        {bedroomTypes.length > 0 && (
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
-              <Building2 className="h-5 w-5 mr-2 text-indigo-600" />
-              Bedroom Type Pricing
-            </h3>
-            <div className="rounded-lg border border-indigo-100 overflow-hidden">
-              <Table>
-                <TableHeader className="bg-indigo-50">
-                  <TableRow>
-                    <TableHead className="text-indigo-700">Bedroom Type</TableHead>
-                    <TableHead className="text-indigo-700">Base PSF</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {bedroomTypes.map((type, index) => (
-                    <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
-                      <TableCell className="font-medium">{type.type}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={type.basePsf}
-                          onChange={(e) =>
-                            updateBedroomTypePrice(
-                              index,
-                              "basePsf",
-                              parseFloat(e.target.value)
-                            )
-                          }
-                          className="border-indigo-200"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-
-        {viewTypes.length > 0 && (
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
-              <Eye className="h-5 w-5 mr-2 text-indigo-600" />
-              View Pricing Adjustments
-            </h3>
-            <div className="rounded-lg border border-indigo-100 overflow-hidden">
-              <Table>
-                <TableHeader className="bg-indigo-50">
-                  <TableRow>
-                    <TableHead className="text-indigo-700">View Type</TableHead>
-                    <TableHead className="text-indigo-700">PSF Adjustment</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {viewTypes.map((view, index) => (
-                    <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
-                      <TableCell className="font-medium">{view.view}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={view.psfAdjustment}
-                          onChange={(e) =>
-                            updateViewPricing(
-                              index,
-                              parseFloat(e.target.value)
-                            )
-                          }
-                          className="border-indigo-200"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-
-        {Object.keys(groupedAdditionalCategories).length > 0 && (
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
-              <Tag className="h-5 w-5 mr-2 text-indigo-600" />
-              Additional Category Pricing
-            </h3>
-            
-            {Object.entries(groupedAdditionalCategories).map(([column, categories]) => (
-              <div key={column} className="mb-6">
-                <h4 className="text-md font-medium text-indigo-600 mb-3 flex items-center">
-                  {column}
-                </h4>
-                <div className="rounded-lg border border-indigo-100 overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-indigo-50">
-                      <TableRow>
-                        <TableHead className="text-indigo-700">Category</TableHead>
-                        <TableHead className="text-indigo-700">PSF Adjustment</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {categories.map((item, idx) => {
-                        const index = additionalCategoryPricing.findIndex(
-                          c => c.column === item.column && c.category === item.category
-                        );
-                        return (
-                          <TableRow key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
-                            <TableCell className="font-medium">{item.category}</TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                value={item.psfAdjustment}
-                                onChange={(e) =>
-                                  updateAdditionalCategoryPricing(
-                                    index,
-                                    parseFloat(e.target.value)
-                                  )
-                                }
-                                className="border-indigo-200"
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                      <Badge variant="outline" className="px-2 py-1">
+                        Current: {typeConfig.basePsf.toFixed(2)}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex justify-end p-6 bg-gradient-to-r from-indigo-50/70 to-blue-50/70">
-        <Button 
-          onClick={handleSubmit} 
-          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
-        >
-          Apply Configuration
-        </Button>
-      </CardFooter>
-    </Card>
+
+          {/* Floor Rise Rules Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Floor Rise Rules</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {floorRiseRules.map((rule, index) => (
+                <div 
+                  key={index} 
+                  className="grid grid-cols-4 gap-4 items-center"
+                >
+                  <div>
+                    <Label>Start Floor</Label>
+                    <Input
+                      type="number"
+                      value={rule.startFloor}
+                      onChange={(e) => handleFloorRuleChange(index, 'startFloor', parseInt(e.target.value))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label>End Floor</Label>
+                    <Input
+                      type="number"
+                      value={rule.endFloor || ''}
+                      onChange={(e) => handleFloorRuleChange(index, 'endFloor', e.target.value ? parseInt(e.target.value) : null)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label>PSF Increment</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={rule.psfIncrement}
+                      onChange={(e) => handleFloorRuleChange(index, 'psfIncrement', parseFloat(e.target.value))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={() => removeFloorRule(index)}
+                      className="mt-6"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <Button 
+                variant="outline" 
+                onClick={addFloorRule}
+                className="w-full"
+              >
+                Add Floor Rule
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* View Based Pricing */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">View Based Pricing</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {viewPricing.map((viewConfig, index) => (
+                <div key={viewConfig.view} className="grid grid-cols-3 gap-4 items-center">
+                  <div>
+                    <Label>{viewConfig.view}</Label>
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={viewConfig.psfAdjustment}
+                      onChange={(e) => handleViewPsfChange(index, parseFloat(e.target.value))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Badge variant="outline" className="px-2 py-1">
+                      Current: {viewConfig.psfAdjustment.toFixed(2)}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Additional Categories Pricing */}
+          {additionalCategories.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Additional Categories Pricing</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {additionalCategoryPricing.map((categoryConfig, index) => (
+                  <div key={index} className="grid grid-cols-4 gap-4 items-center">
+                    <div>
+                      <Label>Column</Label>
+                      <Input
+                        type="text"
+                        value={categoryConfig.column}
+                        onChange={(e) => handleAdditionalCategoryChange(index, 'column', e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label>Category</Label>
+                      <Input
+                        type="text"
+                        value={categoryConfig.category}
+                        onChange={(e) => handleAdditionalCategoryChange(index, 'category', e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label>PSF Adjustment</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={categoryConfig.psfAdjustment}
+                        onChange={(e) => handleAdditionalCategoryChange(index, 'psfAdjustment', parseFloat(e.target.value))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeAdditionalCategory(index)}
+                        className="mt-6"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  onClick={addAdditionalCategory}
+                  className="w-full"
+                >
+                  Add Additional Category
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          <Button onClick={handleSubmit}>Submit Configuration</Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
