@@ -150,6 +150,20 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     const potentialCategories: AdditionalCategory[] = [];
     
     unmappedColumns.forEach(column => {
+      // Exclude columns that would be mapped to view or type
+      const columnLower = column.toLowerCase();
+      const isViewOrType = 
+        columnLower.includes("view") || 
+        columnLower.includes("facing") || 
+        columnLower.includes("direction") ||
+        columnLower.includes("bed") || 
+        columnLower.includes("type") || 
+        columnLower.includes("layout");
+      
+      if (isViewOrType) {
+        return;
+      }
+      
       const firstFewValues = data.slice(0, 10).map(row => row[column]);
       const seemsNumerical = firstFewValues.every(val => 
         val === undefined || val === null || val === "" || !isNaN(Number(val))

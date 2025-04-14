@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { megaOptimizePsf, calculateOverallAveragePsf, fullOptimizePsf } from "@/utils/psfOptimizer";
 import { toast } from "sonner";
@@ -75,8 +74,18 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
           }
         });
         
+        // Check for additional category adjustments
+        let additionalCategoryAdjustment = 0;
+        if (config.additionalCategoryPricing && config.additionalCategoryPricing.length > 0) {
+          config.additionalCategoryPricing.forEach((catPricing: any) => {
+            if (unit[`${catPricing.column}_value`] === catPricing.category) {
+              additionalCategoryAdjustment += catPricing.psfAdjustment;
+            }
+          });
+        }
+        
         // Compute unit's base PSF (before rounding)
-        const unitBasePsf = typeConfig.basePsf + floorPremium + viewPremium;
+        const unitBasePsf = typeConfig.basePsf + floorPremium + viewPremium + additionalCategoryAdjustment;
         // Calculate total price for the unit
         const totalPrice = unitBasePsf * area;
         // Apply ceiling to total price to mimic final pricing
@@ -146,13 +155,15 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
           }),
           viewPricing: pricingConfig.viewPricing,
           floorRiseRules: pricingConfig.floorRiseRules,
+          // Keep additional category pricing unchanged
+          additionalCategoryPricing: pricingConfig.additionalCategoryPricing,
           targetOverallPsf: targetPsf,
           isOptimized: true,
           optimizationMode: "basePsf",
           optimizedTypes: selectedTypes
         };
       } else {
-        // Run full optimization including floor and view adjustments – only for selected bedroom types
+        // Run full optimization including floor, view, and additional category adjustments
         result = fullOptimizePsf(data, configWithProcessedRules, targetPsf, selectedTypes);
         
         optimizedConfig = {
@@ -181,6 +192,21 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
             }
             return view;
           }),
+          // Update additional category pricing if available
+          additionalCategoryPricing: pricingConfig.additionalCategoryPricing && 
+            result.optimizedParams.additionalCategoryAdjustments ?
+            pricingConfig.additionalCategoryPricing.map((cat: any) => {
+              const adjustment = result.optimizedParams.additionalCategoryAdjustments?.[cat.column]?.[cat.category];
+              if (adjustment !== undefined) {
+                return {
+                  ...cat,
+                  psfAdjustment: adjustment,
+                  originalPsfAdjustment: cat.originalPsfAdjustment || cat.psfAdjustment
+                };
+              }
+              return cat;
+            }) : 
+            pricingConfig.additionalCategoryPricing,
           floorRiseRules: pricingConfig.originalFloorRiseRules 
             ? pricingConfig.floorRiseRules
             : [...pricingConfig.floorRiseRules],
@@ -241,6 +267,13 @@ export const useOptimizer = (data: any[], pricingConfig: any, onOptimized: (opti
         // Ensure we properly revert to original value (which might be 0)
         psfAdjustment: view.originalPsfAdjustment !== undefined ? view.originalPsfAdjustment : view.psfAdjustment,
       })),
+      // Revert additional category pricing if it exists
+      additionalCategoryPricing: pricingConfig.additionalCategoryPricing ? 
+        pricingConfig.additionalCategoryPricing.map((cat: any) => ({
+          ...cat,
+          psfAdjustment: cat.originalPsfAdjustment !== undefined ? cat.originalPsfAdjustment : cat.psfAdjustment,
+        })) : 
+        pricingConfig.additionalCategoryPricing,
       floorRiseRules: pricingConfig.originalFloorRiseRules || pricingConfig.floorRiseRules,
       isOptimized: false,
       optimizedTypes: []

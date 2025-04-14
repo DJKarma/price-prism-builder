@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import { 
@@ -41,15 +42,23 @@ const sortBedroomTypes = (a: any, b: any) => {
 const formatNumber = (num: number, decimals = 2, formatAsCurrency = true): string => {
   if (!isFinite(num) || num === 0) return "0";
   
+  // Format with thousands separator
+  const formatWithCommas = (value: number, decimalPlaces: number): string => {
+    return value.toLocaleString('en-US', {
+      minimumFractionDigits: decimalPlaces,
+      maximumFractionDigits: decimalPlaces
+    });
+  };
+  
   if (formatAsCurrency) {
     if (num >= 1000000) {
-      return (num / 1000000).toFixed(decimals) + "M";
+      return formatWithCommas(num / 1000000, decimals) + "M";
     } else if (num >= 1000) {
-      return (num / 1000).toFixed(0) + "K";
+      return formatWithCommas(num / 1000, 0) + "K";
     }
   }
   
-  return num.toFixed(decimals);
+  return formatWithCommas(num, decimals);
 };
 
 const SlotMachineNumber = ({ 
@@ -181,7 +190,17 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       
       floorAdjustment = cumulativeAdjustment;
       
-      const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment;
+      // Add additional category adjustments if they exist
+      let additionalAdjustment = 0;
+      if (pricingConfig.additionalCategoryPricing) {
+        pricingConfig.additionalCategoryPricing.forEach((cat: any) => {
+          if (unit[`${cat.column}_value`] === cat.category) {
+            additionalAdjustment += cat.psfAdjustment;
+          }
+        });
+      }
+      
+      const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
       
       const sellArea = parseFloat(unit.sellArea) || 0;
       
@@ -194,9 +213,11 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         basePsf,
         floorAdjustment,
         viewPsfAdjustment,
+        additionalAdjustment,
         totalPrice,
         finalTotalPrice,
-        finalPsf
+        finalPsf,
+        sellArea: Number(sellArea.toFixed(2)) // Round sellArea to 2 decimal places
       };
       
       return processedUnit;
@@ -373,6 +394,8 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         <p>
           {optimizationMode === "basePsf" 
             ? "Base PSF Optimization adjusts only bedroom type PSF values to achieve target overall PSF."
+            : optimizationMode === "allParams" && pricingConfig.additionalCategoryPricing?.length > 0
+            ? "Full Parameter Optimization fine-tunes bedroom PSF, floor premiums, view adjustments, and additional category adjustments to achieve target PSF."
             : "Full Parameter Optimization fine-tunes bedroom PSF, floor premiums, and view adjustments while preserving the cumulative nature of floor premiums."
           }
         </p>
