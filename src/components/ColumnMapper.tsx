@@ -33,8 +33,14 @@ import {
 interface ColumnMapperProps {
   headers: string[];
   data: any[];
-  onMappingComplete: (mapping: Record<string, string>, data: any[]) => void;
-  onBack: () => void; // New prop for back button
+  onMappingComplete: (mapping: Record<string, string>, data: any[], additionalCategories: any[]) => void;
+  onBack: () => void;
+}
+
+export interface AdditionalCategory {
+  column: string;
+  categories: string[];
+  selectedCategories: string[];
 }
 
 const requiredFields = [
@@ -63,7 +69,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   const [showWarningDialog, setShowWarningDialog] = useState<boolean>(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [blankValues, setBlankValues] = useState<{field: string, count: number}[]>([]);
-  const [additionalCategories, setAdditionalCategories] = useState<{column: string, categories: string[]}[]>([]);
+  const [additionalCategories, setAdditionalCategories] = useState<AdditionalCategory[]>([]);
   const [selectedAdditionalCategories, setSelectedAdditionalCategories] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -107,7 +113,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     const mappedColumns = new Set(Object.values(mapping));
     const unmappedColumns = headers.filter(header => !mappedColumns.has(header));
     
-    const potentialCategories: {column: string, categories: string[]}[] = [];
+    const potentialCategories: AdditionalCategory[] = [];
     
     unmappedColumns.forEach(column => {
       // Skip columns that seem to contain numerical data
@@ -130,22 +136,14 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         if (uniqueValues.size > 1 && uniqueValues.size <= 15) {
           potentialCategories.push({
             column,
-            categories: Array.from(uniqueValues)
+            categories: Array.from(uniqueValues).sort(),
+            selectedCategories: []
           });
         }
       }
     });
     
     setAdditionalCategories(potentialCategories);
-    
-    // Initialize selected categories state
-    const initialSelectedState: Record<string, boolean> = {};
-    potentialCategories.forEach(cat => {
-      cat.categories.forEach(category => {
-        initialSelectedState[`${cat.column}:${category}`] = false;
-      });
-    });
-    setSelectedAdditionalCategories(initialSelectedState);
   };
 
   const handleMappingChange = (fieldId: string, headerName: string) => {
@@ -155,12 +153,23 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     }));
   };
 
-  const toggleAdditionalCategory = (column: string, category: string) => {
-    const key = `${column}:${category}`;
-    setSelectedAdditionalCategories(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+  const toggleAdditionalCategory = (columnIndex: number, category: string) => {
+    setAdditionalCategories(prev => {
+      const updated = [...prev];
+      const categoryIndex = updated[columnIndex].selectedCategories.indexOf(category);
+      
+      if (categoryIndex > -1) {
+        // Remove if already selected
+        updated[columnIndex].selectedCategories = 
+          updated[columnIndex].selectedCategories.filter(cat => cat !== category);
+      } else {
+        // Add if not already selected
+        updated[columnIndex].selectedCategories = 
+          [...updated[columnIndex].selectedCategories, category];
+      }
+      
+      return updated;
+    });
   };
 
   const validateData = () => {
@@ -243,15 +252,19 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         }
       });
       
-      // Add selected additional categories as attributes
-      Object.entries(selectedAdditionalCategories).forEach(([key, isSelected]) => {
-        if (isSelected) {
-          const [column, category] = key.split(':');
-          // Check if this row has this category value
-          if (row[column] === category) {
-            // Add this as a boolean attribute
-            transformedRow[`has_${column}_${category}`.replace(/\s+/g, '_').toLowerCase()] = true;
-          }
+      // Add additional category values to each row
+      additionalCategories.forEach(cat => {
+        if (cat.selectedCategories.length > 0) {
+          const columnValue = row[cat.column];
+          
+          // Add a property for each selected category in this column
+          cat.selectedCategories.forEach(category => {
+            const key = `additional_${cat.column}_${category}`.replace(/\s+/g, '_').toLowerCase();
+            transformedRow[key] = columnValue === category;
+          });
+          
+          // Also store the raw column value
+          transformedRow[`${cat.column}_value`] = columnValue;
         }
       });
       
@@ -264,15 +277,15 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       toast.info(`Using default values for: ${unmappedFields.map(f => f.label).join(", ")}`);
     }
     
-    // Pass the selected additional categories info to the next step
-    const selectedCategories = Object.entries(selectedAdditionalCategories)
-      .filter(([_, isSelected]) => isSelected)
-      .map(([key, _]) => {
-        const [column, category] = key.split(':');
-        return { column, category };
-      });
+    // Filter to only include categories that have selections
+    const selectedCategoriesData = additionalCategories
+      .filter(cat => cat.selectedCategories.length > 0)
+      .map(cat => ({
+        column: cat.column,
+        categories: cat.selectedCategories
+      }));
     
-    onMappingComplete(mapping, transformedData);
+    onMappingComplete(mapping, transformedData, selectedCategoriesData);
   };
 
   // Helper function to parse floor values
@@ -320,7 +333,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       case "balcony":
         return 0;
       case "floor":
-        return "0"; // Changed from "1" to "0"
+        return "0";
       case "type":
         return "Standard";
       case "view":
@@ -448,26 +461,26 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                   </AlertDescription>
                 </Alert>
                 
-                {additionalCategories.map((cat) => (
+                {additionalCategories.map((cat, catIndex) => (
                   <div key={cat.column} className="mb-6">
                     <h4 className="text-sm font-medium mb-2">{cat.column}</h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                       {cat.categories.map((category) => {
-                        const key = `${cat.column}:${category}`;
+                        const isSelected = cat.selectedCategories.includes(category);
                         return (
                           <div 
-                            key={key} 
+                            key={category} 
                             className={`p-2 rounded border cursor-pointer flex items-center ${
-                              selectedAdditionalCategories[key] 
+                              isSelected 
                                 ? 'bg-primary/10 border-primary/30' 
                                 : 'bg-background border-input'
                             }`}
-                            onClick={() => toggleAdditionalCategory(cat.column, category)}
+                            onClick={() => toggleAdditionalCategory(catIndex, category)}
                           >
                             <input
                               type="checkbox"
-                              checked={selectedAdditionalCategories[key] || false}
-                              onChange={() => toggleAdditionalCategory(cat.column, category)}
+                              checked={isSelected}
+                              onChange={() => toggleAdditionalCategory(catIndex, category)}
                               className="mr-2"
                             />
                             <span className="text-sm truncate">{category}</span>

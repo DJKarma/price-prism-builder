@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -43,6 +44,7 @@ interface UnitWithPricing extends Record<string, any> {
   viewPriceComponent?: number;
   finalPsf: number; // Now the primary PSF value
   isOptimized?: boolean; // Flag to indicate if this unit's price was optimized
+  additionalCategoryPriceComponents?: Record<string, number>; // Store additional category price contributions
 }
 
 // Format numbers for display (K/M for thousands/millions) but only for price values, not PSF
@@ -76,6 +78,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedViews, setSelectedViews] = useState<string[]>([]);
   const [selectedFloors, setSelectedFloors] = useState<string[]>([]);
+  const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
 
   useEffect(() => {
     if (pricingConfig?.optimizedTypes?.length && selectedTypes.length === 0) {
@@ -89,6 +92,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
+
+    // Detect additional category columns
+    if (pricingConfig.additionalCategoryPricing && pricingConfig.additionalCategoryPricing.length > 0) {
+      const columns = Array.from(new Set(
+        pricingConfig.additionalCategoryPricing.map((item: any) => item.column)
+      ));
+      setAdditionalColumns(columns);
+    }
 
     const calculatedUnits = data.map((unit) => {
       const bedroomType = pricingConfig.bedroomTypePricing.find(
@@ -140,8 +151,30 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       
       const viewPsfAdjustment = viewAdjustment?.psfAdjustment || 0;
       
+      // Calculate additional category adjustments
+      const additionalCategoryPriceComponents: Record<string, number> = {};
+      let additionalCategoryAdjustment = 0;
+      
+      if (pricingConfig.additionalCategoryPricing) {
+        pricingConfig.additionalCategoryPricing.forEach((catPricing: any) => {
+          const { column, category, psfAdjustment } = catPricing;
+          
+          // Check if this unit has this category value
+          const columnKey = `${column}_value`; // The raw column value we stored
+          const matchesCategory = unit[columnKey] === category;
+          
+          if (matchesCategory) {
+            additionalCategoryAdjustment += psfAdjustment;
+            
+            // Store component for display in detailed breakdown
+            const componentKey = `${column}: ${category}`;
+            additionalCategoryPriceComponents[componentKey] = psfAdjustment;
+          }
+        });
+      }
+      
       // Calculate base PSF with all adjustments
-      const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment;
+      const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalCategoryAdjustment;
       
       const sellArea = parseFloat(unit.sellArea) || 0;
       const acArea = parseFloat(unit.acArea) || 0;
@@ -177,6 +210,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         basePsf,
         floorAdjustment,
         viewPsfAdjustment,
+        additionalCategoryAdjustment,
+        additionalCategoryPriceComponents,
         isOptimized: isTypeOptimized,
       };
     });
@@ -251,7 +286,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       toast.error("No data to export");
       return;
     }
-    const headers = [
+    
+    // Build the headers including additional category columns
+    let headers = [
       "Unit",
       "Bedroom Type",
       "Floor",
@@ -262,29 +299,65 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       "Balcony %",
       "Base PSF",
       "Floor Premium PSF",
-      "View Premium PSF",
+      "View Premium PSF"
+    ];
+    
+    // Add additional category headers if they exist
+    if (additionalColumns.length > 0) {
+      additionalColumns.forEach(column => {
+        headers.push(`${column} Premium PSF`);
+      });
+    }
+    
+    // Add the rest of the headers
+    headers = headers.concat([
       "Total Price (Raw)",
       "Final Total Price",
       "Final PSF",
-      "Optimized",
-    ];
-    const rows = filteredUnits.map((unit) => [
-      unit.name,
-      unit.type,
-      unit.floor,
-      unit.view,
-      unit.sellArea,
-      unit.acArea || 0,
-      unit.balconyArea ? unit.balconyArea.toFixed(2) : 0,
-      unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : 0,
-      unit.basePsf.toFixed(2),
-      unit.floorAdjustment.toFixed(2),
-      unit.viewPsfAdjustment.toFixed(2),
-      unit.totalPrice.toFixed(2),
-      unit.finalTotalPrice.toFixed(2),
-      unit.finalPsf ? unit.finalPsf.toFixed(2) : "0",
-      unit.isOptimized ? "Yes" : "No",
+      "Optimized"
     ]);
+    
+    // Create each row of data
+    const rows = filteredUnits.map((unit) => {
+      const basicData = [
+        unit.name,
+        unit.type,
+        unit.floor,
+        unit.view,
+        unit.sellArea,
+        unit.acArea || 0,
+        unit.balconyArea ? unit.balconyArea.toFixed(2) : 0,
+        unit.balconyPercentage ? unit.balconyPercentage.toFixed(2) : 0,
+        unit.basePsf.toFixed(2),
+        unit.floorAdjustment.toFixed(2),
+        unit.viewPsfAdjustment.toFixed(2)
+      ];
+      
+      // Add additional category values
+      if (additionalColumns.length > 0) {
+        additionalColumns.forEach(column => {
+          // Find the adjustment for this column if it exists
+          let adjustment = 0;
+          if (unit.additionalCategoryPriceComponents) {
+            Object.entries(unit.additionalCategoryPriceComponents).forEach(([key, value]) => {
+              if (key.startsWith(column + ":")) {
+                adjustment += Number(value);
+              }
+            });
+          }
+          basicData.push(adjustment.toFixed(2));
+        });
+      }
+      
+      // Add the rest of the data
+      return basicData.concat([
+        unit.totalPrice.toFixed(2),
+        unit.finalTotalPrice.toFixed(2),
+        unit.finalPsf ? unit.finalPsf.toFixed(2) : "0",
+        unit.isOptimized ? "Yes" : "No"
+      ]);
+    });
+    
     const csvContent =
       "data:text/csv;charset=utf-8," +
       [headers, ...rows].map((row) => row.join(",")).join("\n");
@@ -376,7 +449,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             <TableHeader>
               <TableRow>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("name")}
                 >
                   <div className="flex items-center">
@@ -384,7 +457,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("type")}
                 >
                   <div className="flex items-center">
@@ -392,16 +465,16 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("floor")}
                 >
                   <div className="flex items-center">
                     Floor <ArrowUpDown className="ml-1 h-4 w-4" />
                   </div>
                 </TableHead>
-                <TableHead>View</TableHead>
+                <TableHead className="whitespace-nowrap">View</TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("sellArea")}
                 >
                   <div className="flex items-center">
@@ -409,7 +482,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("acArea")}
                 >
                   <div className="flex items-center">
@@ -417,7 +490,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("balconyArea")}
                 >
                   <div className="flex items-center">
@@ -425,7 +498,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("balconyPercentage")}
                 >
                   <div className="flex items-center">
@@ -433,7 +506,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("basePsf")}
                 >
                   <div className="flex items-center">
@@ -441,7 +514,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("floorAdjustment")}
                 >
                   <div className="flex items-center">
@@ -449,15 +522,29 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("viewPsfAdjustment")}
                 >
                   <div className="flex items-center">
                     View Premium <ArrowUpDown className="ml-1 h-4 w-4" />
                   </div>
                 </TableHead>
+                
+                {/* Additional category columns */}
+                {additionalColumns.map(column => (
+                  <TableHead
+                    key={column}
+                    className="cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("additionalCategoryAdjustment")}
+                  >
+                    <div className="flex items-center">
+                      {column} Premium <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                ))}
+                
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("finalTotalPrice")}
                 >
                   <div className="flex items-center">
@@ -465,14 +552,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="cursor-pointer whitespace-nowrap"
                   onClick={() => handleSort("finalPsf")}
                 >
                   <div className="flex items-center">
                     Final PSF <ArrowUpDown className="ml-1 h-4 w-4" />
                   </div>
                 </TableHead>
-                <TableHead>
+                <TableHead className="whitespace-nowrap">
                   <div className="flex items-center justify-center">
                     Optimized
                   </div>
@@ -503,6 +590,25 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                   <TableCell>
                     {unit.viewPsfAdjustment.toFixed(2)}
                   </TableCell>
+                  
+                  {/* Add additional category columns */}
+                  {additionalColumns.map(column => {
+                    // Calculate total adjustment for this column
+                    let adjustment = 0;
+                    if (unit.additionalCategoryPriceComponents) {
+                      Object.entries(unit.additionalCategoryPriceComponents).forEach(([key, value]) => {
+                        if (key.startsWith(column + ":")) {
+                          adjustment += Number(value);
+                        }
+                      });
+                    }
+                    return (
+                      <TableCell key={column}>
+                        {adjustment.toFixed(2)}
+                      </TableCell>
+                    );
+                  })}
+                  
                   <TableCell>
                     {formatNumber(unit.finalTotalPrice, true)}
                   </TableCell>
@@ -516,7 +622,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               ))}
               {filteredUnits.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={15} className="text-center py-4">
+                  <TableCell colSpan={15 + additionalColumns.length} className="text-center py-4">
                     No units match your filter criteria
                   </TableCell>
                 </TableRow>

@@ -19,13 +19,14 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Settings, PlusCircle, MinusCircle, Ruler, Building2, Eye } from "lucide-react";
+import { Settings, PlusCircle, MinusCircle, Ruler, Building2, Eye, Tag } from "lucide-react";
 import { toast } from "sonner";
 
 interface PricingConfigurationProps {
   data: any[];
   onConfigurationComplete: (config: PricingConfig) => void;
   maxFloor?: number;
+  additionalCategories?: Array<{column: string, categories: string[]}>;
 }
 
 export interface FloorRiseRule {
@@ -44,6 +45,12 @@ export interface BedroomTypePricing {
 
 export interface ViewPricing {
   view: string;
+  psfAdjustment: number;
+}
+
+export interface AdditionalCategoryPricing {
+  column: string;
+  category: string;
   psfAdjustment: number;
 }
 
@@ -67,6 +74,7 @@ export interface PricingConfig {
     jumpEveryFloor?: number;
     jumpIncrement?: number;
   }>;
+  additionalCategoryPricing?: AdditionalCategoryPricing[];
   targetOverallPsf?: number;
   isOptimized?: boolean;
   maxFloor?: number;
@@ -76,6 +84,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   data,
   onConfigurationComplete,
   maxFloor = 50,
+  additionalCategories = []
 }) => {
   const [basePsf, setBasePsf] = useState<number>(1000);
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
@@ -83,6 +92,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   ]);
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
+  const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>([]);
 
   useEffect(() => {
     if (floorRiseRules.length > 0) {
@@ -127,7 +137,21 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
         psfAdjustment: 0,
       }))
     );
-  }, [data, basePsf]);
+
+    // Initialize additional category pricing
+    const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
+    additionalCategories.forEach(category => {
+      category.categories.forEach(value => {
+        initialAdditionalCategories.push({
+          column: category.column,
+          category: value,
+          psfAdjustment: 0
+        });
+      });
+    });
+    
+    setAdditionalCategoryPricing(initialAdditionalCategories);
+  }, [data, basePsf, additionalCategories]);
 
   const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
@@ -186,6 +210,12 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     setViewTypes(newViewPricing);
   };
 
+  const updateAdditionalCategoryPricing = (index: number, value: number) => {
+    const newCategoryPricing = [...additionalCategoryPricing];
+    newCategoryPricing[index] = { ...newCategoryPricing[index], psfAdjustment: value };
+    setAdditionalCategoryPricing(newCategoryPricing);
+  };
+
   const handleSubmit = () => {
     if (basePsf <= 0) {
       toast.error("Base PSF must be greater than zero");
@@ -225,9 +255,19 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       floorRiseRules: processedRules,
       bedroomTypePricing: bedroomTypes,
       viewPricing: viewTypes,
+      additionalCategoryPricing: additionalCategoryPricing,
       maxFloor,
     });
   };
+
+  // Group additional categories by column
+  const groupedAdditionalCategories = additionalCategoryPricing.reduce((acc, item) => {
+    if (!acc[item.column]) {
+      acc[item.column] = [];
+    }
+    acc[item.column].push(item);
+    return acc;
+  }, {} as Record<string, AdditionalCategoryPricing[]>);
 
   return (
     <Card className="w-full border-2 border-indigo-100 shadow-md">
@@ -458,6 +498,59 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                 </TableBody>
               </Table>
             </div>
+          </div>
+        )}
+
+        {/* Additional Category Pricing */}
+        {Object.keys(groupedAdditionalCategories).length > 0 && (
+          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
+            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
+              <Tag className="h-5 w-5 mr-2 text-indigo-600" />
+              Additional Category Pricing
+            </h3>
+            
+            {Object.entries(groupedAdditionalCategories).map(([column, categories]) => (
+              <div key={column} className="mb-6">
+                <h4 className="text-md font-medium text-indigo-600 mb-3 flex items-center">
+                  {column}
+                </h4>
+                <div className="rounded-lg border border-indigo-100 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-indigo-50">
+                      <TableRow>
+                        <TableHead className="text-indigo-700">Category</TableHead>
+                        <TableHead className="text-indigo-700">PSF Adjustment</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categories.map((item, idx) => {
+                        const index = additionalCategoryPricing.findIndex(
+                          c => c.column === item.column && c.category === item.category
+                        );
+                        return (
+                          <TableRow key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
+                            <TableCell className="font-medium">{item.category}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={item.psfAdjustment}
+                                onChange={(e) =>
+                                  updateAdditionalCategoryPricing(
+                                    index,
+                                    parseFloat(e.target.value)
+                                  )
+                                }
+                                className="border-indigo-200"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>

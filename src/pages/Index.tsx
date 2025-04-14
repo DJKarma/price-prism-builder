@@ -18,6 +18,7 @@ const Index = () => {
   const [pricingConfig, setPricingConfig] = useState<PricingConfig | null>(null);
   const [forceUpdate, setForceUpdate] = useState<number>(0);
   const [newFileUploaded, setNewFileUploaded] = useState<boolean>(false);
+  const [additionalCategories, setAdditionalCategories] = useState<any[]>([]);
 
   const maxFloor = useMemo(() => {
     if (!mappedData.length) return 50; // Default
@@ -38,22 +39,20 @@ const Index = () => {
     setActiveTab("map");
   };
 
-  const handleMappingComplete = (mapping: Record<string, string>, data: any[]) => {
+  const handleMappingComplete = (mapping: Record<string, string>, data: any[], categories: any[]) => {
     setMappedData(data);
+    setAdditionalCategories(categories);
     setActiveTab("configure");
   };
 
   const handleConfigurationComplete = useCallback((config: PricingConfig) => {
-    // Remove base PSF from config as it's not needed
-    const { basePsf, ...rest } = config;
-    
     const targetOverallPsf = config.bedroomTypePricing.reduce(
       (sum, type) => sum + type.targetAvgPsf, 
       0
     ) / config.bedroomTypePricing.length;
     
-    const updatedConfig = {
-      ...rest,
+    const updatedConfig: PricingConfig = {
+      ...config,
       targetOverallPsf,
       maxFloor: maxFloor
     };
@@ -148,7 +147,7 @@ const Index = () => {
                   data={mappedData}
                   onConfigurationComplete={handleConfigurationComplete}
                   maxFloor={maxFloor}
-                  hideBasePsf={true} // New prop to hide base PSF
+                  additionalCategories={additionalCategories}
                 />
               </>
             )}
