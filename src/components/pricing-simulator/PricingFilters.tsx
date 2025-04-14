@@ -164,10 +164,12 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
                 bedroomTypes={getUniqueAdditionalValues(column)}
                 selectedTypes={selectedAdditionalFilters[column] || []}
                 setSelectedTypes={(selected) => {
-                  setSelectedAdditionalFilters(prev => ({
-                    ...prev,
+                  // Fixed: Create a new object with the updated values instead of using a function
+                  const updatedFilters = {
+                    ...selectedAdditionalFilters,
                     [column]: selected
-                  }));
+                  };
+                  setSelectedAdditionalFilters(updatedFilters);
                 }}
                 label={`Filter by ${column}`}
                 placeholder={`Select ${column}...`}
