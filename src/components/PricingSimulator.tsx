@@ -623,28 +623,26 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
                 </DropdownMenuContent>
               </DropdownMenu>
               
-              <div className="flex items-center space-x-1 ml-1">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={exportCSV}
-                  className="flex-shrink-0"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export
-                </Button>
-                <div className="flex items-center space-x-2 border border-gray-200 rounded-md px-2 py-1">
-                  <Switch
-                    id="include-config"
-                    checked={includeConfig}
-                    onCheckedChange={setIncludeConfig}
-                    size="sm"
-                  />
-                  <Label htmlFor="include-config" className="text-xs">
-                    Include config
-                  </Label>
-                </div>
+              <div className="flex items-center space-x-2 border border-gray-200 rounded-md px-2 py-1">
+                <Switch
+                  id="include-config"
+                  checked={includeConfig}
+                  onCheckedChange={setIncludeConfig}
+                />
+                <Label htmlFor="include-config" className="text-xs">
+                  Include config
+                </Label>
               </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={exportCSV}
+                className="flex-shrink-0"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
             </div>
           </div>
         </div>
