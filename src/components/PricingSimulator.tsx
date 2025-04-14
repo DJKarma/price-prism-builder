@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -95,9 +94,15 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
     // Detect additional category columns
     if (pricingConfig.additionalCategoryPricing && pricingConfig.additionalCategoryPricing.length > 0) {
-      const columns = Array.from(new Set(
-        pricingConfig.additionalCategoryPricing.map((item: any) => item.column)
-      ));
+      const columnsSet = new Set<string>();
+      
+      pricingConfig.additionalCategoryPricing.forEach((item: any) => {
+        if (typeof item.column === 'string') {
+          columnsSet.add(item.column);
+        }
+      });
+      
+      const columns = Array.from(columnsSet);
       setAdditionalColumns(columns);
     }
 
