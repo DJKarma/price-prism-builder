@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -129,28 +130,6 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   }, [headers, data]);
 
   useEffect(() => {
-    if (!data.length) return;
-
-    headers.forEach(header => {
-      const headerLower = header.toLowerCase();
-      
-      if (!mapping["type"] && 
-          (headerLower.includes("bed") || 
-           headerLower.includes("type") || 
-           headerLower.includes("layout"))) {
-        setMapping(prev => ({...prev, "type": header}));
-      }
-      
-      if (!mapping["view"] && 
-          (headerLower.includes("view") || 
-           headerLower.includes("facing") || 
-           headerLower.includes("direction"))) {
-        setMapping(prev => ({...prev, "view": header}));
-      }
-    });
-  }, [headers, data, mapping]);
-
-  useEffect(() => {
     if (data.length > 0) {
       const preview: Record<string, any> = {};
       
@@ -186,10 +165,12 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         });
         
         if (uniqueValues.size > 1 && uniqueValues.size <= 20) {
+          // Set all categories as selected by default
+          const categories = Array.from(uniqueValues).sort();
           potentialCategories.push({
             column,
-            categories: Array.from(uniqueValues).sort(),
-            selectedCategories: []
+            categories: categories,
+            selectedCategories: [...categories] // Select all by default
           });
         }
       }
@@ -490,11 +471,11 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
             {additionalCategories.length > 0 && (
               <div className="mt-8">
                 <h3 className="text-lg font-medium mb-3 text-indigo-800">Additional Pricing Factors</h3>
-                <Alert className="mb-4 bg-indigo-50 border-indigo-200">
+                <Alert className="mb-4 bg-indigo-50">
                   <AlertTriangle className="h-4 w-4 text-indigo-600" />
                   <AlertDescription className="text-indigo-700">
                     We've detected additional columns in your data that can be used for pricing adjustments. 
-                    Select the categories you'd like to include in PSF calculations.
+                    These categories are selected by default.
                   </AlertDescription>
                 </Alert>
                 
