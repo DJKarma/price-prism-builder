@@ -103,7 +103,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         }
       });
       
-      const columns = Array.from(columnsSet);
+      const columns = Array.from(columnsSet) as string[];
       setAdditionalColumns(columns);
     }
 

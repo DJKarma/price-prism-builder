@@ -138,19 +138,25 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       }))
     );
 
-    // Initialize additional category pricing
+    // Initialize additional category pricing - ensure we're setting this correctly
     const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
-    additionalCategories.forEach(category => {
-      category.categories.forEach(value => {
-        initialAdditionalCategories.push({
-          column: category.column,
-          category: value,
-          psfAdjustment: 0
-        });
+    
+    if (additionalCategories && additionalCategories.length > 0) {
+      additionalCategories.forEach(category => {
+        if (category.categories && category.categories.length > 0) {
+          category.categories.forEach(value => {
+            initialAdditionalCategories.push({
+              column: category.column,
+              category: value,
+              psfAdjustment: 0
+            });
+          });
+        }
       });
-    });
+    }
     
     setAdditionalCategoryPricing(initialAdditionalCategories);
+    
   }, [data, basePsf, additionalCategories]);
 
   const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,7 +266,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     });
   };
 
-  // Group additional categories by column
+  // Group additional categories by column - ensure we're using the proper category data
   const groupedAdditionalCategories = additionalCategoryPricing.reduce((acc, item) => {
     if (!acc[item.column]) {
       acc[item.column] = [];
