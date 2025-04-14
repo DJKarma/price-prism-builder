@@ -22,6 +22,7 @@ import {
   Download,
   RotateCcw,
   Settings,
+  Check, // Added missing Check icon import
 } from "lucide-react";
 import { toast } from "sonner";
 import BedroomTypeSelector from "./mega-optimize/BedroomTypeSelector";
