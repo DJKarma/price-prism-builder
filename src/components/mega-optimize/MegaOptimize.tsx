@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,9 +9,9 @@ import BedroomTypeSummary from './BedroomTypeSummary';
 import OptimizationControls from './OptimizationControls';
 import OptimizationImpact from './OptimizationImpact';
 import OptimizationModeSelector from './OptimizationModeSelector';
-import useOptimizer from './useOptimizer';
 import { PricingConfig } from '@/components/PricingConfiguration';
 import { OptimizationMode } from './types';
+import { useOptimizer } from './useOptimizer';
 
 interface MegaOptimizeProps {
   data: any[];

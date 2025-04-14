@@ -149,10 +149,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   
   const handleSort = (column: string) => {
     if (sortColumn === column) {
-      // Reverse the sorting direction
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // Set new sorting column and default direction to ascending
       setSortColumn(column);
       setSortDirection('asc');
     }
@@ -174,7 +172,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       } else if (typeof aValue === 'string' && typeof bValue === 'string') {
         return isAscending ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       } else {
-        // Handle other data types or mixed types as needed
         return 0;
       }
     });
@@ -190,14 +187,12 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   const generateSummaryData = () => {
     const summary = [];
     
-    // Overall average PSF
     const overallAvgPsf = simulatedUnits.reduce((sum, unit) => sum + parseFloat(unit.finalPsfPrice), 0) / simulatedUnits.length;
     summary.push({
       Metric: 'Overall Average PSF',
       Value: overallAvgPsf.toFixed(2)
     });
     
-    // Average PSF by bedroom type
     const bedroomTypes = [...new Set(simulatedUnits.map(unit => unit.bedroomType))];
     bedroomTypes.forEach(type => {
       const unitsOfType = simulatedUnits.filter(unit => unit.bedroomType === type);
@@ -206,10 +201,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         Metric: `Average PSF - ${type}`,
         Value: avgPsf.toFixed(2)
       });
-      
     });
     
-    // Add SA PSF and AC PSF metrics if available
     const hasSA = simulatedUnits.some(unit => unit.saleableArea);
     const hasAC = simulatedUnits.some(unit => unit.area);
     
