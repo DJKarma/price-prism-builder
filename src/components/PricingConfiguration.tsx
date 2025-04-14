@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -137,7 +138,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       }))
     );
 
-    // Initialize additional category pricing
+    // Initialize additional category pricing - ensure we're setting this correctly
     const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
     
     if (additionalCategories && additionalCategories.length > 0) {
@@ -506,7 +507,58 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </div>
         )}
 
-        {/* Additional Category section removed as requested */}
+        {/* Additional Category Pricing */}
+        {Object.keys(groupedAdditionalCategories).length > 0 && (
+          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
+            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
+              <Tag className="h-5 w-5 mr-2 text-indigo-600" />
+              Additional Category Pricing
+            </h3>
+            
+            {Object.entries(groupedAdditionalCategories).map(([column, categories]) => (
+              <div key={column} className="mb-6">
+                <h4 className="text-md font-medium text-indigo-600 mb-3 flex items-center">
+                  {column}
+                </h4>
+                <div className="rounded-lg border border-indigo-100 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-indigo-50">
+                      <TableRow>
+                        <TableHead className="text-indigo-700">Category</TableHead>
+                        <TableHead className="text-indigo-700">PSF Adjustment</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categories.map((item, idx) => {
+                        const index = additionalCategoryPricing.findIndex(
+                          c => c.column === item.column && c.category === item.category
+                        );
+                        return (
+                          <TableRow key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
+                            <TableCell className="font-medium">{item.category}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={item.psfAdjustment}
+                                onChange={(e) =>
+                                  updateAdditionalCategoryPricing(
+                                    index,
+                                    parseFloat(e.target.value)
+                                  )
+                                }
+                                className="border-indigo-200"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex justify-end p-6 bg-gradient-to-r from-indigo-50/70 to-blue-50/70">
         <Button 
