@@ -547,3 +547,61 @@ export const fullOptimizePsf = (
     summary: { initialOverallPsf, optimizedOverallPsf, psfChange },
   };
 };
+
+/**
+ * Calculate floor premium for a given floor based on floor rise rules
+ */
+export const calculateFloorPremium = (
+  floor: number,
+  floorRules: Array<{
+    startFloor: number;
+    endFloor: number | null;
+    psfIncrement: number;
+    jumpEveryFloor?: number;
+    jumpIncrement?: number;
+  }>
+): number => {
+  if (!floorRules.length) return 0;
+  
+  // Sort rules by startFloor to ensure proper application
+  const sortedRules = [...floorRules].sort((a, b) => a.startFloor - b.startFloor);
+  
+  let cumulativePremium = 0;
+  
+  for (const rule of sortedRules) {
+    const ruleEnd = rule.endFloor === null ? 999 : rule.endFloor;
+    
+    if (floor > ruleEnd) {
+      // If floor is beyond this rule's range, apply the full range premium
+      for (let f = Math.max(rule.startFloor, 1); f <= ruleEnd; f++) {
+        cumulativePremium += rule.psfIncrement;
+        
+        // Apply jump increments if applicable
+        if (rule.jumpEveryFloor && rule.jumpIncrement) {
+          const floorsFromStart = f - rule.startFloor;
+          if (floorsFromStart > 0 && floorsFromStart % rule.jumpEveryFloor === 0) {
+            cumulativePremium += rule.jumpIncrement;
+          }
+        }
+      }
+    } else if (floor >= rule.startFloor) {
+      // If floor is within this rule's range, apply up to the current floor
+      for (let f = Math.max(rule.startFloor, 1); f <= floor; f++) {
+        cumulativePremium += rule.psfIncrement;
+        
+        // Apply jump increments if applicable
+        if (rule.jumpEveryFloor && rule.jumpIncrement) {
+          const floorsFromStart = f - rule.startFloor;
+          if (floorsFromStart > 0 && floorsFromStart % rule.jumpEveryFloor === 0) {
+            cumulativePremium += rule.jumpIncrement;
+          }
+        }
+      }
+      
+      // We found the applicable rule, no need to check further rules
+      break;
+    }
+  }
+  
+  return cumulativePremium;
+};
