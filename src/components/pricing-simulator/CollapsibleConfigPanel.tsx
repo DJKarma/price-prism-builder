@@ -1,4 +1,3 @@
-
 import React from "react";
 import { 
   Accordion,
@@ -15,7 +14,7 @@ interface CollapsibleConfigPanelProps {
   pricingConfig: any;
   onConfigUpdate: (updatedConfig: any) => void;
   maxFloor?: number;
-  additionalCategories?: Array<{column: string, categories: string[]}>;
+  additionalCategories?: Array<{ column: string; categories: string[] }>;
 }
 
 const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
@@ -29,11 +28,15 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
     <div className="mb-6 border rounded-lg shadow-sm">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="configuration" className="border-none">
-          <AccordionTrigger className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:no-underline moving-border">
+          <AccordionTrigger 
+            className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:no-underline glow-on-collapse"
+          >
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center">
                 <Settings className="h-5 w-5 mr-2 text-indigo-600" />
-                <span className="font-medium text-indigo-700">Price Configuration Panel</span>
+                <span className="font-medium text-indigo-700">
+                  Price Configuration Panel
+                </span>
               </div>
               <div className="flex items-center">
                 <ConfigImporter onConfigImported={onConfigUpdate} />

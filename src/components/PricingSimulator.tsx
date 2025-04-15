@@ -222,8 +222,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   return (
     <div className="space-y-6">
       {onConfigUpdate && (
-        // Removed extra animate-pulse class so only the border animation (inside the CollapsibleConfigPanel)
-        // remains in effect
+        // Removed extra animate-pulse class so only the subtle glow defined in the CollapsibleConfigPanel applies.
         <div className="hover:shadow-lg transition-all duration-300 rounded-lg hover:shadow-indigo-100/50">
           <CollapsibleConfigPanel
             data={data}
@@ -282,6 +281,15 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           />
         </CardContent>
       </Card>
+      
+      {/* Scoped custom CSS for the subtle glow effect */}
+      <style jsx>{`
+        /* Apply a subtle blue glow when the configuration panel trigger is in "closed" state */
+        .glow-on-collapse[data-state="closed"] {
+          box-shadow: 0 0 8px rgba(66, 153, 225, 0.4);
+          transition: box-shadow 0.3s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 };
