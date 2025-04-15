@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { TableIcon } from "lucide-react";
 import { toast } from "sonner";
 import { simulatePricing } from "@/utils/psfOptimizer";
