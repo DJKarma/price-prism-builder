@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Card,
@@ -159,6 +160,14 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data, previousData }) =
     if (change > 0) return 'bg-green-50 text-green-700';
     if (change < 0) return 'bg-red-50 text-red-700';
     return '';
+  };
+
+  // Get badge variant based on change
+  const getBadgeVariant = (change: number | null): "default" | "destructive" | "outline" | "secondary" => {
+    if (change === null) return 'outline';
+    if (change > 0) return 'secondary';
+    if (change < 0) return 'destructive';
+    return 'outline';
   };
 
   return (
@@ -338,7 +347,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data, previousData }) =
                 </TableCell>
                 <TableCell>
                   {metric.change !== null ? (
-                    <Badge variant={metric.change > 0 ? "success" : metric.change < 0 ? "destructive" : "outline"}>
+                    <Badge variant={getBadgeVariant(metric.change)}>
                       {metric.change > 0 ? '+' : ''}{metric.change.toFixed(2)}%
                     </Badge>
                   ) : null}
@@ -358,7 +367,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data, previousData }) =
                 </TableCell>
                 <TableCell>
                   {metric.change !== null ? (
-                    <Badge variant={metric.change > 0 ? "success" : metric.change < 0 ? "destructive" : "outline"}>
+                    <Badge variant={getBadgeVariant(metric.change)}>
                       {metric.change > 0 ? '+' : ''}{metric.change.toFixed(2)}%
                     </Badge>
                   ) : null}
@@ -378,7 +387,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data, previousData }) =
                 </TableCell>
                 <TableCell>
                   {metric.change !== null ? (
-                    <Badge variant={metric.change > 0 ? "success" : metric.change < 0 ? "destructive" : "outline"}>
+                    <Badge variant={getBadgeVariant(metric.change)}>
                       {metric.change > 0 ? '+' : ''}{metric.change.toFixed(2)}%
                     </Badge>
                   ) : null}
@@ -398,7 +407,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({ data, previousData }) =
                 </TableCell>
                 <TableCell>
                   {metric.change !== null ? (
-                    <Badge variant={metric.change > 0 ? "success" : metric.change < 0 ? "destructive" : "outline"}>
+                    <Badge variant={getBadgeVariant(metric.change)}>
                       {metric.change > 0 ? '+' : ''}{metric.change.toFixed(2)}%
                     </Badge>
                   ) : null}

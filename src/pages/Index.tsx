@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVUploader from "@/components/CSVUploader";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Upload, FileSpreadsheet, LineChart, PieChart } from "lucide-react";
 import { usePricingStore } from "@/store/pricingStore";
 import ConfigImporter from "@/components/ConfigImporter";
+import PricingSimulator from "@/components/PricingSimulator";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<string>("upload");
