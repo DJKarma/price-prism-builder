@@ -91,23 +91,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
     { startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
   ]);
-  const handleAddFloorRiseRule = () => {
-  const lastRule = floorRiseRules[floorRiseRules.length - 1];
-  const newStartFloor = lastRule
-    ? (lastRule.endFloor === null ? maxFloor : lastRule.endFloor) + 1
-    : 1;
-  
-  setFloorRiseRules([
-    ...floorRiseRules,
-    {
-      startFloor: newStartFloor,
-      endFloor: maxFloor,
-      psfIncrement: 0,
-      jumpEveryFloor: 0,
-      jumpIncrement: 0,
-    },
-  ]);
-};
+
 
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
