@@ -1,11 +1,4 @@
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { TableIcon } from "lucide-react";
 import { toast } from "sonner";
 import { simulatePricing } from "@/utils/psfOptimizer";
@@ -34,7 +27,7 @@ interface PricingSimulatorProps {
   data: any[];
   pricingConfig: any;
   onConfigUpdate?: (updatedConfig: any) => void;
-  additionalCategories?: Array<{column: string, categories: string[]}>;
+  additionalCategories?: Array<{ column: string; categories: string[] }>;
   maxFloor?: number;
 }
 
@@ -43,19 +36,27 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   pricingConfig,
   onConfigUpdate,
   additionalCategories = [],
-  maxFloor = 50
+  maxFloor = 50,
 }) => {
   const [units, setUnits] = useState<UnitWithPricing[]>([]);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
   const [additionalColumnValues, setAdditionalColumnValues] = useState<Record<string, string[]>>({});
-  
+
   const defaultVisibleColumns = [
-    "name", "type", "floor", "view", "sellArea", "acArea", 
-    "finalTotalPrice", "finalPsf", "finalAcPsf", "isOptimized"
+    "name",
+    "type",
+    "floor",
+    "view",
+    "sellArea",
+    "acArea",
+    "finalTotalPrice",
+    "finalPsf",
+    "finalAcPsf",
+    "isOptimized",
   ];
-  
+
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleColumns);
-  
+
   const {
     filteredUnits,
     selectedTypes,
@@ -68,7 +69,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     setSelectedAdditionalFilters,
     sortConfig,
     setSortConfig,
-    resetFilters
+    resetFilters,
   } = useUnitFilters(units);
 
   useEffect(() => {
@@ -87,32 +88,32 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     if (pricingConfig.additionalCategoryPricing && pricingConfig.additionalCategoryPricing.length > 0) {
       const columnsSet = new Set<string>();
       const columnValuesMap: Record<string, Set<string>> = {};
-      
+
       pricingConfig.additionalCategoryPricing.forEach((item: any) => {
-        if (typeof item.column === 'string') {
+        if (typeof item.column === "string") {
           columnsSet.add(item.column);
-          
+
           if (!columnValuesMap[item.column]) {
             columnValuesMap[item.column] = new Set<string>();
           }
-          
+
           if (item.category) {
             columnValuesMap[item.column].add(item.category);
           }
         }
       });
-      
+
       const columns = Array.from(columnsSet) as string[];
       setAdditionalColumns(columns);
-      
+
       const valuesMap: Record<string, string[]> = {};
       Object.entries(columnValuesMap).forEach(([col, valuesSet]) => {
         valuesMap[col] = Array.from(valuesSet);
       });
       setAdditionalColumnValues(valuesMap);
-      
+
       const initialFilters: Record<string, string[]> = {};
-      columns.forEach(col => {
+      columns.forEach((col) => {
         initialFilters[col] = [];
       });
       setSelectedAdditionalFilters(initialFilters);
@@ -147,7 +148,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         values.add(unit[fieldName]);
       }
     });
-    if (fieldName === 'floor') {
+    if (fieldName === "floor") {
       return Array.from(values).sort((a, b) => parseInt(a) - parseInt(b));
     }
     return Array.from(values).sort();
@@ -170,16 +171,16 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   };
 
   const toggleColumnVisibility = (columnId: string) => {
-    setVisibleColumns(prev => {
+    setVisibleColumns((prev) => {
       const isCurrentlyVisible = prev.includes(columnId);
-      
-      const column = allColumns.find(col => col.id === columnId);
+
+      const column = allColumns.find((col) => col.id === columnId);
       if (column?.required && isCurrentlyVisible) {
         return prev;
       }
-      
+
       if (isCurrentlyVisible) {
-        return prev.filter(id => id !== columnId);
+        return prev.filter((id) => id !== columnId);
       } else {
         return [...prev, columnId];
       }
@@ -208,17 +209,22 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   const uniqueViews = getUniqueValues("view");
   const uniqueFloors = getUniqueValues("floor");
 
-  const activeFiltersCount = 
+  const activeFiltersCount =
     (selectedTypes.length > 0 ? 1 : 0) +
     (selectedViews.length > 0 ? 1 : 0) +
     (selectedFloors.length > 0 ? 1 : 0) +
-    Object.values(selectedAdditionalFilters).reduce((count, values) => count + (values.length > 0 ? 1 : 0), 0);
+    Object.values(selectedAdditionalFilters).reduce(
+      (count, values) => count + (values.length > 0 ? 1 : 0),
+      0
+    );
 
   return (
     <div className="space-y-6">
       {onConfigUpdate && (
-        <div className="hover:shadow-lg transition-all duration-300 rounded-lg hover:shadow-indigo-100/50 animate-pulse">
-          <CollapsibleConfigPanel 
+        // Removed extra animate-pulse class so only the border animation (inside the CollapsibleConfigPanel)
+        // remains in effect
+        <div className="hover:shadow-lg transition-all duration-300 rounded-lg hover:shadow-indigo-100/50">
+          <CollapsibleConfigPanel
             data={data}
             pricingConfig={pricingConfig}
             onConfigUpdate={handlePricingConfigChange}
@@ -239,7 +245,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PricingFilters 
+          <PricingFilters
             uniqueTypes={uniqueTypes}
             uniqueViews={uniqueViews}
             uniqueFloors={uniqueFloors}
@@ -259,13 +265,13 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             toggleColumnVisibility={toggleColumnVisibility}
             resetColumnVisibility={resetColumnVisibility}
           />
-          
-          <PricingExportControls 
+
+          <PricingExportControls
             filteredUnits={filteredUnits}
             pricingConfig={pricingConfig}
             createSummaryData={createSummaryData}
           />
-          
+
           <PricingTable
             filteredUnits={filteredUnits}
             visibleColumns={visibleColumns}
