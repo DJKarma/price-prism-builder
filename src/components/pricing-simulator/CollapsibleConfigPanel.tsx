@@ -1,4 +1,3 @@
-
 import React from "react";
 import { 
   Accordion,
@@ -6,8 +5,7 @@ import {
   AccordionItem,
   AccordionTrigger 
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
-import { Settings, ChevronDown } from "lucide-react";
+import { Settings } from "lucide-react";
 import PricingConfiguration from "@/components/PricingConfiguration";
 import ConfigImporter from "@/components/ConfigImporter";
 
@@ -27,13 +25,13 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
   additionalCategories
 }) => {
   return (
-    <div className="mb-6 border rounded-lg shadow-sm animate-pulse-subtle">
+    <div className="mb-6 border rounded-lg shadow-sm transition-shadow duration-1000">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="configuration" className="border-none">
-          <AccordionTrigger className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:no-underline group">
+          <AccordionTrigger className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:no-underline group data-[state=closed]:shadow-[0_0_10px_rgba(79,70,229,0.1)] transition-shadow duration-1000">
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center">
-                <Settings className="h-5 w-5 mr-2 text-indigo-600 group-hover:animate-pulse" />
+                <Settings className="h-5 w-5 mr-2 text-indigo-600" />
                 <span className="font-medium text-indigo-700">Price Configuration Panel</span>
               </div>
               <div className="flex items-center">
