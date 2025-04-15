@@ -218,9 +218,9 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       {
         startFloor: newStartFloor,
         endFloor: maxFloor,
-        psfIncrement: 10,
-        jumpEveryFloor: 10,
-        jumpIncrement: 20,
+        psfIncrement: 0,
+        jumpEveryFloor: 0,
+        jumpIncrement: 0,
       },
     ]);
   };
