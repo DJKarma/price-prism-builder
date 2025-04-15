@@ -16,6 +16,8 @@ import PricingTable from "./pricing-simulator/PricingTable";
 import PricingExportControls from "./pricing-simulator/PricingExportControls";
 import { useUnitFilters } from "./pricing-simulator/useUnitFilters";
 import { createSummaryData } from "./pricing-simulator/pricingUtils";
+import CollapsibleConfigPanel from "./pricing-simulator/CollapsibleConfigPanel";
+import PricingSummary from "./PricingSummary";
 
 export interface UnitWithPricing extends Record<string, any> {
   totalPrice: number;
@@ -35,12 +37,16 @@ interface PricingSimulatorProps {
   data: any[];
   pricingConfig: any;
   onConfigUpdate?: (updatedConfig: any) => void;
+  additionalCategories?: Array<{column: string, categories: string[]}>;
+  maxFloor?: number;
 }
 
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
   pricingConfig,
   onConfigUpdate,
+  additionalCategories = [],
+  maxFloor = 50
 }) => {
   const [units, setUnits] = useState<UnitWithPricing[]>([]);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
@@ -215,60 +221,81 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     Object.values(selectedAdditionalFilters).reduce((count, values) => count + (values.length > 0 ? 1 : 0), 0);
 
   return (
-    <Card className="w-full mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TableIcon className="h-5 w-5" />
-          Unit Pricing Details
-        </CardTitle>
-        <CardDescription>
-          View and filter detailed pricing for all units
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {onConfigUpdate && (
-          <PremiumEditor 
-            pricingConfig={pricingConfig} 
-            onPricingConfigChange={handlePricingConfigChange}
-          />
-        )}
-        
-        <PricingFilters 
-          uniqueTypes={uniqueTypes}
-          uniqueViews={uniqueViews}
-          uniqueFloors={uniqueFloors}
-          selectedTypes={selectedTypes}
-          setSelectedTypes={setSelectedTypes}
-          selectedViews={selectedViews}
-          setSelectedViews={setSelectedViews}
-          selectedFloors={selectedFloors}
-          setSelectedFloors={setSelectedFloors}
-          additionalColumns={additionalColumns}
-          getUniqueAdditionalValues={getUniqueAdditionalValues}
-          selectedAdditionalFilters={selectedAdditionalFilters}
-          setSelectedAdditionalFilters={setSelectedAdditionalFilters}
-          resetFilters={resetFilters}
-          visibleColumns={visibleColumns}
-          allColumns={allColumns}
-          toggleColumnVisibility={toggleColumnVisibility}
-          resetColumnVisibility={resetColumnVisibility}
-        />
-        
-        <PricingExportControls 
-          filteredUnits={filteredUnits}
+    <div className="space-y-6">
+      {onConfigUpdate && (
+        <CollapsibleConfigPanel 
+          data={data}
           pricingConfig={pricingConfig}
-          createSummaryData={createSummaryData}
+          onConfigUpdate={handlePricingConfigChange}
+          maxFloor={maxFloor}
+          additionalCategories={additionalCategories}
         />
-        
-        <PricingTable
-          filteredUnits={filteredUnits}
-          visibleColumns={visibleColumns}
-          additionalColumns={additionalColumns}
-          sortConfig={sortConfig}
-          handleSort={handleSort}
+      )}
+
+      <div className="grid grid-cols-1 gap-6 mb-6">
+        <PricingSummary 
+          data={filteredUnits} 
+          showDollarSign={true} 
+          highlightedTypes={pricingConfig?.optimizedTypes || []}
+          showAcPsf={true}
         />
-      </CardContent>
-    </Card>
+      </div>
+
+      <Card className="w-full mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TableIcon className="h-5 w-5" />
+            Unit Pricing Details
+          </CardTitle>
+          <CardDescription>
+            View and filter detailed pricing for all units
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {onConfigUpdate && (
+            <PremiumEditor 
+              pricingConfig={pricingConfig} 
+              onPricingConfigChange={handlePricingConfigChange}
+            />
+          )}
+          
+          <PricingFilters 
+            uniqueTypes={uniqueTypes}
+            uniqueViews={uniqueViews}
+            uniqueFloors={uniqueFloors}
+            selectedTypes={selectedTypes}
+            setSelectedTypes={setSelectedTypes}
+            selectedViews={selectedViews}
+            setSelectedViews={setSelectedViews}
+            selectedFloors={selectedFloors}
+            setSelectedFloors={setSelectedFloors}
+            additionalColumns={additionalColumns}
+            getUniqueAdditionalValues={getUniqueAdditionalValues}
+            selectedAdditionalFilters={selectedAdditionalFilters}
+            setSelectedAdditionalFilters={setSelectedAdditionalFilters}
+            resetFilters={resetFilters}
+            visibleColumns={visibleColumns}
+            allColumns={allColumns}
+            toggleColumnVisibility={toggleColumnVisibility}
+            resetColumnVisibility={resetColumnVisibility}
+          />
+          
+          <PricingExportControls 
+            filteredUnits={filteredUnits}
+            pricingConfig={pricingConfig}
+            createSummaryData={createSummaryData}
+          />
+          
+          <PricingTable
+            filteredUnits={filteredUnits}
+            visibleColumns={visibleColumns}
+            additionalColumns={additionalColumns}
+            sortConfig={sortConfig}
+            handleSort={handleSort}
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

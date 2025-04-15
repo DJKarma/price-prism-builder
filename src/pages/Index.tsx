@@ -3,14 +3,12 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVUploader from "@/components/CSVUploader";
 import ColumnMapper from "@/components/ColumnMapper";
-import PricingConfiguration, { PricingConfig } from "@/components/PricingConfiguration";
 import PricingSimulator from "@/components/PricingSimulator";
 import MegaOptimize from "@/components/MegaOptimize";
 import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Upload, FileSpreadsheet, Settings, LineChart, ArrowRight, PieChart } from "lucide-react";
+import { ArrowLeft, Upload, FileSpreadsheet, LineChart, ArrowRight, PieChart } from "lucide-react";
 import { usePricingStore } from "@/store/pricingStore";
-import ConfigImporter from "@/components/ConfigImporter";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<string>("upload");
@@ -51,28 +49,11 @@ const Index = () => {
 
   const handleMappingComplete = (mapping: Record<string, string>, data: any[], categories: any[]) => {
     setMappedData(data, categories);
-    changeTab('configure', 'forward');
+    // Skip the configure tab and go directly to simulate
+    changeTab('simulate', 'forward');
   };
 
-  const handleConfigurationComplete = useCallback((config: PricingConfig) => {
-    const targetOverallPsf = config.bedroomTypePricing.reduce(
-      (sum, type) => sum + type.targetAvgPsf, 
-      0
-    ) / config.bedroomTypePricing.length;
-    
-    const updatedConfig: PricingConfig = {
-      ...config,
-      targetOverallPsf,
-      maxFloor: maxFloor
-    };
-    
-    setPricingConfig(updatedConfig);
-    
-    setForceUpdate(prev => prev + 1);
-    changeTab('simulate', 'forward');
-  }, [maxFloor, setPricingConfig]);
-
-  const handleConfigUpdate = useCallback((updatedConfig: PricingConfig) => {
+  const handleConfigUpdate = useCallback((updatedConfig: any) => {
     setPricingConfig(updatedConfig);
     setForceUpdate(prev => prev + 1);
   }, [setPricingConfig]);
@@ -83,10 +64,6 @@ const Index = () => {
   
   const handleBackToMap = () => {
     changeTab('map', 'backward');
-  };
-  
-  const handleBackToConfigure = () => {
-    changeTab('configure', 'backward');
   };
 
   const changeTab = (tab: string, direction: 'forward' | 'backward') => {
@@ -108,8 +85,6 @@ const Index = () => {
         return <Upload className={iconClass} />;
       case 'map':
         return <FileSpreadsheet className={iconClass} />;
-      case 'configure':
-        return <Settings className={iconClass} />;
       case 'simulate':
         return <LineChart className={iconClass} />;
       default:
@@ -124,14 +99,59 @@ const Index = () => {
         return false;
       case 'map':
         return !csvData.length;
-      case 'configure':
-        return !mappedData.length;
       case 'simulate':
-        return !pricingConfig;
+        return !mappedData.length;
       default:
         return true;
     }
   };
+
+  // Set default pricing config when mapped data is available but no config exists
+  useEffect(() => {
+    if (mappedData.length && !pricingConfig) {
+      // Create a minimal default configuration to allow the simulator to work
+      const defaultConfig = {
+        basePsf: 1000,
+        bedroomTypePricing: [],
+        viewPricing: [],
+        floorRiseRules: [{ startFloor: 1, endFloor: maxFloor, psfIncrement: 10 }],
+        maxFloor
+      };
+      
+      // Extract unique bedroom types
+      const uniqueTypes = Array.from(
+        new Set(
+          mappedData
+            .map((item) => item.type)
+            .filter((type) => type && type.trim() !== "")
+        )
+      ) as string[];
+      
+      // Add bedroom types to config
+      defaultConfig.bedroomTypePricing = uniqueTypes.map(type => ({
+        type,
+        basePsf: 1000,
+        targetAvgPsf: 1000
+      }));
+      
+      // Extract unique views
+      const uniqueViews = Array.from(
+        new Set(
+          mappedData
+            .map((item) => item.view)
+            .filter((view) => view && view.trim() !== "")
+        )
+      ) as string[];
+      
+      // Add views to config
+      defaultConfig.viewPricing = uniqueViews.map(view => ({
+        view,
+        psfAdjustment: 0
+      }));
+      
+      setPricingConfig(defaultConfig);
+    }
+  }, [mappedData, pricingConfig, maxFloor, setPricingConfig]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -151,13 +171,12 @@ const Index = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={(value) => changeTab(value, value === 'upload' ? 'backward' : 'forward')}>
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-8 p-1 bg-gray-100 rounded-lg shadow-inner">
-            {['upload', 'map', 'configure', 'simulate'].map((step, index) => {
+          <TabsList className="grid w-full grid-cols-3 mb-8 p-1 bg-gray-100 rounded-lg shadow-inner">
+            {['upload', 'map', 'simulate'].map((step, index) => {
               const isActive = activeTab === step;
               const isPast = (
-                (step === 'upload' && ['map', 'configure', 'simulate'].includes(activeTab)) ||
-                (step === 'map' && ['configure', 'simulate'].includes(activeTab)) ||
-                (step === 'configure' && activeTab === 'simulate')
+                (step === 'upload' && ['map', 'simulate'].includes(activeTab)) ||
+                (step === 'map' && activeTab === 'simulate')
               );
               
               return (
@@ -170,7 +189,7 @@ const Index = () => {
                     ${isActive ? 'bg-indigo-600 text-white shadow-md' : ''}
                     ${isPast ? 'bg-indigo-100 text-indigo-700' : ''}
                     ${index === 0 ? 'rounded-l-md' : ''}
-                    ${index === 3 ? 'rounded-r-md' : ''}
+                    ${index === 2 ? 'rounded-r-md' : ''}
                   `}
                 >
                   <div className="flex items-center justify-center gap-2">
@@ -183,7 +202,7 @@ const Index = () => {
                     <span className="hidden md:inline">{step.charAt(0).toUpperCase() + step.slice(1)}</span>
                     {getStepIcon(step, isActive)}
                   </div>
-                  {index < 3 && (
+                  {index < 2 && (
                     <div className="absolute top-1/2 -right-3 w-6 h-0.5 bg-gray-300 transform -translate-y-1/2 z-0 hidden md:block"></div>
                   )}
                 </TabsTrigger>
@@ -207,36 +226,16 @@ const Index = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="configure" className="mt-0 animate-fade-in">
+            <TabsContent value="simulate" className="mt-0 animate-fade-in">
               {mappedData.length > 0 && (
                 <>
-                  <div className="mb-4 flex justify-between">
+                  <div className="mb-4">
                     <Button variant="outline" size="sm" onClick={handleBackToMap} className="hover-scale">
                       <ArrowLeft className="mr-2 h-4 w-4" />
                       Back to Map Columns
                     </Button>
-                    
-                    <ConfigImporter onConfigImported={handleConfigurationComplete} />
                   </div>
-                  <PricingConfiguration
-                    data={mappedData}
-                    onConfigurationComplete={handleConfigurationComplete}
-                    maxFloor={maxFloor}
-                    additionalCategories={additionalCategories}
-                  />
-                </>
-              )}
-            </TabsContent>
-
-            <TabsContent value="simulate" className="mt-0 animate-fade-in">
-              {pricingConfig && (
-                <>
-                  <div className="mb-4">
-                    <Button variant="outline" size="sm" onClick={handleBackToConfigure} className="hover-scale">
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Back to Configure Pricing
-                    </Button>
-                  </div>
+                  
                   <MegaOptimize 
                     data={mappedData} 
                     pricingConfig={pricingConfig} 
@@ -247,6 +246,8 @@ const Index = () => {
                     data={mappedData} 
                     pricingConfig={pricingConfig} 
                     onConfigUpdate={handleConfigUpdate}
+                    additionalCategories={additionalCategories}
+                    maxFloor={maxFloor}
                     key={`simulator-${forceUpdate}`}
                   />
                 </>

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import {
   Card,
@@ -15,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowUpDown,
   DollarSign,
@@ -44,12 +45,12 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     direction: "ascending" | "descending";
   }>({ key: "type", direction: "ascending" });
 
-  // Selected metrics state
-  const [selectedMetrics, setSelectedMetrics] = useState<Record<MetricCategory, MetricType>>({
-    psf: "avg",
-    acPsf: "avg",
-    size: "avg",
-    price: "avg"
+  // Selected metrics state (now using arrays for multiple selections)
+  const [selectedMetrics, setSelectedMetrics] = useState<Record<MetricCategory, MetricType[]>>({
+    psf: ["avg"],
+    acPsf: ["avg"],
+    size: ["avg"],
+    price: ["avg"]
   });
 
   // Format number with K/M suffix for large numbers
@@ -105,6 +106,8 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
             unitCount: 0,
             totalArea: 0,
             avgSize: 0,
+            minSize: 0,
+            maxSize: 0,
             avgPrice: 0,
             minPrice: 0,
             maxPrice: 0,
@@ -127,7 +130,10 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           0
         );
         
+        const sizes = validItems.map((item) => parseFloat(item.sellArea || 0));
         const avgSize = totalArea / unitCount;
+        const minSize = Math.min(...sizes);
+        const maxSize = Math.max(...sizes);
         
         const prices = validItems.map((item) => item.finalTotalPrice);
         const avgPrice = prices.reduce((sum, price) => sum + price, 0) / unitCount;
@@ -165,6 +171,8 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           unitCount,
           totalArea,
           avgSize,
+          minSize,
+          maxSize,
           avgPrice,
           minPrice,
           maxPrice,
@@ -210,6 +218,16 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           0
         );
         
+        // All sizes for min/max
+        const allSizes = allValidItems.map((item) => parseFloat(item.sellArea || 0));
+        const minSize = Math.min(...allSizes);
+        const maxSize = Math.max(...allSizes);
+        
+        // All prices for min/max
+        const allPrices = allValidItems.map((item) => item.finalTotalPrice);
+        const minPrice = Math.min(...allPrices);
+        const maxPrice = Math.max(...allPrices);
+        
         // Overall average PSF based on total value divided by total area
         const overallAvgPsf = totalValue / totalSellArea;
         
@@ -242,6 +260,12 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         setTotalSummary({
           unitCount: totalUnitCount,
           totalArea: totalSellArea,
+          avgSize: totalSellArea / totalUnitCount,
+          minSize,
+          maxSize,
+          avgPrice: totalValue / totalUnitCount,
+          minPrice,
+          maxPrice,
           totalValue,
           avgPsf: overallAvgPsf,
           minPsf,
@@ -254,6 +278,12 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         setTotalSummary({
           unitCount: 0,
           totalArea: 0,
+          avgSize: 0,
+          minSize: 0,
+          maxSize: 0,
+          avgPrice: 0,
+          minPrice: 0,
+          maxPrice: 0,
           totalValue: 0,
           avgPsf: 0,
           minPsf: 0,
@@ -270,38 +300,96 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     }
   }, [data, sortConfig]);
 
+  const toggleMetric = (category: MetricCategory, metric: MetricType) => {
+    setSelectedMetrics(prev => {
+      const currentMetrics = [...prev[category]];
+      
+      if (currentMetrics.includes(metric)) {
+        // Remove if already selected
+        if (currentMetrics.length > 1) { // Ensure at least one metric is selected
+          return {
+            ...prev,
+            [category]: currentMetrics.filter(m => m !== metric)
+          };
+        }
+        return prev;
+      } else {
+        // Add if not selected
+        return {
+          ...prev,
+          [category]: [...currentMetrics, metric]
+        };
+      }
+    });
+  };
+
   const renderMetricSelector = (category: MetricCategory, label: string) => (
-    <div className="flex flex-col gap-1 items-center">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <ToggleGroup 
-        type="single" 
-        value={selectedMetrics[category]}
-        onValueChange={(value) => {
-          if (value) {
-            setSelectedMetrics(prev => ({
-              ...prev,
-              [category]: value as MetricType
-            }));
-          }
-        }}
-        className="flex gap-1"
-      >
-        <ToggleGroupItem value="min" size="sm">Min</ToggleGroupItem>
-        <ToggleGroupItem value="avg" size="sm">Avg</ToggleGroupItem>
-        <ToggleGroupItem value="max" size="sm">Max</ToggleGroupItem>
-      </ToggleGroup>
+    <div className="flex flex-col gap-1">
+      <span className="text-sm text-muted-foreground font-medium">{label}</span>
+      <div className="flex flex-wrap gap-3 items-center">
+        {(['min', 'avg', 'max'] as MetricType[]).map(metric => (
+          <div key={`${category}-${metric}`} className="flex items-center space-x-2">
+            <Checkbox 
+              id={`${category}-${metric}`}
+              checked={selectedMetrics[category].includes(metric)}
+              onCheckedChange={() => toggleMetric(category, metric)}
+            />
+            <label 
+              htmlFor={`${category}-${metric}`}
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              {metric.charAt(0).toUpperCase() + metric.slice(1)}
+            </label>
+          </div>
+        ))}
+      </div>
     </div>
   );
 
-  const getMetricValue = (row: any, category: MetricCategory): number => {
-    const metric = selectedMetrics[category];
+  const renderMetricCell = (row: any, category: MetricCategory) => {
+    const selectedForCategory = selectedMetrics[category];
+    if (selectedForCategory.length === 0) return null;
+    
+    let content: JSX.Element[] = [];
+    
+    if (selectedForCategory.includes('min')) {
+      const value = getMetricValue(row, category, 'min');
+      content.push(
+        <div key={`${category}-min`} className="text-gray-600 text-sm">
+          <span className="font-medium text-xs">Min:</span> {formatNumber(value, category === 'price')}
+        </div>
+      );
+    }
+    
+    if (selectedForCategory.includes('avg')) {
+      const value = getMetricValue(row, category, 'avg');
+      content.push(
+        <div key={`${category}-avg`} className="font-medium">
+          <span className="text-xs">Avg:</span> {formatNumber(value, category === 'price')}
+        </div>
+      );
+    }
+    
+    if (selectedForCategory.includes('max')) {
+      const value = getMetricValue(row, category, 'max');
+      content.push(
+        <div key={`${category}-max`} className="text-gray-600 text-sm">
+          <span className="font-medium text-xs">Max:</span> {formatNumber(value, category === 'price')}
+        </div>
+      );
+    }
+    
+    return <div className="space-y-1">{content}</div>;
+  };
+
+  const getMetricValue = (row: any, category: MetricCategory, metric: MetricType): number => {
     switch (category) {
       case "psf":
         return row[`${metric}Psf`] || 0;
       case "acPsf":
         return row[`${metric}AcPsf`] || 0;
       case "size":
-        return metric === "avg" ? row.avgSize : (metric === "min" ? row.minSize : row.maxSize);
+        return row[`${metric}Size`] || 0;
       case "price":
         return row[`${metric}Price`] || 0;
     }
@@ -314,11 +402,11 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         <CardDescription>
           Breakdown by bedroom type with PSF analytics
         </CardDescription>
-        <div className="flex flex-wrap gap-4 justify-start mt-2">
-          {renderMetricSelector("psf", "SA PSF")}
-          {showAcPsf && renderMetricSelector("acPsf", "AC PSF")}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-2">
           {renderMetricSelector("size", "Size")}
           {renderMetricSelector("price", "Price")}
+          {renderMetricSelector("psf", "SA PSF")}
+          {showAcPsf && renderMetricSelector("acPsf", "AC PSF")}
         </div>
       </CardHeader>
 
@@ -347,26 +435,18 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                   <TableCell className="font-medium">{row.type}</TableCell>
                   <TableCell className="text-right">{row.unitCount}</TableCell>
                   <TableCell className="text-right">
-                    {formatNumber(getMetricValue(row, "size"))}
+                    {renderMetricCell(row, "size")}
                   </TableCell>
                   <TableCell className="text-right">
-                    {showDollarSign && <DollarSign className="h-3 w-3 inline mr-0.5" />}
-                    {formatNumber(getMetricValue(row, "price"), true)}
+                    {showDollarSign && selectedMetrics.price.length > 0 && <DollarSign className="h-3 w-3 inline mr-0.5" />}
+                    {renderMetricCell(row, "price")}
                   </TableCell>
-                  <TableCell 
-                    className={`text-right border-l border-gray-200 ${
-                      row[`${selectedMetrics.psf}Psf`] !== row.prevPsf ? "bg-yellow-100" : ""
-                    }`}
-                  >
-                    {formatNumber(getMetricValue(row, "psf"))}
+                  <TableCell className="text-right border-l border-gray-200">
+                    {renderMetricCell(row, "psf")}
                   </TableCell>
                   {showAcPsf && (
-                    <TableCell 
-                      className={`text-right border-l border-gray-200 ${
-                        row[`${selectedMetrics.acPsf}AcPsf`] !== row.prevAcPsf ? "bg-yellow-100" : ""
-                      }`}
-                    >
-                      {formatNumber(getMetricValue(row, "acPsf"))}
+                    <TableCell className="text-right border-l border-gray-200">
+                      {renderMetricCell(row, "acPsf")}
                     </TableCell>
                   )}
                 </TableRow>
@@ -379,21 +459,21 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                   {totalSummary.unitCount}
                 </TableCell>
                 <TableCell className="text-right">
-                  {formatNumber(getMetricValue(totalSummary, "size"))}
+                  {renderMetricCell(totalSummary, "size")}
                 </TableCell>
                 <TableCell className="text-right">
-                  {showDollarSign && <DollarSign className="h-3 w-3 inline mr-0.5" />}
-                  {formatNumber(getMetricValue(totalSummary, "price"), true)}
+                  {showDollarSign && selectedMetrics.price.length > 0 && <DollarSign className="h-3 w-3 inline mr-0.5" />}
+                  {renderMetricCell(totalSummary, "price")}
                 </TableCell>
                 <TableCell className="text-right border-l border-gray-200">
                   <Badge variant="outline" className="bg-indigo-50 border-indigo-200">
-                    {formatNumber(getMetricValue(totalSummary, "psf"))}
+                    {renderMetricCell(totalSummary, "psf")}
                   </Badge>
                 </TableCell>
                 {showAcPsf && (
                   <TableCell className="text-right border-l border-gray-200">
                     <Badge variant="outline" className="bg-indigo-50 border-indigo-200">
-                      {formatNumber(getMetricValue(totalSummary, "acPsf"))}
+                      {renderMetricCell(totalSummary, "acPsf")}
                     </Badge>
                   </TableCell>
                 )}
