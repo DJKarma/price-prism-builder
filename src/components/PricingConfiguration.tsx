@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -90,13 +89,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
 }) => {
   const [basePsf, setBasePsf] = useState<number>(1000);
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
-    { 
-      startFloor: 1, 
-      endFloor: maxFloor, 
-      psfIncrement: 0,
-      jumpEveryFloor: 0,
-      jumpIncrement: 0
-    },
+    { startFloor: 1, endFloor: maxFloor, psfIncrement: 10, jumpEveryFloor: 10, jumpIncrement: 20 },
   ]);
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
@@ -111,10 +104,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       if (initialConfig.floorRiseRules && initialConfig.floorRiseRules.length > 0) {
         setFloorRiseRules(initialConfig.floorRiseRules.map((rule: any) => ({
           ...rule,
-          endFloor: rule.endFloor === undefined ? maxFloor : rule.endFloor,
-          psfIncrement: rule.psfIncrement || 0,
-          jumpEveryFloor: rule.jumpEveryFloor || 0,
-          jumpIncrement: rule.jumpIncrement || 0
+          endFloor: rule.endFloor === undefined ? maxFloor : rule.endFloor
         })));
       }
       
@@ -228,9 +218,9 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       {
         startFloor: newStartFloor,
         endFloor: maxFloor,
-        psfIncrement: 0,
-        jumpEveryFloor: 0,
-        jumpIncrement: 0,
+        psfIncrement: 10,
+        jumpEveryFloor: 10,
+        jumpIncrement: 20,
       },
     ]);
   };

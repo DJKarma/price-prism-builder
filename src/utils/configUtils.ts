@@ -1,3 +1,4 @@
+
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
@@ -64,7 +65,7 @@ export const exportToExcel = async (
   }
 };
 
-// Import configuration from JSON with improved validation
+// Import configuration from JSON
 export const importConfig = async (file: File) => {
   return new Promise<{ config: any; unmatchedFields: string[] }>((resolve, reject) => {
     const reader = new FileReader();
@@ -74,7 +75,7 @@ export const importConfig = async (file: File) => {
         const jsonContent = event.target?.result as string;
         const importedConfig = JSON.parse(jsonContent);
         
-        // Validate the imported config
+        // Validate the imported config (basic validation)
         if (!importedConfig || typeof importedConfig !== 'object') {
           reject(new Error('Invalid configuration file format'));
           return;
@@ -88,17 +89,6 @@ export const importConfig = async (file: File) => {
           'floorRiseRules'
         ];
         
-        // Known fields including optional ones
-        const knownFields = new Set([
-          ...requiredFields,
-          'targetOverallPsf',
-          'maxFloor',
-          'additionalPricingFactors',
-          'additionalCategoryPricing',
-          'optimizedTypes',
-          'isOptimized'
-        ]);
-        
         // Check for required fields
         const missingFields = requiredFields.filter(
           (field) => !(field in importedConfig)
@@ -109,30 +99,22 @@ export const importConfig = async (file: File) => {
           return;
         }
         
-        // Initialize floor rise rules with default values
-        if (importedConfig.floorRiseRules) {
-          importedConfig.floorRiseRules = importedConfig.floorRiseRules.map((rule: any) => ({
-            ...rule,
-            psfIncrement: rule.psfIncrement !== undefined ? rule.psfIncrement : 0,
-            jumpEveryFloor: rule.jumpEveryFloor !== undefined ? rule.jumpEveryFloor : 0,
-            jumpIncrement: rule.jumpIncrement !== undefined ? rule.jumpIncrement : 0
-          }));
-        }
-        
         // Collect fields that exist in the imported config but not in our schema
+        const knownFields = new Set([
+          ...requiredFields,
+          'targetOverallPsf',
+          'maxFloor',
+          'additionalPricingFactors',
+          'additionalCategoryPricing',
+          'optimizedTypes',
+          'isOptimized'
+        ]);
+        
         const unmatchedFields = Object.keys(importedConfig).filter(
           (key) => !knownFields.has(key)
         );
         
-        // Only keep known fields in the resulting config
-        const filteredConfig = {};
-        knownFields.forEach(field => {
-          if (field in importedConfig) {
-            (filteredConfig as any)[field] = importedConfig[field];
-          }
-        });
-        
-        resolve({ config: filteredConfig, unmatchedFields });
+        resolve({ config: importedConfig, unmatchedFields });
       } catch (error) {
         reject(new Error('Failed to parse configuration file'));
       }

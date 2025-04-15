@@ -2,7 +2,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { FileJson, AlertTriangle, X } from 'lucide-react';
+import { FileJson, AlertTriangle } from 'lucide-react';
 import { importConfig } from '@/utils/configUtils';
 import { 
   Alert,
@@ -32,22 +32,11 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
     try {
       const { config, unmatchedFields } = await importConfig(file);
       
-      // Show warning toast for unmatched fields
-      if (unmatchedFields.length > 0) {
-        toast.warning(
-          `Some fields could not be imported`,
-          {
-            description: `The following fields were not found in the current configuration: ${unmatchedFields.join(', ')}`,
-            duration: 5000
-          }
-        );
-      }
-      
       // Set unmatched fields and show alert if needed
       setUnmatchedFields(unmatchedFields);
       setShowAlert(unmatchedFields.length > 0);
       
-      // Clear the file input
+      // Clear the file input so the same file can be selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -57,13 +46,9 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
       
       // Show success toast with field count
       const fieldsCount = Object.keys(config).length - unmatchedFields.length;
-      toast.success(`Config imported successfully`, {
-        description: `${fieldsCount} fields were updated.`
-      });
+      toast.success(`Config imported successfully. ${fieldsCount} fields updated.`);
     } catch (error) {
-      toast.error(`Import failed`, {
-        description: (error as Error).message || 'Failed to import configuration'
-      });
+      toast.error((error as Error).message || 'Failed to import configuration');
       
       // Clear the file input
       if (fileInputRef.current) {
@@ -89,7 +74,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
         variant="outline" 
         size="sm" 
         onClick={handleClick}
-        className="hover:bg-indigo-50"
+        className="hover-scale"
       >
         <FileJson className="mr-2 h-4 w-4" />
         Import Config
@@ -105,14 +90,6 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
               {` ${unmatchedFields.join(', ')}`}
             </span>
           </AlertDescription>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-2 right-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
-            onClick={closeAlert}
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </Alert>
       )}
     </div>

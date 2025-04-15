@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVUploader from "@/components/CSVUploader";
 import ColumnMapper from "@/components/ColumnMapper";
 import PricingSimulator from "@/components/PricingSimulator";
+import MegaOptimize from "@/components/MegaOptimize";
 import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Upload, FileSpreadsheet, LineChart, ArrowRight, PieChart } from "lucide-react";
@@ -16,6 +17,7 @@ const Index = () => {
   const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward');
   const [tabChanging, setTabChanging] = useState<boolean>(false);
 
+  // Global state
   const { 
     csvData, 
     csvHeaders, 
@@ -47,6 +49,7 @@ const Index = () => {
 
   const handleMappingComplete = (mapping: Record<string, string>, data: any[], categories: any[]) => {
     setMappedData(data, categories);
+    // Skip the configure tab and go directly to simulate
     changeTab('simulate', 'forward');
   };
 
@@ -67,6 +70,7 @@ const Index = () => {
     setTransitionDirection(direction);
     setTabChanging(true);
     
+    // Small delay for animation
     setTimeout(() => {
       setActiveTab(tab);
       setTabChanging(false);
@@ -88,6 +92,7 @@ const Index = () => {
     }
   };
 
+  // Helper to determine if a tab should be disabled
   const isTabDisabled = (tab: string) => {
     switch (tab) {
       case 'upload':
@@ -101,8 +106,10 @@ const Index = () => {
     }
   };
 
+  // Set default pricing config when mapped data is available but no config exists
   useEffect(() => {
     if (mappedData.length && !pricingConfig) {
+      // Create a minimal default configuration to allow the simulator to work
       const defaultConfig = {
         basePsf: 1000,
         bedroomTypePricing: [],
@@ -111,6 +118,7 @@ const Index = () => {
         maxFloor
       };
       
+      // Extract unique bedroom types
       const uniqueTypes = Array.from(
         new Set(
           mappedData
@@ -119,12 +127,14 @@ const Index = () => {
         )
       ) as string[];
       
+      // Add bedroom types to config
       defaultConfig.bedroomTypePricing = uniqueTypes.map(type => ({
         type,
         basePsf: 1000,
         targetAvgPsf: 1000
       }));
       
+      // Extract unique views
       const uniqueViews = Array.from(
         new Set(
           mappedData
@@ -133,6 +143,7 @@ const Index = () => {
         )
       ) as string[];
       
+      // Add views to config
       defaultConfig.viewPricing = uniqueViews.map(view => ({
         view,
         psfAdjustment: 0
@@ -224,6 +235,12 @@ const Index = () => {
                       Back to Map Columns
                     </Button>
                   </div>
+                  
+                  <MegaOptimize 
+                    data={mappedData} 
+                    pricingConfig={pricingConfig} 
+                    onOptimized={handleConfigUpdate}
+                  />
                   
                   <PricingSimulator 
                     data={mappedData} 
