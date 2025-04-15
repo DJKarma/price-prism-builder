@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, FileUp, Check } from "lucide-react";
@@ -211,25 +212,7 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
         </span>
       </div>
 
-      {/* Example: Keyframe definition for fade-in. 
-          If you have a global fade-in or already use Tailwind's animate-fade-in classes,
-          you can remove or adapt this <style jsx> section. 
-      */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in {
-          animation: fadeIn 0.4s ease both;
-        }
-      `}</style>
+      {/* Add the keyframe animation in global CSS or index.css instead of using style jsx */}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,50 +7,63 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
+
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
+
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
+
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
+
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
+
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
+
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
+
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
+
     --radius: 0.5rem;
-    --scrollbar-thumb: rgba(0, 0, 0, 0.2);
-    --scrollbar-track: rgba(0, 0, 0, 0.05);
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
+
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
+
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
+
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
+
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
+
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
+
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
+
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
+
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
-    --scrollbar-thumb: rgba(255, 255, 255, 0.2);
-    --scrollbar-track: rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -62,42 +76,12 @@
   }
 }
 
+/* Custom animations for Price Prism app */
 .gradient-bg {
-  background: linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%);
+  @apply bg-gradient-to-r from-indigo-600 to-blue-600;
 }
 
-@keyframes movingBorder {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-.moving-border {
-  position: relative;
-  background-clip: padding-box;
-}
-
-.moving-border::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  margin: -1px;
-  border-radius: inherit;
-  background: linear-gradient(45deg, rgba(79, 70, 229, 0.2), rgba(59, 130, 246, 0.2));
-  background-size: 200% 200%;
-  animation: movingBorder 4s ease infinite;
-  z-index: -1;
-}
-
+/* Fade-in animation for components */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -109,115 +93,21 @@
   }
 }
 
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* Pulse blink animations removed */
-
 .animate-fade-in {
-  animation: fadeIn 0.5s ease-out;
+  animation: fadeIn 0.4s ease both;
 }
 
-.animate-slide-in {
-  animation: slideInRight 0.5s ease-out;
+/* Glow effect for configuration panel */
+.glow-on-collapse[data-state="closed"] {
+  box-shadow: 0 0 8px rgba(66, 153, 225, 0.4);
+  transition: box-shadow 0.3s ease-in-out;
 }
 
+/* Hover scale animation */
 .hover-scale {
-  transition: transform 0.2s ease-in-out;
+  transition: transform 0.2s ease;
 }
 
 .hover-scale:hover {
-  transform: scale(1.02);
-}
-
-.smooth-transition {
-  transition: all 0.3s ease;
-}
-
-.card-hover {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.card-hover:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
-              0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-.tab-active {
-  position: relative;
-  overflow: hidden;
-}
-
-.tab-active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%);
-  transition: transform 0.3s ease;
-  transform-origin: left;
-}
-
-.scrollbar-always-visible {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-}
-
-.scrollbar-always-visible::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-  display: block;
-}
-
-.scrollbar-always-visible::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-  border-radius: 5px;
-}
-
-.scrollbar-always-visible::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb);
-  border-radius: 5px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-
-.scrollbar-always-visible::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.3);
-}
-
-.stagger-animation > * {
-  opacity: 0;
-  transform: translateY(10px);
-  animation: fadeIn 0.5s ease-out forwards;
-}
-
-.stagger-animation > *:nth-child(1) { animation-delay: 0.1s; }
-.stagger-animation > *:nth-child(2) { animation-delay: 0.2s; }
-.stagger-animation > *:nth-child(3) { animation-delay: 0.3s; }
-.stagger-animation > *:nth-child(4) { animation-delay: 0.4s; }
-.stagger-animation > *:nth-child(5) { animation-delay: 0.5s; }
-.stagger-animation > *:nth-child(6) { animation-delay: 0.6s; }
-.stagger-animation > *:nth-child(7) { animation-delay: 0.7s; }
-.stagger-animation > *:nth-child(8) { animation-delay: 0.8s; }
-.stagger-animation > *:nth-child(9) { animation-delay: 0.9s; }
-.stagger-animation > *:nth-child(10) { animation-delay: 1.0s; }
-
-.progress-steps {
-  counter-reset: step;
-}
-
-.progress-step::before {
-  counter-increment: step;
-  content: counter(step);
+  transform: scale(1.05);
 }

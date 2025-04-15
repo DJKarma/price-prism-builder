@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { TableIcon } from "lucide-react";
@@ -282,14 +283,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         </CardContent>
       </Card>
       
-      {/* Scoped custom CSS for the subtle glow effect */}
-      <style jsx>{`
-        /* Apply a subtle blue glow when the configuration panel trigger is in "closed" state */
-        .glow-on-collapse[data-state="closed"] {
-          box-shadow: 0 0 8px rgba(66, 153, 225, 0.4);
-          transition: box-shadow 0.3s ease-in-out;
-        }
-      `}</style>
+      {/* The CSS for glow effect has been moved to global CSS or component-specific styles */}
     </div>
   );
 };
