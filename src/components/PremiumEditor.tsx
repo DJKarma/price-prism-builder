@@ -109,9 +109,9 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
         {
           startFloor: newStartFloor,
           endFloor: newEndFloor,
-          psfIncrement: 5,
-          jumpEveryFloor: 10,
-          jumpIncrement: 20
+          psfIncrement: 0,
+          jumpEveryFloor: 0,
+          jumpIncrement: 0
         }
       ]
     });
