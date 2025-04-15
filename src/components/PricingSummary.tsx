@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import {
   Card,
@@ -45,7 +44,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     direction: "ascending" | "descending";
   }>({ key: "type", direction: "ascending" });
 
-  // Selected metrics state (now using arrays for multiple selections)
   const [selectedMetrics, setSelectedMetrics] = useState<Record<MetricCategory, MetricType[]>>({
     psf: ["avg"],
     acPsf: ["avg"],
@@ -53,7 +51,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     price: ["avg"]
   });
 
-  // Format number with K/M suffix for large numbers
   const formatLargeNumber = (num: number): string => {
     if (!isFinite(num) || isNaN(num)) return "-";
     
@@ -65,7 +62,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     return num.toFixed(0);
   };
 
-  // Format number with specified decimals
   const formatNumber = (num: number, isPrice = false): string => {
     if (!isFinite(num) || isNaN(num)) return "-";
     
@@ -79,7 +75,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     if (!data || data.length === 0) return;
 
     try {
-      // Group by bedroom type
       const typeGroups: Record<string, any[]> = {};
       data.forEach((item) => {
         const type = item.type || "Unknown";
@@ -89,11 +84,9 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         typeGroups[type].push(item);
       });
 
-      // Calculate metrics for each type
       const typeSummary = Object.keys(typeGroups).map((type) => {
         const items = typeGroups[type];
         
-        // Filter out items with missing essential data
         const validItems = items.filter(item => {
           const hasValidSellArea = parseFloat(item.sellArea) > 0;
           const hasValidPrice = typeof item.finalTotalPrice === 'number' && item.finalTotalPrice > 0;
@@ -121,10 +114,8 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           };
         }
         
-        // Extract and calculate metrics
         const unitCount = validItems.length;
         
-        // SA (Sell Area) calculations
         const totalArea = validItems.reduce(
           (sum, item) => sum + parseFloat(item.sellArea || 0),
           0
@@ -140,7 +131,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         const minPrice = Math.min(...prices);
         const maxPrice = Math.max(...prices);
         
-        // Calculate PSF from finalTotalPrice / sellArea (Sell Area PSF)
         const psfs = validItems.map(
           (item) => item.finalPsf || (item.finalTotalPrice / parseFloat(item.sellArea || 1))
         );
@@ -148,7 +138,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         const minPsf = Math.min(...psfs);
         const maxPsf = Math.max(...psfs);
         
-        // AC Area PSF calculations
         const validItemsWithAcArea = validItems.filter(item => parseFloat(item.acArea) > 0);
         let avgAcPsf = 0, minAcPsf = 0, maxAcPsf = 0;
         
@@ -186,7 +175,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         };
       });
 
-      // Sort by bedroom type
       if (sortConfig) {
         typeSummary.sort((a, b) => {
           if (a[sortConfig.key] < b[sortConfig.key]) {
@@ -199,7 +187,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         });
       }
 
-      // Calculate grand total
       const allValidItems = data.filter(item => {
         const hasValidSellArea = parseFloat(item.sellArea) > 0;
         const hasValidPrice = typeof item.finalTotalPrice === 'number' && item.finalTotalPrice > 0;
@@ -218,27 +205,22 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           0
         );
         
-        // All sizes for min/max
         const allSizes = allValidItems.map((item) => parseFloat(item.sellArea || 0));
         const minSize = Math.min(...allSizes);
         const maxSize = Math.max(...allSizes);
         
-        // All prices for min/max
         const allPrices = allValidItems.map((item) => item.finalTotalPrice);
         const minPrice = Math.min(...allPrices);
         const maxPrice = Math.max(...allPrices);
         
-        // Overall average PSF based on total value divided by total area
         const overallAvgPsf = totalValue / totalSellArea;
         
-        // Min and max PSF across all units
         const allPsfs = allValidItems.map(
           (item) => item.finalPsf || (item.finalTotalPrice / parseFloat(item.sellArea || 1))
         );
         const minPsf = Math.min(...allPsfs);
         const maxPsf = Math.max(...allPsfs);
         
-        // AC PSF calculations for all units
         const validItemsWithAcArea = allValidItems.filter(item => parseFloat(item.acArea) > 0);
         let overallAvgAcPsf = 0, minAcPsf = 0, maxAcPsf = 0;
         
@@ -305,8 +287,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
       const currentMetrics = [...prev[category]];
       
       if (currentMetrics.includes(metric)) {
-        // Remove if already selected
-        if (currentMetrics.length > 1) { // Ensure at least one metric is selected
+        if (currentMetrics.length > 1) {
           return {
             ...prev,
             [category]: currentMetrics.filter(m => m !== metric)
@@ -314,7 +295,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         }
         return prev;
       } else {
-        // Add if not selected
         return {
           ...prev,
           [category]: [...currentMetrics, metric]
@@ -397,7 +377,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
 
   return (
     <Card className="w-full shadow-sm">
-      <CardHeader className="pb-2">
+      <CardHeader>
         <CardTitle className="text-lg font-medium">Pricing Summary</CardTitle>
         <CardDescription>
           Breakdown by bedroom type with PSF analytics
@@ -452,7 +432,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                 </TableRow>
               ))}
               
-              {/* Total row */}
               <TableRow className="bg-gray-50 font-medium">
                 <TableCell>TOTAL</TableCell>
                 <TableCell className="text-right">
