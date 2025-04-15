@@ -32,11 +32,22 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
     try {
       const { config, unmatchedFields } = await importConfig(file);
       
+      // Show warning toast for unmatched fields
+      if (unmatchedFields.length > 0) {
+        toast.warning(
+          `Some fields could not be imported`,
+          {
+            description: `The following fields were not found in the current configuration: ${unmatchedFields.join(', ')}`,
+            duration: 5000
+          }
+        );
+      }
+      
       // Set unmatched fields and show alert if needed
       setUnmatchedFields(unmatchedFields);
       setShowAlert(unmatchedFields.length > 0);
       
-      // Clear the file input so the same file can be selected again
+      // Clear the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -46,9 +57,13 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
       
       // Show success toast with field count
       const fieldsCount = Object.keys(config).length - unmatchedFields.length;
-      toast.success(`Config imported successfully. ${fieldsCount} fields updated.`);
+      toast.success(`Config imported successfully`, {
+        description: `${fieldsCount} fields were updated.`
+      });
     } catch (error) {
-      toast.error((error as Error).message || 'Failed to import configuration');
+      toast.error(`Import failed`, {
+        description: (error as Error).message || 'Failed to import configuration'
+      });
       
       // Clear the file input
       if (fileInputRef.current) {
