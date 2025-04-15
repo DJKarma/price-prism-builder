@@ -66,38 +66,6 @@
   background: linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%);
 }
 
-@keyframes movingBorder {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-.moving-border {
-  position: relative;
-  background-clip: padding-box;
-}
-
-.moving-border::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  margin: -1px;
-  border-radius: inherit;
-  background: linear-gradient(45deg, rgba(79, 70, 229, 0.2), rgba(59, 130, 246, 0.2));
-  background-size: 200% 200%;
-  animation: movingBorder 4s ease infinite;
-  z-index: -1;
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -120,26 +88,12 @@
   }
 }
 
+/* Flashy animations removed:
+   - movingBorder and its classes
+   - pulse-glow and pulse-glow-hover along with their keyframes
+*/
 
-
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(79, 70, 229, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 15px rgba(79, 70, 229, 0.6);
-  }
-}
-
-@keyframes pulse-glow-hover {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(79, 70, 229, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(79, 70, 229, 0.8);
-  }
-}
-
+/* Retained subtle animations */
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
 }
@@ -152,14 +106,7 @@
   animation: pulse 2s infinite;
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 2s infinite;
-}
-
-.animate-pulse-glow-hover {
-  animation: pulse-glow-hover 1s ease-in-out;
-}
-
+/* Transition and hover effects */
 .hover-scale {
   transition: transform 0.2s ease-in-out;
 }
@@ -178,7 +125,8 @@
 
 .card-hover:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
+              0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .tab-active {
