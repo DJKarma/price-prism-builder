@@ -1,3 +1,4 @@
+
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
@@ -141,7 +142,17 @@ export const importConfig = async (file: File) => {
           );
           
           if (matchedKey) {
-            filteredConfig[matchedKey] = value;
+            // For arrays of objects, we need special handling for case matching
+            if (matchedKey === 'bedroomTypePricing' && Array.isArray(value)) {
+              filteredConfig[matchedKey] = processCaseInsensitiveArrays(value, 'type');
+            } else if (matchedKey === 'viewPricing' && Array.isArray(value)) {
+              filteredConfig[matchedKey] = processCaseInsensitiveArrays(value, 'view');
+            } else if (matchedKey === 'additionalCategoryPricing' && Array.isArray(value)) {
+              // For additional categories, we need to handle case matching for both column and category
+              filteredConfig[matchedKey] = processCaseInsensitiveAdditionalCategories(value);
+            } else {
+              filteredConfig[matchedKey] = value;
+            }
           }
         });
         
@@ -156,5 +167,32 @@ export const importConfig = async (file: File) => {
     };
     
     reader.readAsText(file);
+  });
+};
+
+// Helper function to process arrays with case-insensitive matching
+const processCaseInsensitiveArrays = (items: any[], keyField: string) => {
+  // Preserve the original case of the values in the array
+  return items.map(item => {
+    // Create a new object for each item to avoid modifying the original
+    const processedItem: Record<string, any> = {};
+    Object.entries(item).forEach(([key, value]) => {
+      processedItem[key] = value;
+    });
+    return processedItem;
+  });
+};
+
+// Helper function to process additional category arrays with case-insensitive matching
+const processCaseInsensitiveAdditionalCategories = (categories: any[]) => {
+  // Preserve the original case of both column and category
+  return categories.map(item => {
+    // Create a new object for each item to avoid modifying the original
+    const processedItem: Record<string, any> = {
+      column: item.column,
+      category: item.category,
+      psfAdjustment: item.psfAdjustment
+    };
+    return processedItem;
   });
 };

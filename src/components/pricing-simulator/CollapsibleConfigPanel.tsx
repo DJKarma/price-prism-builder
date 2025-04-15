@@ -1,4 +1,3 @@
-
 import React from "react";
 import { 
   Accordion,
@@ -53,53 +52,82 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
     onConfigUpdate(mergedConfig);
   };
   
-  // Merge arrays of objects based on a key field
+  // Merge arrays of objects based on a key field with case-insensitive matching
   const mergeConfigObjects = (existing: any[], imported: any[], keyField: string) => {
     if (!imported.length) return existing;
     if (!existing.length) return imported;
     
-    // Create a map of existing objects by key
+    // Create a map of existing objects by key (case-insensitive)
     const existingMap = new Map(
       existing.map(item => [item[keyField].toLowerCase(), item])
     );
     
-    // Update existing objects with imported values when key matches
+    // For each imported item, try to match it with existing items case-insensitively
+    const result = [...existing]; // Start with a copy of existing items
+    
     imported.forEach(importedItem => {
-      const key = importedItem[keyField].toLowerCase();
-      if (existingMap.has(key)) {
-        const existingItem = existingMap.get(key);
-        existingMap.set(key, { ...existingItem, ...importedItem });
+      if (!importedItem[keyField]) return; // Skip items without the key field
+      
+      const importedKey = importedItem[keyField].toLowerCase();
+      const existingIndex = result.findIndex(item => 
+        item[keyField].toLowerCase() === importedKey
+      );
+      
+      if (existingIndex >= 0) {
+        // If found, update the existing item with imported values
+        // but keep the original case for the key field
+        const originalKeyValue = result[existingIndex][keyField];
+        result[existingIndex] = { 
+          ...result[existingIndex], 
+          ...importedItem,
+          [keyField]: originalKeyValue // Keep original case for key field
+        };
+      } else {
+        // If not found, add the imported item
+        result.push(importedItem);
       }
     });
     
-    // Return the updated existing objects
-    return Array.from(existingMap.values());
+    return result;
   };
   
-  // Special merge for additionalCategoryPricing which has compound keys
+  // Special merge for additionalCategoryPricing with case-insensitive matching
   const mergeAdditionalCategories = (existing: any[], imported: any[]) => {
     if (!imported.length) return existing;
     if (!existing.length) return imported;
     
-    // Create a map of existing objects by compound key
-    const existingMap = new Map(
-      existing.map(item => [
-        `${item.column.toLowerCase()}:${item.category.toLowerCase()}`, 
-        item
-      ])
-    );
+    const result = [...existing]; // Start with a copy of existing items
     
-    // Update existing objects with imported values when compound key matches
     imported.forEach(importedItem => {
-      const key = `${importedItem.column.toLowerCase()}:${importedItem.category.toLowerCase()}`;
-      if (existingMap.has(key)) {
-        const existingItem = existingMap.get(key);
-        existingMap.set(key, { ...existingItem, ...importedItem });
+      if (!importedItem.column || !importedItem.category) return; // Skip invalid items
+      
+      const importedColumnLower = importedItem.column.toLowerCase();
+      const importedCategoryLower = importedItem.category.toLowerCase();
+      
+      // Find matching item with case-insensitive comparison
+      const existingIndex = result.findIndex(item => 
+        item.column.toLowerCase() === importedColumnLower && 
+        item.category.toLowerCase() === importedCategoryLower
+      );
+      
+      if (existingIndex >= 0) {
+        // If found, update the existing item but keep original case for column and category
+        const originalColumn = result[existingIndex].column;
+        const originalCategory = result[existingIndex].category;
+        
+        result[existingIndex] = { 
+          ...result[existingIndex], 
+          ...importedItem,
+          column: originalColumn, // Keep original case
+          category: originalCategory // Keep original case
+        };
+      } else {
+        // If not found, add the imported item
+        result.push(importedItem);
       }
     });
     
-    // Return the updated existing objects
-    return Array.from(existingMap.values());
+    return result;
   };
   
   return (

@@ -32,6 +32,18 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
     try {
       const { config, unmatchedFields } = await importConfig(file);
       
+      // Check if config is empty or doesn't have required fields
+      if (!config || !Object.keys(config).length) {
+        toast.error("Failed to import configuration: No valid data found");
+        return;
+      }
+
+      // Verify key configuration elements are present
+      if (!config.bedroomTypePricing || !config.viewPricing) {
+        toast.error("Configuration file is missing critical pricing components");
+        return;
+      }
+      
       // Set unmatched fields and show alert if needed
       setUnmatchedFields(unmatchedFields);
       setShowAlert(unmatchedFields.length > 0);
@@ -40,6 +52,9 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      
+      // Log the imported config for debugging
+      console.log("Imported configuration:", config);
       
       // Pass the imported config to the parent component
       onConfigImported(config);
