@@ -280,14 +280,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           }}
         />
         
-        {/* Pricing Summary Component */}
-        <div className="mt-8">
-          <PricingSummary 
-            data={filteredUnits} 
-            showDollarSign={true} 
-            showAcPsf={true}
-          />
-        </div>
+
       </CardContent>
     </Card>
   );
