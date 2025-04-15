@@ -363,7 +363,7 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
                     <TableCell>
                       <Input
                         type="number"
-                        step="0.01"
+                        step="5"
                         value={rule.psfIncrement}
                         onChange={(e) => 
                           handleFloorRuleChange(
