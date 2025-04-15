@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -15,9 +14,6 @@ import PricingFilters from "./pricing-simulator/PricingFilters";
 import PricingTable from "./pricing-simulator/PricingTable";
 import PricingExportControls from "./pricing-simulator/PricingExportControls";
 import { useUnitFilters } from "./pricing-simulator/useUnitFilters";
-import { createSummaryData } from "./pricing-simulator/pricingUtils";
-import CollapsibleConfigPanel from "./pricing-simulator/CollapsibleConfigPanel";
-import PricingSummary from "./PricingSummary";
 
 export interface UnitWithPricing extends Record<string, any> {
   totalPrice: number;
@@ -131,17 +127,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     }
   };
 
-  // Define the handleSort function to update the sort configuration
   const handleSort = (key: string) => {
     setSortConfig((prevConfig) => {
       if (prevConfig.key === key) {
-        // If clicking on the same column, toggle the sort direction
         return {
           key,
           direction: prevConfig.direction === "ascending" ? "descending" : "ascending",
         };
       }
-      // If clicking on a new column, default to ascending sort
       return { key, direction: "ascending" };
     });
   };
@@ -231,15 +224,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           additionalCategories={additionalCategories}
         />
       )}
-
-      <div className="grid grid-cols-1 gap-6 mb-6">
-        <PricingSummary 
-          data={filteredUnits} 
-          showDollarSign={true} 
-          highlightedTypes={pricingConfig?.optimizedTypes || []}
-          showAcPsf={true}
-        />
-      </div>
 
       <Card className="w-full mb-6">
         <CardHeader>
