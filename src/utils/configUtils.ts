@@ -1,13 +1,19 @@
-
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import { toast } from 'sonner';
 
-// Export configuration as JSON
+// Export configuration as JSON with improved parameter inclusion
 export const exportConfig = (config: any) => {
   // Create a deep copy of the config to avoid modifying the original
   const configCopy = JSON.parse(JSON.stringify(config));
+  
+  // Add metadata to help with future imports
+  configCopy._metadata = {
+    exportVersion: "1.0.0",
+    exportDate: new Date().toISOString(),
+    availableParameters: Object.keys(configCopy).filter(k => !k.startsWith('_'))
+  };
   
   // Ensure we're exporting the actual current state
   const configJson = JSON.stringify(configCopy, null, 2);
@@ -65,7 +71,7 @@ export const exportToExcel = async (
   }
 };
 
-// Import configuration from JSON
+// Import configuration from JSON with strict parameter validation
 export const importConfig = async (file: File) => {
   return new Promise<{ config: any; unmatchedFields: string[] }>((resolve, reject) => {
     const reader = new FileReader();
@@ -99,6 +105,9 @@ export const importConfig = async (file: File) => {
           return;
         }
         
+        // Get current pricing config from store or use an empty object
+        let currentConfig: any = {};
+        
         // Collect fields that exist in the imported config but not in our schema
         const knownFields = new Set([
           ...requiredFields,
@@ -107,14 +116,36 @@ export const importConfig = async (file: File) => {
           'additionalPricingFactors',
           'additionalCategoryPricing',
           'optimizedTypes',
-          'isOptimized'
+          'isOptimized',
+          '_metadata' // Ignore metadata field
         ]);
         
+        // Find fields in imported config that aren't in our known schema
         const unmatchedFields = Object.keys(importedConfig).filter(
-          (key) => !knownFields.has(key)
+          (key) => !knownFields.has(key.toLowerCase()) && !key.startsWith('_')
         );
         
-        resolve({ config: importedConfig, unmatchedFields });
+        // Create a new config with only the fields that match our schema
+        const filteredConfig: Record<string, any> = {};
+        
+        // Only copy fields that exist in our known schema
+        Object.entries(importedConfig).forEach(([key, value]) => {
+          // Skip metadata and unknown fields
+          if (key.startsWith('_') || !knownFields.has(key.toLowerCase())) {
+            return;
+          }
+          
+          // Case-insensitive matching for object keys
+          const matchedKey = Array.from(knownFields).find(
+            k => k.toLowerCase() === key.toLowerCase()
+          );
+          
+          if (matchedKey) {
+            filteredConfig[matchedKey] = value;
+          }
+        });
+        
+        resolve({ config: filteredConfig, unmatchedFields });
       } catch (error) {
         reject(new Error('Failed to parse configuration file'));
       }

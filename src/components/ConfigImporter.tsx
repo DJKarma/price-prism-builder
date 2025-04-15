@@ -2,7 +2,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { FileJson, AlertTriangle } from 'lucide-react';
+import { FileJson, AlertTriangle, X } from 'lucide-react';
 import { importConfig } from '@/utils/configUtils';
 import { 
   Alert,
@@ -44,9 +44,16 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
       // Pass the imported config to the parent component
       onConfigImported(config);
       
-      // Show success toast with field count
-      const fieldsCount = Object.keys(config).length - unmatchedFields.length;
-      toast.success(`Config imported successfully. ${fieldsCount} fields updated.`);
+      // Show success toast with field count and warning about unmatched fields
+      const fieldsCount = Object.keys(config).length;
+      
+      if (unmatchedFields.length > 0) {
+        toast.warning(`Config imported with ${fieldsCount} valid parameters. ${unmatchedFields.length} parameters could not be applied.`, {
+          duration: 5000,
+        });
+      } else {
+        toast.success(`Config imported successfully. ${fieldsCount} parameters applied.`);
+      }
     } catch (error) {
       toast.error((error as Error).message || 'Failed to import configuration');
       
@@ -83,13 +90,20 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
       {showAlert && unmatchedFields.length > 0 && (
         <Alert className="mt-4 bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertTitle>Ignored Fields</AlertTitle>
-          <AlertDescription>
-            The following fields were skipped because they don't exist in the current version: 
-            <span className="font-semibold text-amber-700">
-              {` ${unmatchedFields.join(', ')}`}
-            </span>
-          </AlertDescription>
+          <div className="flex justify-between w-full">
+            <div>
+              <AlertTitle>Unmatched Parameters</AlertTitle>
+              <AlertDescription>
+                The following parameters could not be applied because they don't exist in the current schema: 
+                <span className="font-semibold text-amber-700">
+                  {` ${unmatchedFields.join(', ')}`}
+                </span>
+              </AlertDescription>
+            </div>
+            <Button variant="ghost" size="icon" onClick={closeAlert} className="h-6 w-6">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </Alert>
       )}
     </div>
