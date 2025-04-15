@@ -113,9 +113,9 @@ export const importConfig = async (file: File) => {
         if (importedConfig.floorRiseRules) {
           importedConfig.floorRiseRules = importedConfig.floorRiseRules.map((rule: any) => ({
             ...rule,
-            psfIncrement: rule.psfIncrement || 0,
-            jumpEveryFloor: rule.jumpEveryFloor || 0,
-            jumpIncrement: rule.jumpIncrement || 0
+            psfIncrement: rule.psfIncrement !== undefined ? rule.psfIncrement : 0,
+            jumpEveryFloor: rule.jumpEveryFloor !== undefined ? rule.jumpEveryFloor : 0,
+            jumpIncrement: rule.jumpIncrement !== undefined ? rule.jumpIncrement : 0
           }));
         }
         
@@ -124,7 +124,15 @@ export const importConfig = async (file: File) => {
           (key) => !knownFields.has(key)
         );
         
-        resolve({ config: importedConfig, unmatchedFields });
+        // Only keep known fields in the resulting config
+        const filteredConfig = {};
+        knownFields.forEach(field => {
+          if (field in importedConfig) {
+            (filteredConfig as any)[field] = importedConfig[field];
+          }
+        });
+        
+        resolve({ config: filteredConfig, unmatchedFields });
       } catch (error) {
         reject(new Error('Failed to parse configuration file'));
       }

@@ -100,15 +100,15 @@
   }
 }
 
-@keyframes subtle-glow {
+@keyframes very-subtle-glow {
   0% {
-    box-shadow: 0 0 5px rgba(79, 70, 229, 0.1);
+    box-shadow: 0 0 3px rgba(79, 70, 229, 0.05);
   }
   50% {
-    box-shadow: 0 0 15px rgba(79, 70, 229, 0.2);
+    box-shadow: 0 0 6px rgba(79, 70, 229, 0.1);
   }
   100% {
-    box-shadow: 0 0 5px rgba(79, 70, 229, 0.1);
+    box-shadow: 0 0 3px rgba(79, 70, 229, 0.05);
   }
 }
 
@@ -124,8 +124,8 @@
   animation: pulse 2s infinite;
 }
 
-.animate-glow-slow {
-  animation: subtle-glow 3s infinite ease-in-out;
+.animate-very-subtle-glow {
+  animation: very-subtle-glow 4s infinite ease-in-out;
 }
 
 .hover-scale {

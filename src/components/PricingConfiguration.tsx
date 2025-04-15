@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -110,7 +111,10 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       if (initialConfig.floorRiseRules && initialConfig.floorRiseRules.length > 0) {
         setFloorRiseRules(initialConfig.floorRiseRules.map((rule: any) => ({
           ...rule,
-          endFloor: rule.endFloor === undefined ? maxFloor : rule.endFloor
+          endFloor: rule.endFloor === undefined ? maxFloor : rule.endFloor,
+          psfIncrement: rule.psfIncrement || 0,
+          jumpEveryFloor: rule.jumpEveryFloor || 0,
+          jumpIncrement: rule.jumpIncrement || 0
         })));
       }
       

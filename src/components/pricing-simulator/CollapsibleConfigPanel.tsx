@@ -29,7 +29,7 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
     <div className="mb-6 border rounded-lg shadow-sm">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="configuration" className="border-none">
-          <AccordionTrigger className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:no-underline group data-[state=closed]:animate-glow-slow data-[state=open]:shadow-none transition-all duration-500">
+          <AccordionTrigger className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:no-underline group data-[state=closed]:animate-very-subtle-glow data-[state=open]:shadow-none transition-all duration-500">
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center">
                 <Settings className="h-5 w-5 mr-2 text-indigo-600" />

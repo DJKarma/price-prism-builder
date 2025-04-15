@@ -2,7 +2,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { FileJson, AlertTriangle } from 'lucide-react';
+import { FileJson, AlertTriangle, X } from 'lucide-react';
 import { importConfig } from '@/utils/configUtils';
 import { 
   Alert,
@@ -89,7 +89,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
         variant="outline" 
         size="sm" 
         onClick={handleClick}
-        className="hover-scale"
+        className="hover:bg-indigo-50"
       >
         <FileJson className="mr-2 h-4 w-4" />
         Import Config
@@ -105,6 +105,14 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
               {` ${unmatchedFields.join(', ')}`}
             </span>
           </AlertDescription>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+            onClick={closeAlert}
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </Alert>
       )}
     </div>
