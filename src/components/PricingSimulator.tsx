@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { TableIcon } from "lucide-react";
+import { TableIcon, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { simulatePricing } from "@/utils/psfOptimizer";
 import PremiumEditor from "./PremiumEditor";
@@ -16,6 +16,14 @@ import PricingTable from "./pricing-simulator/PricingTable";
 import PricingExportControls from "./pricing-simulator/PricingExportControls";
 import { useUnitFilters } from "./pricing-simulator/useUnitFilters";
 import { createSummaryData } from "./pricing-simulator/pricingUtils";
+import { Button } from "@/components/ui/button";
+import PricingConfiguration from "@/components/PricingConfiguration";
+import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
 
 export interface UnitWithPricing extends Record<string, any> {
   totalPrice: number;
@@ -35,16 +43,21 @@ interface PricingSimulatorProps {
   data: any[];
   pricingConfig: any;
   onConfigUpdate?: (updatedConfig: any) => void;
+  additionalCategories?: any[];
+  maxFloor?: number;
 }
 
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
   pricingConfig,
   onConfigUpdate,
+  additionalCategories = [],
+  maxFloor = 50
 }) => {
   const [units, setUnits] = useState<UnitWithPricing[]>([]);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
   const [additionalColumnValues, setAdditionalColumnValues] = useState<Record<string, string[]>>({});
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
   
   const defaultVisibleColumns = [
     "name", "type", "floor", "view", "sellArea", "acArea", 
@@ -227,10 +240,45 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       </CardHeader>
       <CardContent>
         {onConfigUpdate && (
-          <PremiumEditor 
-            pricingConfig={pricingConfig} 
-            onPricingConfigChange={handlePricingConfigChange}
-          />
+          <>
+            <PremiumEditor 
+              pricingConfig={pricingConfig} 
+              onPricingConfigChange={handlePricingConfigChange}
+            />
+            
+            <Collapsible 
+              open={isConfigOpen} 
+              onOpenChange={setIsConfigOpen}
+              className="w-full mb-6 border rounded-lg"
+            >
+              <CollapsibleTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="w-full flex justify-between items-center p-4 mb-2"
+                >
+                  <span className="flex items-center font-medium">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configure Pricing Parameters
+                  </span>
+                  {isConfigOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="p-4 bg-gray-50 rounded-lg">
+                <PricingConfiguration
+                  data={data}
+                  onConfigurationComplete={handlePricingConfigChange}
+                  maxFloor={maxFloor}
+                  additionalCategories={additionalCategories}
+                  initialConfig={pricingConfig}
+                  embedded={true}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+          </>
         )}
         
         <PricingFilters 
