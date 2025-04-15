@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -10,7 +9,6 @@ import {
 import { TableIcon } from "lucide-react";
 import { toast } from "sonner";
 import { simulatePricing } from "@/utils/psfOptimizer";
-import PricingSummary from "./PricingSummary";
 import PremiumEditor from "./PremiumEditor";
 import PricingFilters from "./pricing-simulator/PricingFilters";
 import PricingTable from "./pricing-simulator/PricingTable";
@@ -47,7 +45,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
   const [additionalColumnValues, setAdditionalColumnValues] = useState<Record<string, string[]>>({});
   
-  // Column visibility
   const defaultVisibleColumns = [
     "name", "type", "floor", "view", "sellArea", "acArea", 
     "finalTotalPrice", "finalPsf", "finalAcPsf", "isOptimized"
@@ -55,7 +52,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleColumns);
   
-  // Get filtering and sorting from custom hook
   const {
     filteredUnits,
     selectedTypes,
@@ -84,7 +80,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
 
-    // Detect additional category columns
     if (pricingConfig.additionalCategoryPricing && pricingConfig.additionalCategoryPricing.length > 0) {
       const columnsSet = new Set<string>();
       const columnValuesMap: Record<string, Set<string>> = {};
@@ -93,12 +88,10 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         if (typeof item.column === 'string') {
           columnsSet.add(item.column);
           
-          // Initialize set for column values if it doesn't exist
           if (!columnValuesMap[item.column]) {
             columnValuesMap[item.column] = new Set<string>();
           }
           
-          // Add the category value
           if (item.category) {
             columnValuesMap[item.column].add(item.category);
           }
@@ -108,14 +101,12 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       const columns = Array.from(columnsSet) as string[];
       setAdditionalColumns(columns);
       
-      // Convert sets to arrays
       const valuesMap: Record<string, string[]> = {};
       Object.entries(columnValuesMap).forEach(([col, valuesSet]) => {
         valuesMap[col] = Array.from(valuesSet);
       });
       setAdditionalColumnValues(valuesMap);
       
-      // Initialize filters for additional columns
       const initialFilters: Record<string, string[]> = {};
       columns.forEach(col => {
         initialFilters[col] = [];
@@ -123,7 +114,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       setSelectedAdditionalFilters(initialFilters);
     }
 
-    // Use the simulatePricing function to calculate unit prices
     const calculatedUnits = simulatePricing(data, pricingConfig);
     setUnits(calculatedUnits);
   }, [data, pricingConfig, setSelectedAdditionalFilters]);
@@ -134,7 +124,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     }
   };
 
-  // Get unique values for filters
   const getUniqueValues = (fieldName: string): string[] => {
     const values = new Set<string>();
     units.forEach((unit) => {
@@ -159,25 +148,20 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     return Array.from(values).sort();
   };
 
-  // Reset column visibility to default
   const resetColumnVisibility = () => {
     setVisibleColumns(defaultVisibleColumns);
     toast.success("Column visibility reset to default");
   };
 
-  // Toggle column visibility
   const toggleColumnVisibility = (columnId: string) => {
     setVisibleColumns(prev => {
-      // Check if the column should be visible
       const isCurrentlyVisible = prev.includes(columnId);
       
-      // For required columns, they can't be toggled off
       const column = allColumns.find(col => col.id === columnId);
       if (column?.required && isCurrentlyVisible) {
         return prev;
       }
       
-      // Toggle visibility
       if (isCurrentlyVisible) {
         return prev.filter(id => id !== columnId);
       } else {
@@ -186,7 +170,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     });
   };
 
-  // Column definitions
   const allColumns = [
     { id: "name", label: "Unit", required: true },
     { id: "type", label: "Type", required: true },
@@ -205,12 +188,10 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "isOptimized", label: "Optimized", required: true },
   ];
 
-  // Get unique bedroom types, views, and floors for filters
   const uniqueTypes = getUniqueValues("type");
   const uniqueViews = getUniqueValues("view");
   const uniqueFloors = getUniqueValues("floor");
 
-  // Calculate active filters count
   const activeFiltersCount = 
     (selectedTypes.length > 0 ? 1 : 0) +
     (selectedViews.length > 0 ? 1 : 0) +
@@ -236,7 +217,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           />
         )}
         
-        {/* Filters Section */}
         <PricingFilters 
           uniqueTypes={uniqueTypes}
           uniqueViews={uniqueViews}
@@ -258,29 +238,19 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           resetColumnVisibility={resetColumnVisibility}
         />
         
-        {/* Export Controls */}
         <PricingExportControls 
           filteredUnits={filteredUnits}
           pricingConfig={pricingConfig}
           createSummaryData={createSummaryData}
         />
         
-        {/* Data Table */}
         <PricingTable
           filteredUnits={filteredUnits}
           visibleColumns={visibleColumns}
           additionalColumns={additionalColumns}
           sortConfig={sortConfig}
-          handleSort={(key: string) => {
-            let direction: "ascending" | "descending" = "ascending";
-            if (sortConfig && sortConfig.key === key) {
-              direction = sortConfig.direction === "ascending" ? "descending" : "ascending";
-            }
-            setSortConfig({ key, direction });
-          }}
+          handleSort={handleSort}
         />
-        
-
       </CardContent>
     </Card>
   );

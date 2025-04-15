@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import {
   Card,
@@ -15,12 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   ArrowUpDown,
   DollarSign,
-  Maximize2
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 interface PricingSummaryProps {
   data: any[];
@@ -29,14 +28,15 @@ interface PricingSummaryProps {
   showAcPsf?: boolean;
 }
 
+type MetricType = "avg" | "min" | "max";
+type MetricCategory = "psf" | "acPsf" | "size" | "price";
+
 const PricingSummary: React.FC<PricingSummaryProps> = ({
   data,
   showDollarSign = true,
   highlightedTypes = [],
   showAcPsf = false
 }) => {
-  console.info("PricingSummary received data sample:", data[0]);
-
   const [summaryData, setSummaryData] = useState<any[]>([]);
   const [totalSummary, setTotalSummary] = useState<any>({});
   const [sortConfig, setSortConfig] = useState<{
@@ -44,7 +44,36 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     direction: "ascending" | "descending";
   }>({ key: "type", direction: "ascending" });
 
-  // Parse data and compute summary by bedroom type
+  // Selected metrics state
+  const [selectedMetrics, setSelectedMetrics] = useState<Record<MetricCategory, MetricType>>({
+    psf: "avg",
+    acPsf: "avg",
+    size: "avg",
+    price: "avg"
+  });
+
+  // Format number with K/M suffix for large numbers
+  const formatLargeNumber = (num: number): string => {
+    if (!isFinite(num) || isNaN(num)) return "-";
+    
+    if (num >= 1000000) {
+      return `${(num / 1000000).toFixed(2)}M`;
+    } else if (num >= 1000) {
+      return `${(num / 1000).toFixed(0)}K`;
+    }
+    return num.toFixed(0);
+  };
+
+  // Format number with specified decimals
+  const formatNumber = (num: number, isPrice = false): string => {
+    if (!isFinite(num) || isNaN(num)) return "-";
+    
+    if (isPrice) {
+      return formatLargeNumber(num);
+    }
+    return Math.ceil(num).toLocaleString();
+  };
+
   useEffect(() => {
     if (!data || data.length === 0) return;
 
@@ -241,41 +270,42 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     }
   }, [data, sortConfig]);
 
-  const handleSort = (key: string) => {
-    let direction: "ascending" | "descending" = "ascending";
-    if (sortConfig.key === key) {
-      direction = sortConfig.direction === "ascending" ? "descending" : "ascending";
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const formatNumber = (num: number, decimals = 0, isCurrency = false): string => {
-    if (!isFinite(num) || isNaN(num)) return "-";
-    
-    if (isCurrency) {
-      // Format large numbers with K or M suffix
-      if (num >= 1000000) {
-        return (num / 1000000).toFixed(1) + "M";
-      } else if (num >= 1000) {
-        return (num / 1000).toFixed(0) + "K";
-      }
-    }
-    
-    // Format with commas and fixed decimal places
-    return num.toLocaleString("en-US", {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-  };
-
-  const renderSortableHeader = (label: string, key: string) => (
-    <div
-      className="flex items-center cursor-pointer"
-      onClick={() => handleSort(key)}
-    >
-      {label} <ArrowUpDown className="ml-1 h-4 w-4" />
+  const renderMetricSelector = (category: MetricCategory, label: string) => (
+    <div className="flex flex-col gap-1 items-center">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <ToggleGroup 
+        type="single" 
+        value={selectedMetrics[category]}
+        onValueChange={(value) => {
+          if (value) {
+            setSelectedMetrics(prev => ({
+              ...prev,
+              [category]: value as MetricType
+            }));
+          }
+        }}
+        className="flex gap-1"
+      >
+        <ToggleGroupItem value="min" size="sm">Min</ToggleGroupItem>
+        <ToggleGroupItem value="avg" size="sm">Avg</ToggleGroupItem>
+        <ToggleGroupItem value="max" size="sm">Max</ToggleGroupItem>
+      </ToggleGroup>
     </div>
   );
+
+  const getMetricValue = (row: any, category: MetricCategory): number => {
+    const metric = selectedMetrics[category];
+    switch (category) {
+      case "psf":
+        return row[`${metric}Psf`] || 0;
+      case "acPsf":
+        return row[`${metric}AcPsf`] || 0;
+      case "size":
+        return metric === "avg" ? row.avgSize : (metric === "min" ? row.minSize : row.maxSize);
+      case "price":
+        return row[`${metric}Price`] || 0;
+    }
+  };
 
   return (
     <Card className="w-full shadow-sm">
@@ -284,6 +314,12 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         <CardDescription>
           Breakdown by bedroom type with PSF analytics
         </CardDescription>
+        <div className="flex flex-wrap gap-4 justify-start mt-2">
+          {renderMetricSelector("psf", "SA PSF")}
+          {showAcPsf && renderMetricSelector("acPsf", "AC PSF")}
+          {renderMetricSelector("size", "Size")}
+          {renderMetricSelector("price", "Price")}
+        </div>
       </CardHeader>
 
       <CardContent className="p-0">
@@ -291,87 +327,47 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{renderSortableHeader("Type", "type")}</TableHead>
-                <TableHead className="text-right">
-                  {renderSortableHeader("Units", "unitCount")}
-                </TableHead>
-                <TableHead className="text-right">
-                  {renderSortableHeader("Avg Size", "avgSize")}
-                </TableHead>
-                <TableHead className="text-right">
-                  {renderSortableHeader("Total Value", "totalValue")}
-                </TableHead>
-                
-                {/* SA PSF Columns */}
-                <TableHead className="text-right border-l border-gray-200">
-                  {renderSortableHeader("Min SA PSF", "minPsf")}
-                </TableHead>
-                <TableHead className="text-right">
-                  {renderSortableHeader("Avg SA PSF", "avgPsf")}
-                </TableHead>
-                <TableHead className="text-right">
-                  {renderSortableHeader("Max SA PSF", "maxPsf")}
-                </TableHead>
-                
-                {/* AC PSF Columns */}
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Units</TableHead>
+                <TableHead className="text-right">Size</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="text-right border-l border-gray-200">SA PSF</TableHead>
                 {showAcPsf && (
-                  <>
-                    <TableHead className="text-right border-l border-gray-200">
-                      {renderSortableHeader("Min AC PSF", "minAcPsf")}
-                    </TableHead>
-                    <TableHead className="text-right">
-                      {renderSortableHeader("Avg AC PSF", "avgAcPsf")}
-                    </TableHead>
-                    <TableHead className="text-right">
-                      {renderSortableHeader("Max AC PSF", "maxAcPsf")}
-                    </TableHead>
-                  </>
+                  <TableHead className="text-right border-l border-gray-200">AC PSF</TableHead>
                 )}
               </TableRow>
             </TableHeader>
             
             <TableBody>
-              {summaryData.map((row) => (
+              {summaryData.map((row, index) => (
                 <TableRow 
                   key={row.type}
                   className={highlightedTypes.includes(row.type) ? "bg-green-50" : ""}
                 >
-                  <TableCell className="font-medium">
-                    {row.type}
-                  </TableCell>
+                  <TableCell className="font-medium">{row.type}</TableCell>
                   <TableCell className="text-right">{row.unitCount}</TableCell>
                   <TableCell className="text-right">
-                    {formatNumber(row.avgSize, 2)}
+                    {formatNumber(getMetricValue(row, "size"))}
                   </TableCell>
                   <TableCell className="text-right">
                     {showDollarSign && <DollarSign className="h-3 w-3 inline mr-0.5" />}
-                    {formatNumber(row.totalValue, 0, true)}
+                    {formatNumber(getMetricValue(row, "price"), true)}
                   </TableCell>
-                  
-                  {/* SA PSF values */}
-                  <TableCell className="text-right border-l border-gray-200">
-                    {formatNumber(row.minPsf, 2)}
+                  <TableCell 
+                    className={`text-right border-l border-gray-200 ${
+                      row[`${selectedMetrics.psf}Psf`] !== row.prevPsf ? "bg-yellow-100" : ""
+                    }`}
+                  >
+                    {formatNumber(getMetricValue(row, "psf"))}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatNumber(row.avgPsf, 2)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatNumber(row.maxPsf, 2)}
-                  </TableCell>
-                  
-                  {/* AC PSF values */}
                   {showAcPsf && (
-                    <>
-                      <TableCell className="text-right border-l border-gray-200">
-                        {formatNumber(row.minAcPsf, 2)}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatNumber(row.avgAcPsf, 2)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatNumber(row.maxAcPsf, 2)}
-                      </TableCell>
-                    </>
+                    <TableCell 
+                      className={`text-right border-l border-gray-200 ${
+                        row[`${selectedMetrics.acPsf}AcPsf`] !== row.prevAcPsf ? "bg-yellow-100" : ""
+                      }`}
+                    >
+                      {formatNumber(getMetricValue(row, "acPsf"))}
+                    </TableCell>
                   )}
                 </TableRow>
               ))}
@@ -383,44 +379,23 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                   {totalSummary.unitCount}
                 </TableCell>
                 <TableCell className="text-right">
-                  {formatNumber(
-                    totalSummary.totalArea / totalSummary.unitCount,
-                    2
-                  )}
+                  {formatNumber(getMetricValue(totalSummary, "size"))}
                 </TableCell>
                 <TableCell className="text-right">
                   {showDollarSign && <DollarSign className="h-3 w-3 inline mr-0.5" />}
-                  {formatNumber(totalSummary.totalValue, 0, true)}
+                  {formatNumber(getMetricValue(totalSummary, "price"), true)}
                 </TableCell>
-                
-                {/* SA PSF totals */}
                 <TableCell className="text-right border-l border-gray-200">
-                  {formatNumber(totalSummary.minPsf, 2)}
-                </TableCell>
-                <TableCell className="text-right">
                   <Badge variant="outline" className="bg-indigo-50 border-indigo-200">
-                    {formatNumber(totalSummary.avgPsf, 2)}
+                    {formatNumber(getMetricValue(totalSummary, "psf"))}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">
-                  {formatNumber(totalSummary.maxPsf, 2)}
-                </TableCell>
-                
-                {/* AC PSF totals */}
                 {showAcPsf && (
-                  <>
-                    <TableCell className="text-right border-l border-gray-200">
-                      {formatNumber(totalSummary.minAcPsf, 2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="outline" className="bg-indigo-50 border-indigo-200">
-                        {formatNumber(totalSummary.avgAcPsf, 2)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatNumber(totalSummary.maxAcPsf, 2)}
-                    </TableCell>
-                  </>
+                  <TableCell className="text-right border-l border-gray-200">
+                    <Badge variant="outline" className="bg-indigo-50 border-indigo-200">
+                      {formatNumber(getMetricValue(totalSummary, "acPsf"))}
+                    </Badge>
+                  </TableCell>
                 )}
               </TableRow>
             </TableBody>
