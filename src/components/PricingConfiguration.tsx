@@ -409,12 +409,12 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                       <Input
                         type="number"
                         min="1"
-                        value={rule.jumpEveryFloor || 10}
+                        value={rule.jumpEveryFloor || 0}
                         onChange={(e) =>
                           updateFloorRiseRule(
                             index,
                             "jumpEveryFloor",
-                            parseInt(e.target.value) || 10
+                            parseInt(e.target.value) || 0
                           )
                         }
                         placeholder="e.g., 10"
@@ -424,7 +424,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                     <TableCell>
                       <Input
                         type="number"
-                        value={rule.jumpIncrement || 20}
+                        value={rule.jumpIncrement || 0}
                         onChange={(e) =>
                           updateFloorRiseRule(
                             index,
