@@ -14,6 +14,8 @@ import PricingFilters from "./pricing-simulator/PricingFilters";
 import PricingTable from "./pricing-simulator/PricingTable";
 import PricingExportControls from "./pricing-simulator/PricingExportControls";
 import { useUnitFilters } from "./pricing-simulator/useUnitFilters";
+import { createSummaryData } from "./pricing-simulator/pricingUtils";
+import CollapsibleConfigPanel from "./pricing-simulator/CollapsibleConfigPanel";
 
 export interface UnitWithPricing extends Record<string, any> {
   totalPrice: number;
