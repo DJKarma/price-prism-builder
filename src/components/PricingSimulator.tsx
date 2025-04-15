@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -122,6 +123,21 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     if (onConfigUpdate) {
       onConfigUpdate(newConfig);
     }
+  };
+
+  // Define the handleSort function to update the sort configuration
+  const handleSort = (key: string) => {
+    setSortConfig((prevConfig) => {
+      if (prevConfig.key === key) {
+        // If clicking on the same column, toggle the sort direction
+        return {
+          key,
+          direction: prevConfig.direction === "ascending" ? "descending" : "ascending",
+        };
+      }
+      // If clicking on a new column, default to ascending sort
+      return { key, direction: "ascending" };
+    });
   };
 
   const getUniqueValues = (fieldName: string): string[] => {
