@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVUploader from "@/components/CSVUploader";
@@ -9,6 +8,7 @@ import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Upload, FileSpreadsheet, LineChart, ArrowRight, PieChart } from "lucide-react";
 import { usePricingStore } from "@/store/pricingStore";
+import { toast } from "sonner";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<string>("upload");
@@ -17,7 +17,6 @@ const Index = () => {
   const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward');
   const [tabChanging, setTabChanging] = useState<boolean>(false);
 
-  // Global state
   const { 
     csvData, 
     csvHeaders, 
@@ -49,7 +48,6 @@ const Index = () => {
 
   const handleMappingComplete = (mapping: Record<string, string>, data: any[], categories: any[]) => {
     setMappedData(data, categories);
-    // Skip the configure tab and go directly to simulate
     changeTab('simulate', 'forward');
   };
 
@@ -70,7 +68,6 @@ const Index = () => {
     setTransitionDirection(direction);
     setTabChanging(true);
     
-    // Small delay for animation
     setTimeout(() => {
       setActiveTab(tab);
       setTabChanging(false);
@@ -92,7 +89,6 @@ const Index = () => {
     }
   };
 
-  // Helper to determine if a tab should be disabled
   const isTabDisabled = (tab: string) => {
     switch (tab) {
       case 'upload':
@@ -106,10 +102,8 @@ const Index = () => {
     }
   };
 
-  // Set default pricing config when mapped data is available but no config exists
   useEffect(() => {
     if (mappedData.length && !pricingConfig) {
-      // Create a minimal default configuration to allow the simulator to work
       const defaultConfig = {
         basePsf: 1000,
         bedroomTypePricing: [],
@@ -118,7 +112,6 @@ const Index = () => {
         maxFloor
       };
       
-      // Extract unique bedroom types
       const uniqueTypes = Array.from(
         new Set(
           mappedData
@@ -127,14 +120,12 @@ const Index = () => {
         )
       ) as string[];
       
-      // Add bedroom types to config
       defaultConfig.bedroomTypePricing = uniqueTypes.map(type => ({
         type,
         basePsf: 1000,
         targetAvgPsf: 1000
       }));
       
-      // Extract unique views
       const uniqueViews = Array.from(
         new Set(
           mappedData
@@ -143,7 +134,6 @@ const Index = () => {
         )
       ) as string[];
       
-      // Add views to config
       defaultConfig.viewPricing = uniqueViews.map(view => ({
         view,
         psfAdjustment: 0
@@ -152,6 +142,27 @@ const Index = () => {
       setPricingConfig(defaultConfig);
     }
   }, [mappedData, pricingConfig, maxFloor, setPricingConfig]);
+
+  const handleManualTabChange = (value: string) => {
+    if (value !== 'upload') {
+      if (!csvData.length) {
+        toast.error("Please upload a file first");
+        return;
+      }
+      if (value === 'simulate' && !mappedData.length) {
+        toast.error("Please map your columns first");
+        return;
+      }
+    }
+    
+    setTransitionDirection(value === 'upload' ? 'backward' : 'forward');
+    setTabChanging(true);
+    
+    setTimeout(() => {
+      setActiveTab(value);
+      setTabChanging(false);
+    }, 300);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -170,7 +181,7 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={(value) => changeTab(value, value === 'upload' ? 'backward' : 'forward')}>
+        <Tabs value={activeTab} onValueChange={handleManualTabChange}>
           <TabsList className="grid w-full grid-cols-3 mb-8 p-1 bg-gray-100 rounded-lg shadow-inner">
             {['upload', 'map', 'simulate'].map((step, index) => {
               const isActive = activeTab === step;
