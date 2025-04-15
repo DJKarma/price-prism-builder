@@ -66,6 +66,38 @@
   background: linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%);
 }
 
+@keyframes movingBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.moving-border {
+  position: relative;
+  background-clip: padding-box;
+}
+
+.moving-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: -1px;
+  border-radius: inherit;
+  background: linear-gradient(45deg, rgba(79, 70, 229, 0.2), rgba(59, 130, 246, 0.2));
+  background-size: 200% 200%;
+  animation: movingBorder 4s ease infinite;
+  z-index: -1;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -88,12 +120,8 @@
   }
 }
 
-/* Flashy animations removed:
-   - movingBorder and its classes
-   - pulse-glow and pulse-glow-hover along with their keyframes
-*/
+/* Pulse blink animations removed */
 
-/* Retained subtle animations */
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
 }
@@ -102,11 +130,6 @@
   animation: slideInRight 0.5s ease-out;
 }
 
-.animate-pulse-subtle {
-  animation: pulse 2s infinite;
-}
-
-/* Transition and hover effects */
 .hover-scale {
   transition: transform 0.2s ease-in-out;
 }
