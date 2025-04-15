@@ -90,11 +90,11 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
       return flatUnit;
     });
     
-    // Export the data
+    // Export the data with the current pricingConfig (not default values)
     await exportToExcel(
       flattenedData, 
       includeConfig, 
-      pricingConfig, 
+      pricingConfig,  // Use the current pricingConfig 
       summaryData
     );
   };

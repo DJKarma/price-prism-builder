@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 interface PricingConfigurationProps {
   data: any[];
+  initialConfig?: any;
   onConfigurationComplete: (config: PricingConfig) => void;
   maxFloor?: number;
   additionalCategories?: Array<{column: string, categories: string[]}>;
@@ -81,6 +82,7 @@ export interface PricingConfig {
 
 const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   data,
+  initialConfig,
   onConfigurationComplete,
   maxFloor = 50,
   additionalCategories = []
@@ -92,6 +94,33 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
   const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>([]);
+
+  useEffect(() => {
+    if (initialConfig) {
+      if (initialConfig.basePsf) {
+        setBasePsf(initialConfig.basePsf);
+      }
+      
+      if (initialConfig.floorRiseRules && initialConfig.floorRiseRules.length > 0) {
+        setFloorRiseRules(initialConfig.floorRiseRules.map((rule: any) => ({
+          ...rule,
+          endFloor: rule.endFloor === undefined ? maxFloor : rule.endFloor
+        })));
+      }
+      
+      if (initialConfig.bedroomTypePricing && initialConfig.bedroomTypePricing.length > 0) {
+        setBedroomTypes(initialConfig.bedroomTypePricing);
+      }
+      
+      if (initialConfig.viewPricing && initialConfig.viewPricing.length > 0) {
+        setViewTypes(initialConfig.viewPricing);
+      }
+      
+      if (initialConfig.additionalCategoryPricing && initialConfig.additionalCategoryPricing.length > 0) {
+        setAdditionalCategoryPricing(initialConfig.additionalCategoryPricing);
+      }
+    }
+  }, [initialConfig, maxFloor]);
 
   useEffect(() => {
     if (floorRiseRules.length > 0) {
@@ -106,68 +135,76 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   useEffect(() => {
     if (!data.length) return;
 
-    const uniqueTypes = Array.from(
-      new Set(
-        data
-          .map((item) => item.type)
-          .filter((type) => type && type.trim() !== "")
-      )
-    ) as string[];
+    if (!initialConfig || !initialConfig.bedroomTypePricing || initialConfig.bedroomTypePricing.length === 0) {
+      const uniqueTypes = Array.from(
+        new Set(
+          data
+            .map((item) => item.type)
+            .filter((type) => type && type.trim() !== "")
+        )
+      ) as string[];
 
-    setBedroomTypes(
-      uniqueTypes.map((type) => ({
-        type,
-        basePsf: basePsf,
-        targetAvgPsf: basePsf,
-      }))
-    );
+      setBedroomTypes(
+        uniqueTypes.map((type) => ({
+          type,
+          basePsf: basePsf,
+          targetAvgPsf: basePsf,
+        }))
+      );
+    }
 
-    const uniqueViews = Array.from(
-      new Set(
-        data
-          .map((item) => item.view)
-          .filter((view) => view && view.trim() !== "")
-      )
-    ) as string[];
+    if (!initialConfig || !initialConfig.viewPricing || initialConfig.viewPricing.length === 0) {
+      const uniqueViews = Array.from(
+        new Set(
+          data
+            .map((item) => item.view)
+            .filter((view) => view && view.trim() !== "")
+        )
+      ) as string[];
 
-    setViewTypes(
-      uniqueViews.map((view) => ({
-        view,
-        psfAdjustment: 0,
-      }))
-    );
+      setViewTypes(
+        uniqueViews.map((view) => ({
+          view,
+          psfAdjustment: 0,
+        }))
+      );
+    }
 
-    const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
-    
-    if (additionalCategories && additionalCategories.length > 0) {
-      additionalCategories.forEach(category => {
-        if (category.categories && category.categories.length > 0) {
-          category.categories.forEach(value => {
-            initialAdditionalCategories.push({
-              column: category.column,
-              category: value,
-              psfAdjustment: 0
+    if (!initialConfig || !initialConfig.additionalCategoryPricing || initialConfig.additionalCategoryPricing.length === 0) {
+      const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
+      
+      if (additionalCategories && additionalCategories.length > 0) {
+        additionalCategories.forEach(category => {
+          if (category.categories && category.categories.length > 0) {
+            category.categories.forEach(value => {
+              initialAdditionalCategories.push({
+                column: category.column,
+                category: value,
+                psfAdjustment: 0
+              });
             });
-          });
-        }
-      });
+          }
+        });
+      }
+      
+      setAdditionalCategoryPricing(initialAdditionalCategories);
     }
     
-    setAdditionalCategoryPricing(initialAdditionalCategories);
-    
-  }, [data, basePsf, additionalCategories]);
+  }, [data, basePsf, additionalCategories, initialConfig]);
 
   const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
     if (!isNaN(value) && value > 0) {
       setBasePsf(value);
-      setBedroomTypes(prev =>
-        prev.map(item => ({
-          ...item,
-          basePsf: value,
-          targetAvgPsf: value
-        }))
-      );
+      if (!initialConfig) {
+        setBedroomTypes(prev =>
+          prev.map(item => ({
+            ...item,
+            basePsf: value,
+            targetAvgPsf: value
+          }))
+        );
+      }
     }
   };
 
@@ -254,14 +291,21 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       endFloor: rule.endFloor === null ? maxFloor : rule.endFloor
     }));
 
-    onConfigurationComplete({
+    const finalConfig = {
       basePsf,
       floorRiseRules: processedRules,
       bedroomTypePricing: bedroomTypes,
       viewPricing: viewTypes,
       additionalCategoryPricing: additionalCategoryPricing,
       maxFloor,
-    });
+      ...(initialConfig && { 
+        targetOverallPsf: initialConfig.targetOverallPsf,
+        isOptimized: initialConfig.isOptimized,
+        optimizedTypes: initialConfig.optimizedTypes
+      })
+    };
+
+    onConfigurationComplete(finalConfig);
   };
 
   const groupedAdditionalCategories = additionalCategoryPricing.reduce((acc, item) => {

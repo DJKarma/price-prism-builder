@@ -44,6 +44,7 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
           <AccordionContent className="px-4 pt-4 pb-2">
             <PricingConfiguration
               data={data}
+              initialConfig={pricingConfig}
               onConfigurationComplete={onConfigUpdate}
               maxFloor={maxFloor}
               additionalCategories={additionalCategories}

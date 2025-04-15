@@ -31,7 +31,6 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
     
     try {
       const { config, unmatchedFields } = await importConfig(file);
-      onConfigImported(config);
       
       // Set unmatched fields and show alert if needed
       setUnmatchedFields(unmatchedFields);
@@ -41,6 +40,9 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      
+      // Pass the imported config to the parent component
+      onConfigImported(config);
       
       // Show success toast with field count
       const fieldsCount = Object.keys(config).length - unmatchedFields.length;

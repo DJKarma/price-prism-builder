@@ -6,7 +6,11 @@ import { toast } from 'sonner';
 
 // Export configuration as JSON
 export const exportConfig = (config: any) => {
-  const configJson = JSON.stringify(config, null, 2);
+  // Create a deep copy of the config to avoid modifying the original
+  const configCopy = JSON.parse(JSON.stringify(config));
+  
+  // Ensure we're exporting the actual current state
+  const configJson = JSON.stringify(configCopy, null, 2);
   return configJson;
 };
 
@@ -39,7 +43,7 @@ export const exportToExcel = async (
       // Add Excel file to zip
       zip.file('pricing_data.xlsx', excelBuffer);
       
-      // Add config file to zip
+      // Add config file to zip with the current configuration
       const configJson = exportConfig(config);
       zip.file('config.json', configJson);
       
@@ -100,7 +104,10 @@ export const importConfig = async (file: File) => {
           ...requiredFields,
           'targetOverallPsf',
           'maxFloor',
-          'additionalPricingFactors'
+          'additionalPricingFactors',
+          'additionalCategoryPricing',
+          'optimizedTypes',
+          'isOptimized'
         ]);
         
         const unmatchedFields = Object.keys(importedConfig).filter(
