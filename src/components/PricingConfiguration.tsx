@@ -26,7 +26,7 @@ interface PricingConfigurationProps {
   initialConfig?: any;
   onConfigurationComplete: (config: PricingConfig) => void;
   maxFloor?: number;
-  additionalCategories?: Array<{column: string, categories: string[]}>;
+  additionalCategories?: Array<{ column: string, categories: string[] }>;
 }
 
 export interface FloorRiseRule {
@@ -91,8 +91,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
     { startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
   ]);
-
-
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
   const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>([]);
@@ -104,9 +102,13 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       }
       
       if (initialConfig.floorRiseRules && initialConfig.floorRiseRules.length > 0) {
+        // Force default values for PSF Increment, Jump Every, and Jump PSF to be 0
         setFloorRiseRules(initialConfig.floorRiseRules.map((rule: any) => ({
           ...rule,
-          endFloor: rule.endFloor === undefined ? maxFloor : rule.endFloor
+          endFloor: rule.endFloor === undefined ? maxFloor : rule.endFloor,
+          psfIncrement: 0,
+          jumpEveryFloor: 0,
+          jumpIncrement: 0,
         })));
       }
       
