@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Table,
@@ -32,10 +31,10 @@ const PricingTable: React.FC<PricingTableProps> = ({
   handleSort,
 }) => {
   return (
-    <FixedHeaderTable maxHeight="650px" className="scrollbar-always-visible">
+    <FixedHeaderTable maxHeight="650px" className="scrollbar-always-visible border-indigo-100/50 shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-gradient-to-r from-indigo-50/80 to-blue-50/80">
             {visibleColumns.includes("name") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap"
@@ -73,7 +72,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
               <TableHead className="whitespace-nowrap">View</TableHead>
             )}
             
-            {/* Additional category columns */}
             {additionalColumns.map(column => (
               visibleColumns.includes(column) && (
                 <TableHead
@@ -162,7 +160,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
               </TableHead>
             )}
             
-            {/* Additional category premium columns */}
             {additionalColumns.map(column => (
               visibleColumns.includes(`${column}_premium`) && (
                 <TableHead
@@ -220,14 +217,16 @@ const PricingTable: React.FC<PricingTableProps> = ({
             filteredUnits.map((unit, index) => (
               <TableRow 
                 key={unit.name || index}
-                className={unit.isOptimized ? "bg-green-50" : ""}
+                className={`
+                  ${unit.isOptimized ? "bg-green-50/80" : "hover:bg-indigo-50/30"}
+                  transition-colors duration-150 ease-in-out
+                `}
               >
                 {visibleColumns.includes("name") && <TableCell>{unit.name}</TableCell>}
                 {visibleColumns.includes("type") && <TableCell>{unit.type}</TableCell>}
                 {visibleColumns.includes("floor") && <TableCell>{unit.floor}</TableCell>}
                 {visibleColumns.includes("view") && <TableCell>{unit.view}</TableCell>}
                 
-                {/* Additional category columns */}
                 {additionalColumns.map(column => (
                   visibleColumns.includes(column) && (
                     <TableCell key={column}>
@@ -278,7 +277,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                   </TableCell>
                 )}
                 
-                {/* Additional category premium columns */}
                 {additionalColumns.map(column => (
                   visibleColumns.includes(`${column}_premium`) && (
                     <TableCell key={`${column}_premium`} className="text-right">
@@ -320,7 +318,7 @@ const PricingTable: React.FC<PricingTableProps> = ({
             <TableRow>
               <TableCell
                 colSpan={visibleColumns.length || 1}
-                className="text-center py-6"
+                className="text-center py-6 text-gray-500 italic"
               >
                 No units match your filter criteria
               </TableCell>

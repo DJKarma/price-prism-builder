@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -10,14 +9,12 @@ import {
 import { TableIcon } from "lucide-react";
 import { toast } from "sonner";
 import { simulatePricing } from "@/utils/psfOptimizer";
-import PremiumEditor from "./PremiumEditor";
 import PricingFilters from "./pricing-simulator/PricingFilters";
 import PricingTable from "./pricing-simulator/PricingTable";
 import PricingExportControls from "./pricing-simulator/PricingExportControls";
 import { useUnitFilters } from "./pricing-simulator/useUnitFilters";
 import { createSummaryData } from "./pricing-simulator/pricingUtils";
 import CollapsibleConfigPanel from "./pricing-simulator/CollapsibleConfigPanel";
-import PricingSummary from "./PricingSummary";
 
 export interface UnitWithPricing extends Record<string, any> {
   totalPrice: number;
@@ -131,17 +128,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     }
   };
 
-  // Define the handleSort function to update the sort configuration
   const handleSort = (key: string) => {
     setSortConfig((prevConfig) => {
       if (prevConfig.key === key) {
-        // If clicking on the same column, toggle the sort direction
         return {
           key,
           direction: prevConfig.direction === "ascending" ? "descending" : "ascending",
         };
       }
-      // If clicking on a new column, default to ascending sort
       return { key, direction: "ascending" };
     });
   };
@@ -223,42 +217,28 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   return (
     <div className="space-y-6">
       {onConfigUpdate && (
-        <CollapsibleConfigPanel 
-          data={data}
-          pricingConfig={pricingConfig}
-          onConfigUpdate={handlePricingConfigChange}
-          maxFloor={maxFloor}
-          additionalCategories={additionalCategories}
-        />
+        <div className="hover:shadow-lg transition-all duration-300 rounded-lg hover:shadow-indigo-100/50 animate-pulse">
+          <CollapsibleConfigPanel 
+            data={data}
+            pricingConfig={pricingConfig}
+            onConfigUpdate={handlePricingConfigChange}
+            maxFloor={maxFloor}
+            additionalCategories={additionalCategories}
+          />
+        </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 mb-6">
-        <PricingSummary 
-          data={filteredUnits} 
-          showDollarSign={true} 
-          highlightedTypes={pricingConfig?.optimizedTypes || []}
-          showAcPsf={true}
-        />
-      </div>
-
-      <Card className="w-full mb-6">
-        <CardHeader>
+      <Card className="w-full mb-6 shadow-lg border-indigo-100/50">
+        <CardHeader className="bg-gradient-to-r from-indigo-50/50 to-blue-50/50">
           <CardTitle className="flex items-center gap-2">
-            <TableIcon className="h-5 w-5" />
-            Unit Pricing Details
+            <TableIcon className="h-5 w-5 text-indigo-600" />
+            <span className="text-indigo-700">Unit Pricing Details</span>
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-indigo-600/80">
             View and filter detailed pricing for all units
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {onConfigUpdate && (
-            <PremiumEditor 
-              pricingConfig={pricingConfig} 
-              onPricingConfigChange={handlePricingConfigChange}
-            />
-          )}
-          
           <PricingFilters 
             uniqueTypes={uniqueTypes}
             uniqueViews={uniqueViews}
