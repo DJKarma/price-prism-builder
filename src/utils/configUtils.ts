@@ -4,17 +4,10 @@ import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import { toast } from 'sonner';
 
-// Export configuration as JSON with improved parameter inclusion
+// Export configuration as JSON
 export const exportConfig = (config: any) => {
   // Create a deep copy of the config to avoid modifying the original
   const configCopy = JSON.parse(JSON.stringify(config));
-  
-  // Add metadata to help with future imports
-  configCopy._metadata = {
-    exportVersion: "1.0.0",
-    exportDate: new Date().toISOString(),
-    availableParameters: Object.keys(configCopy).filter(k => !k.startsWith('_'))
-  };
   
   // Ensure we're exporting the actual current state
   const configJson = JSON.stringify(configCopy, null, 2);
@@ -72,7 +65,7 @@ export const exportToExcel = async (
   }
 };
 
-// Import configuration from JSON with strict parameter validation
+// Import configuration from JSON
 export const importConfig = async (file: File) => {
   return new Promise<{ config: any; unmatchedFields: string[] }>((resolve, reject) => {
     const reader = new FileReader();
@@ -106,9 +99,6 @@ export const importConfig = async (file: File) => {
           return;
         }
         
-        // Get current pricing config from store or use an empty object
-        let currentConfig: any = {};
-        
         // Collect fields that exist in the imported config but not in our schema
         const knownFields = new Set([
           ...requiredFields,
@@ -117,46 +107,14 @@ export const importConfig = async (file: File) => {
           'additionalPricingFactors',
           'additionalCategoryPricing',
           'optimizedTypes',
-          'isOptimized',
-          '_metadata' // Ignore metadata field
+          'isOptimized'
         ]);
         
-        // Find fields in imported config that aren't in our known schema
         const unmatchedFields = Object.keys(importedConfig).filter(
-          (key) => !knownFields.has(key.toLowerCase()) && !key.startsWith('_')
+          (key) => !knownFields.has(key)
         );
         
-        // Create a new config with only the fields that match our schema
-        const filteredConfig: Record<string, any> = {};
-        
-        // Only copy fields that exist in our known schema
-        Object.entries(importedConfig).forEach(([key, value]) => {
-          // Skip metadata and unknown fields
-          if (key.startsWith('_') || !knownFields.has(key.toLowerCase())) {
-            return;
-          }
-          
-          // Case-insensitive matching for object keys
-          const matchedKey = Array.from(knownFields).find(
-            k => k.toLowerCase() === key.toLowerCase()
-          );
-          
-          if (matchedKey) {
-            // For arrays of objects, we need special handling for case matching
-            if (matchedKey === 'bedroomTypePricing' && Array.isArray(value)) {
-              filteredConfig[matchedKey] = processCaseInsensitiveArrays(value, 'type');
-            } else if (matchedKey === 'viewPricing' && Array.isArray(value)) {
-              filteredConfig[matchedKey] = processCaseInsensitiveArrays(value, 'view');
-            } else if (matchedKey === 'additionalCategoryPricing' && Array.isArray(value)) {
-              // For additional categories, we need to handle case matching for both column and category
-              filteredConfig[matchedKey] = processCaseInsensitiveAdditionalCategories(value);
-            } else {
-              filteredConfig[matchedKey] = value;
-            }
-          }
-        });
-        
-        resolve({ config: filteredConfig, unmatchedFields });
+        resolve({ config: importedConfig, unmatchedFields });
       } catch (error) {
         reject(new Error('Failed to parse configuration file'));
       }
@@ -167,32 +125,5 @@ export const importConfig = async (file: File) => {
     };
     
     reader.readAsText(file);
-  });
-};
-
-// Helper function to process arrays with case-insensitive matching
-const processCaseInsensitiveArrays = (items: any[], keyField: string) => {
-  // Preserve the original case of the values in the array
-  return items.map(item => {
-    // Create a new object for each item to avoid modifying the original
-    const processedItem: Record<string, any> = {};
-    Object.entries(item).forEach(([key, value]) => {
-      processedItem[key] = value;
-    });
-    return processedItem;
-  });
-};
-
-// Helper function to process additional category arrays with case-insensitive matching
-const processCaseInsensitiveAdditionalCategories = (categories: any[]) => {
-  // Preserve the original case of both column and category
-  return categories.map(item => {
-    // Create a new object for each item to avoid modifying the original
-    const processedItem: Record<string, any> = {
-      column: item.column,
-      category: item.category,
-      psfAdjustment: item.psfAdjustment
-    };
-    return processedItem;
   });
 };

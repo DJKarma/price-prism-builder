@@ -2,7 +2,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { FileJson, AlertTriangle, X } from 'lucide-react';
+import { FileJson, AlertTriangle } from 'lucide-react';
 import { importConfig } from '@/utils/configUtils';
 import { 
   Alert,
@@ -32,18 +32,6 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
     try {
       const { config, unmatchedFields } = await importConfig(file);
       
-      // Check if config is empty or doesn't have required fields
-      if (!config || !Object.keys(config).length) {
-        toast.error("Failed to import configuration: No valid data found");
-        return;
-      }
-
-      // Verify key configuration elements are present
-      if (!config.bedroomTypePricing || !config.viewPricing) {
-        toast.error("Configuration file is missing critical pricing components");
-        return;
-      }
-      
       // Set unmatched fields and show alert if needed
       setUnmatchedFields(unmatchedFields);
       setShowAlert(unmatchedFields.length > 0);
@@ -53,22 +41,12 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
         fileInputRef.current.value = '';
       }
       
-      // Log the imported config for debugging
-      console.log("Imported configuration:", config);
-      
       // Pass the imported config to the parent component
       onConfigImported(config);
       
-      // Show success toast with field count and warning about unmatched fields
-      const fieldsCount = Object.keys(config).length;
-      
-      if (unmatchedFields.length > 0) {
-        toast.warning(`Config imported with ${fieldsCount} valid parameters. ${unmatchedFields.length} parameters could not be applied.`, {
-          duration: 5000,
-        });
-      } else {
-        toast.success(`Config imported successfully. ${fieldsCount} parameters applied.`);
-      }
+      // Show success toast with field count
+      const fieldsCount = Object.keys(config).length - unmatchedFields.length;
+      toast.success(`Config imported successfully. ${fieldsCount} fields updated.`);
     } catch (error) {
       toast.error((error as Error).message || 'Failed to import configuration');
       
@@ -105,20 +83,13 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
       {showAlert && unmatchedFields.length > 0 && (
         <Alert className="mt-4 bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <div className="flex justify-between w-full">
-            <div>
-              <AlertTitle>Unmatched Parameters</AlertTitle>
-              <AlertDescription>
-                The following parameters could not be applied because they don't exist in the current schema: 
-                <span className="font-semibold text-amber-700">
-                  {` ${unmatchedFields.join(', ')}`}
-                </span>
-              </AlertDescription>
-            </div>
-            <Button variant="ghost" size="icon" onClick={closeAlert} className="h-6 w-6">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <AlertTitle>Ignored Fields</AlertTitle>
+          <AlertDescription>
+            The following fields were skipped because they don't exist in the current version: 
+            <span className="font-semibold text-amber-700">
+              {` ${unmatchedFields.join(', ')}`}
+            </span>
+          </AlertDescription>
         </Alert>
       )}
     </div>
