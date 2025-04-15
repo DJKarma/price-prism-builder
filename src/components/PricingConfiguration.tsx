@@ -89,7 +89,13 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
 }) => {
   const [basePsf, setBasePsf] = useState<number>(1000);
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
-    { startFloor: 1, endFloor: maxFloor, psfIncrement: 10, jumpEveryFloor: 10, jumpIncrement: 20 },
+    { 
+      startFloor: 1, 
+      endFloor: maxFloor, 
+      psfIncrement: 0,
+      jumpEveryFloor: 0,
+      jumpIncrement: 0
+    },
   ]);
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
@@ -218,9 +224,9 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       {
         startFloor: newStartFloor,
         endFloor: maxFloor,
-        psfIncrement: 10,
-        jumpEveryFloor: 10,
-        jumpIncrement: 20,
+        psfIncrement: 0,
+        jumpEveryFloor: 0,
+        jumpIncrement: 0,
       },
     ]);
   };
