@@ -1,9 +1,9 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CSVUploader from "@/components/CSVUploader";
 import ColumnMapper from "@/components/ColumnMapper";
 import PricingSimulator from "@/components/PricingSimulator";
-import MegaOptimize from "@/components/MegaOptimize";
 import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Upload, FileSpreadsheet, LineChart, ArrowRight, PieChart } from "lucide-react";
