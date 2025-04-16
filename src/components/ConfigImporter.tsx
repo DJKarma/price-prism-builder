@@ -71,8 +71,6 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
 
     try {
       // Map matched fields between current config and imported config
-      
-      // Create a new config based on the current one
       const mappedConfig = JSON.parse(JSON.stringify(currentConfig));
       
       // Update bedroom types pricing based on mappings
@@ -111,7 +109,6 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
           );
           
           if (matchedImported) {
-            // Only copy fields that exist in the current item to maintain structure
             const updatedItem = { ...item };
             Object.keys(item).forEach(key => {
               if (key in matchedImported && key !== 'view') {
@@ -132,13 +129,11 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
           const mappedKey = mappings.additionalCategories[key];
           if (!mappedKey || mappedKey === "no-match") return item;
 
-          const [mappedColumn, mappedCategory] = mappedKey.split(': ');
           const matchedImported = importedConfig.additionalCategoryPricing.find(
             (imported: any) => `${imported.column}: ${imported.category}` === mappedKey
           );
           
           if (matchedImported) {
-            // Only copy fields that exist in the current item to maintain structure
             const updatedItem = { ...item };
             Object.keys(item).forEach(key => {
               if (key in matchedImported && key !== 'column' && key !== 'category') {
@@ -152,31 +147,37 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
         });
       }
 
-      // Update scalar values if they exist in the current config
-      const scalarFields = ['basePsf', 'maxFloor', 'targetOverallPsf'];
-      scalarFields.forEach(field => {
-        if (field in mappedConfig && field in importedConfig) {
-          mappedConfig[field] = importedConfig[field];
-        }
-      });
-      
-      // Update floor rise rules if they exist in the current config
+      // Update floor rise rules if they exist in both configs
       if (mappedConfig.floorRiseRules && importedConfig.floorRiseRules) {
-        // Create a mapping based on floor ranges
-        importedConfig.floorRiseRules.forEach((importedRule: any) => {
-          const matchingRuleIndex = mappedConfig.floorRiseRules.findIndex((rule: any) => 
-            rule.startFloor === importedRule.startFloor && 
-            rule.endFloor === importedRule.endFloor
+        mappedConfig.floorRiseRules = mappedConfig.floorRiseRules.map((rule: any) => {
+          const key = `${rule.startFloor}-${rule.endFloor}`;
+          const mappedKey = mappings.floorRiseRules[key];
+          if (!mappedKey || mappedKey === "no-match") return rule;
+
+          const [mappedStart, mappedEnd] = mappedKey.split('-').map(Number);
+          const matchedImported = importedConfig.floorRiseRules.find(
+            (imported: any) => imported.startFloor === mappedStart && imported.endFloor === mappedEnd
           );
           
-          if (matchingRuleIndex >= 0) {
-            // Update values for matching rules
-            const currentRule = mappedConfig.floorRiseRules[matchingRuleIndex];
-            Object.keys(currentRule).forEach(key => {
-              if (key in importedRule && key !== 'startFloor' && key !== 'endFloor') {
-                mappedConfig.floorRiseRules[matchingRuleIndex][key] = importedRule[key];
+          if (matchedImported) {
+            const updatedRule = { ...rule };
+            Object.keys(rule).forEach(key => {
+              if (key in matchedImported && key !== 'startFloor' && key !== 'endFloor') {
+                updatedRule[key] = matchedImported[key];
               }
             });
+            return updatedRule;
+          }
+          
+          return rule;
+        });
+      }
+
+      // Update scalar values if they exist in the current config and are mapped
+      if (mappings.scalarFields) {
+        Object.entries(mappings.scalarFields).forEach(([currentField, importedField]) => {
+          if (importedField && importedField !== "no-match" && importedField in importedConfig) {
+            mappedConfig[currentField] = importedConfig[importedField];
           }
         });
       }
@@ -185,7 +186,9 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
       const totalMappedFields = 
         Object.values(mappings.bedroomTypes).filter(val => val && val !== "no-match").length +
         Object.values(mappings.views).filter(val => val && val !== "no-match").length +
-        Object.values(mappings.additionalCategories).filter(val => val && val !== "no-match").length;
+        Object.values(mappings.additionalCategories).filter(val => val !== "no-match").length +
+        Object.values(mappings.floorRiseRules).filter(val => val !== "no-match").length +
+        Object.values(mappings.scalarFields).filter(val => val !== "no-match").length;
 
       onConfigImported(mappedConfig);
       
@@ -232,3 +235,4 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
 };
 
 export default ConfigImporter;
+

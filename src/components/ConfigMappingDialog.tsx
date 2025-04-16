@@ -66,6 +66,20 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
       mappings: {},
       description: "Match imported additional categories to your current categories"
     },
+    floorRiseRules: {
+      title: "Floor Rise Rules",
+      currentFields: [],
+      importedFields: [],
+      mappings: {},
+      description: "Match imported floor rise rules to your current configuration"
+    },
+    scalarFields: {
+      title: "Basic Parameters",
+      currentFields: [],
+      importedFields: [],
+      mappings: {},
+      description: "Match imported basic parameters to your current configuration"
+    }
   });
   
   const [hasFieldsToMap, setHasFieldsToMap] = useState(false);
@@ -80,12 +94,25 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
         `${item.column}: ${item.category}`
       ) || [];
       
+      // Extract floor rise rules
+      const currentFloorRiseRules = currentConfig?.floorRiseRules?.map((rule: any) => 
+        `${rule.startFloor}-${rule.endFloor}`
+      ) || [];
+      
+      // Extract scalar fields
+      const scalarFields = ['basePsf', 'maxFloor', 'targetOverallPsf'];
+      const currentScalarFields = scalarFields.filter(field => field in currentConfig);
+      
       // Extract fields from imported config
       const importedBedroomTypes = importedConfig?.bedroomTypePricing?.map((item: any) => item.type) || [];
       const importedViews = importedConfig?.viewPricing?.map((item: any) => item.view) || [];
       const importedAdditionalCategories = importedConfig?.additionalCategoryPricing?.map((item: any) => 
         `${item.column}: ${item.category}`
       ) || [];
+      const importedFloorRiseRules = importedConfig?.floorRiseRules?.map((rule: any) => 
+        `${rule.startFloor}-${rule.endFloor}`
+      ) || [];
+      const importedScalarFields = scalarFields.filter(field => field in importedConfig);
       
       // Set up mapping sections
       const updatedSections = {
@@ -110,6 +137,20 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
           mappings: {},
           description: "Match imported additional categories to your current categories"
         },
+        floorRiseRules: {
+          title: "Floor Rise Rules",
+          currentFields: currentFloorRiseRules,
+          importedFields: importedFloorRiseRules,
+          mappings: {},
+          description: "Match imported floor rise rules to your current configuration"
+        },
+        scalarFields: {
+          title: "Basic Parameters",
+          currentFields: currentScalarFields,
+          importedFields: importedScalarFields,
+          mappings: {},
+          description: "Match imported basic parameters to your current configuration"
+        }
       };
       
       // Try auto-matching based on case-insensitive comparison
@@ -131,10 +172,9 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
       setMappingSections(updatedSections);
       
       // Check if there are any fields to map
-      const hasFields = 
-        currentBedroomTypes.length > 0 && importedBedroomTypes.length > 0 ||
-        currentViews.length > 0 && importedViews.length > 0 ||
-        currentAdditionalCategories.length > 0 && importedAdditionalCategories.length > 0;
+      const hasFields = Object.values(updatedSections).some(
+        section => section.currentFields.length > 0 && section.importedFields.length > 0
+      );
       
       setHasFieldsToMap(hasFields);
     }
@@ -166,7 +206,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
   const countMappedFields = () => {
     let count = 0;
     Object.values(mappingSections).forEach(section => {
-      count += Object.keys(section.mappings).length;
+      count += Object.values(section.mappings).filter(val => val && val !== "no-match").length;
     });
     return count;
   };
@@ -213,35 +253,36 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                     <h3 className="font-medium text-lg text-indigo-600">{section.title}</h3>
                     <p className="text-sm text-gray-500">{section.description}</p>
                   </div>
-                  <div className="space-y-3">
-                    {section.currentFields.map((currentField) => (
-                      <div key={currentField} className="flex items-center gap-4">
-                        <div className="w-1/3">
-                          <Label className="text-sm font-medium">{currentField}</Label>
+                  <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                    <div className="space-y-3 pr-4">
+                      {section.currentFields.map((currentField) => (
+                        <div key={currentField} className="flex items-center gap-4">
+                          <div className="w-1/3">
+                            <Label className="text-sm font-medium">{currentField}</Label>
+                          </div>
+                          <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="flex-1">
+                            <Select
+                              value={section.mappings[currentField] || ""}
+                              onValueChange={(value) => handleMapping(key, currentField, value)}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select matching field..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="no-match">No match</SelectItem>
+                                {section.importedFields.map((importedField) => (
+                                  <SelectItem key={importedField} value={importedField}>
+                                    {importedField}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        <div className="flex-1">
-                          <Select
-                            value={section.mappings[currentField] || ""}
-                            onValueChange={(value) => handleMapping(key, currentField, value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select matching field..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {/* Fix: Use "no-match" instead of empty string for the "No match" option */}
-                              <SelectItem value="no-match">No match</SelectItem>
-                              {section.importedFields.map((importedField) => (
-                                <SelectItem key={importedField} value={importedField}>
-                                  {importedField}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </div>
               ) : null
             ))}
@@ -265,3 +306,4 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
 };
 
 export default ConfigMappingDialog;
+
