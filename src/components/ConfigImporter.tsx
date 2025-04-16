@@ -79,7 +79,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
       if (mappedConfig.bedroomTypePricing && importedConfig.bedroomTypePricing) {
         mappedConfig.bedroomTypePricing = mappedConfig.bedroomTypePricing.map((item: any) => {
           const mappedType = mappings.bedroomTypes[item.type];
-          if (!mappedType) return item;
+          if (!mappedType || mappedType === "no-match") return item;
           
           const matchedImported = importedConfig.bedroomTypePricing.find(
             (imported: any) => imported.type === mappedType
@@ -104,7 +104,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
       if (mappedConfig.viewPricing && importedConfig.viewPricing) {
         mappedConfig.viewPricing = mappedConfig.viewPricing.map((item: any) => {
           const mappedView = mappings.views[item.view];
-          if (!mappedView) return item;
+          if (!mappedView || mappedView === "no-match") return item;
 
           const matchedImported = importedConfig.viewPricing.find(
             (imported: any) => imported.view === mappedView
@@ -130,7 +130,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
         mappedConfig.additionalCategoryPricing = mappedConfig.additionalCategoryPricing.map((item: any) => {
           const key = `${item.column}: ${item.category}`;
           const mappedKey = mappings.additionalCategories[key];
-          if (!mappedKey) return item;
+          if (!mappedKey || mappedKey === "no-match") return item;
 
           const [mappedColumn, mappedCategory] = mappedKey.split(': ');
           const matchedImported = importedConfig.additionalCategoryPricing.find(
@@ -183,9 +183,9 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
 
       // Count how many fields were actually mapped
       const totalMappedFields = 
-        Object.keys(mappings.bedroomTypes).length +
-        Object.keys(mappings.views).length +
-        Object.keys(mappings.additionalCategories).length;
+        Object.values(mappings.bedroomTypes).filter(val => val && val !== "no-match").length +
+        Object.values(mappings.views).filter(val => val && val !== "no-match").length +
+        Object.values(mappings.additionalCategories).filter(val => val && val !== "no-match").length;
 
       onConfigImported(mappedConfig);
       

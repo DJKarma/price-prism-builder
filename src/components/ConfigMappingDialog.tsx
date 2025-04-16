@@ -229,7 +229,8 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                               <SelectValue placeholder="Select matching field..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">No match</SelectItem>
+                              {/* Fix: Use "no-match" instead of empty string for the "No match" option */}
+                              <SelectItem value="no-match">No match</SelectItem>
                               {section.importedFields.map((importedField) => (
                                 <SelectItem key={importedField} value={importedField}>
                                   {importedField}
