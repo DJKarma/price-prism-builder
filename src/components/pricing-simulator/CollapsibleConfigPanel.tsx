@@ -1,4 +1,3 @@
-
 import React from "react";
 import { 
   Accordion,
@@ -25,12 +24,10 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
   maxFloor,
   additionalCategories
 }) => {
-  // Handle config import
   const handleConfigImport = (importedConfig: any) => {
-    // Pass the merged config directly from ConfigImporter
     onConfigUpdate(importedConfig);
   };
-  
+
   return (
     <div className="mb-6 border rounded-lg shadow-sm">
       <Accordion type="single" collapsible className="w-full">

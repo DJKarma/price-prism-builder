@@ -2,13 +2,8 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { FileJson, AlertTriangle, X } from 'lucide-react';
-import { importConfig, mergeConfigSelectively } from '@/utils/configUtils';
-import { 
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert';
+import { FileJson } from 'lucide-react';
+import ConfigMappingDialog from './ConfigMappingDialog';
 
 interface ConfigImporterProps {
   onConfigImported: (config: any) => void;
@@ -17,8 +12,8 @@ interface ConfigImporterProps {
 
 const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, currentConfig }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [unmatchedFields, setUnmatchedFields] = useState<string[]>([]);
-  const [showAlert, setShowAlert] = useState(false);
+  const [showMappingDialog, setShowMappingDialog] = useState(false);
+  const [importedConfig, setImportedConfig] = useState<any>(null);
 
   const handleClick = () => {
     if (fileInputRef.current) {
@@ -29,67 +24,81 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    try {
-      // First, validate and parse the imported file
-      const { config: importedConfig } = await importConfig(file);
-      
-      // Now selectively merge with current config, only updating existing fields
-      const { mergedConfig, unmatchedFields } = mergeConfigSelectively(currentConfig, importedConfig);
-      
-      // Check if merged config is empty or doesn't have required fields
-      if (!mergedConfig || !Object.keys(mergedConfig).length) {
-        toast.error("Failed to import configuration: No valid data found");
-        return;
-      }
 
-      // Verify key configuration elements are present
-      if (!mergedConfig.bedroomTypePricing || !mergedConfig.viewPricing) {
-        toast.error("Configuration file is missing critical pricing components");
-        return;
-      }
-      
-      // Set unmatched fields and show alert if needed
-      setUnmatchedFields(unmatchedFields);
-      setShowAlert(unmatchedFields.length > 0);
-      
-      // Clear the file input so the same file can be selected again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      
-      // Log the imported config for debugging
-      console.log("Imported configuration:", mergedConfig);
-      console.log("Unmatched fields:", unmatchedFields);
-      
-      // Pass the merged config to the parent component
-      onConfigImported(mergedConfig);
-      
-      // Calculate matched and unmatched parameter counts for toast
-      const matchedCount = Object.keys(importedConfig)
-        .filter(key => !key.startsWith('_') && !unmatchedFields.includes(key))
-        .length;
-      
-      // Show success toast with field count and warning about unmatched fields
-      if (unmatchedFields.length > 0) {
-        toast.warning(`Config imported with ${matchedCount} valid parameters. ${unmatchedFields.length} parameters could not be applied.`, {
-          duration: 5000,
-        });
-      } else {
-        toast.success(`Config imported successfully. ${matchedCount} parameters applied.`);
-      }
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const jsonContent = event.target?.result as string;
+          const parsedConfig = JSON.parse(jsonContent);
+          
+          // Store the imported config and show the mapping dialog
+          setImportedConfig(parsedConfig);
+          setShowMappingDialog(true);
+          
+          // Clear the file input
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        } catch (error) {
+          toast.error('Failed to parse configuration file');
+        }
+      };
+      reader.readAsText(file);
     } catch (error) {
-      toast.error((error as Error).message || 'Failed to import configuration');
-      
-      // Clear the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      toast.error('Failed to read configuration file');
     }
   };
 
-  const closeAlert = () => {
-    setShowAlert(false);
+  const handleMappingComplete = (mappings: Record<string, Record<string, string>>) => {
+    if (!importedConfig) return;
+
+    try {
+      const mappedConfig = {
+        ...currentConfig,
+        bedroomTypePricing: currentConfig.bedroomTypePricing.map((item: any) => {
+          const mappedType = mappings.bedroomTypes[item.type];
+          if (!mappedType) return item;
+          
+          const matchedImported = importedConfig.bedroomTypePricing.find(
+            (imported: any) => imported.type === mappedType
+          );
+          return matchedImported ? { ...item, ...matchedImported } : item;
+        }),
+
+        viewPricing: currentConfig.viewPricing.map((item: any) => {
+          const mappedView = mappings.views[item.view];
+          if (!mappedView) return item;
+
+          const matchedImported = importedConfig.viewPricing.find(
+            (imported: any) => imported.view === mappedView
+          );
+          return matchedImported ? { ...item, ...matchedImported } : item;
+        }),
+
+        additionalCategoryPricing: currentConfig.additionalCategoryPricing.map((item: any) => {
+          const key = `${item.column}: ${item.category}`;
+          const mappedKey = mappings.additionalCategories[key];
+          if (!mappedKey) return item;
+
+          const [mappedColumn, mappedCategory] = mappedKey.split(': ');
+          const matchedImported = importedConfig.additionalCategoryPricing.find(
+            (imported: any) => imported.column === mappedColumn && imported.category === mappedCategory
+          );
+          return matchedImported ? { ...item, ...matchedImported } : item;
+        }),
+
+        basePsf: importedConfig.basePsf || currentConfig.basePsf,
+        floorRiseRules: importedConfig.floorRiseRules || currentConfig.floorRiseRules,
+        maxFloor: importedConfig.maxFloor || currentConfig.maxFloor,
+      };
+
+      onConfigImported(mappedConfig);
+      toast.success('Configuration imported successfully');
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error('Failed to apply configuration mappings');
+    }
   };
 
   return (
@@ -98,7 +107,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept=".json,.yaml,.yml"
+        accept=".json"
         style={{ display: 'none' }}
       />
       <Button 
@@ -110,26 +119,14 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
         <FileJson className="mr-2 h-4 w-4" />
         Import Config
       </Button>
-      
-      {showAlert && unmatchedFields.length > 0 && (
-        <Alert className="mt-4 bg-amber-50 border-amber-200">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <div className="flex justify-between w-full">
-            <div>
-              <AlertTitle>Unmatched Parameters</AlertTitle>
-              <AlertDescription>
-                The following parameters could not be applied because they don't exist in the current schema: 
-                <span className="font-semibold text-amber-700">
-                  {` ${unmatchedFields.join(', ')}`}
-                </span>
-              </AlertDescription>
-            </div>
-            <Button variant="ghost" size="icon" onClick={closeAlert} className="h-6 w-6">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </Alert>
-      )}
+
+      <ConfigMappingDialog
+        isOpen={showMappingDialog}
+        onClose={() => setShowMappingDialog(false)}
+        currentConfig={currentConfig}
+        importedConfig={importedConfig}
+        onMappingComplete={handleMappingComplete}
+      />
     </div>
   );
 };
