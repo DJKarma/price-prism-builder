@@ -1,604 +1,278 @@
-import React, { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { Settings, PlusCircle, MinusCircle, Ruler, Building2, Eye, Tag } from "lucide-react";
+import { saveAs } from "file-saver";
+import * as XLSX from "xlsx";
+import JSZip from "jszip";
 import { toast } from "sonner";
+import { PricingConfig } from "@/components/PricingConfiguration"; // Adjust path if necessary
 
-interface PricingConfigurationProps {
-  data: any[];
-  initialConfig?: any;
-  onConfigurationComplete: (config: PricingConfig) => void;
-  maxFloor?: number;
-  additionalCategories?: Array<{ column: string, categories: string[] }>;
-}
+// =======================
+// Export Configuration
+// =======================
 
-export interface FloorRiseRule {
-  startFloor: number;
-  endFloor: number | null;
-  psfIncrement: number;
-  jumpEveryFloor?: number;
-  jumpIncrement?: number;
-}
-
-export interface BedroomTypePricing {
-  type: string;
-  basePsf: number;
-  targetAvgPsf: number;
-}
-
-export interface ViewPricing {
-  view: string;
-  psfAdjustment: number;
-}
-
-export interface AdditionalCategoryPricing {
-  column: string;
-  category: string;
-  psfAdjustment: number;
-}
-
-export interface PricingConfig {
-  basePsf: number;
-  bedroomTypePricing: Array<{
-    type: string;
-    basePsf: number;
-    targetAvgPsf: number;
-    originalBasePsf?: number;
-  }>;
-  viewPricing: Array<{
-    view: string;
-    psfAdjustment: number;
-    originalPsfAdjustment?: number;
-  }>;
-  floorRiseRules: Array<{
-    startFloor: number;
-    endFloor: number | null;
-    psfIncrement: number;
-    jumpEveryFloor?: number;
-    jumpIncrement?: number;
-  }>;
-  additionalCategoryPricing?: AdditionalCategoryPricing[];
-  targetOverallPsf?: number;
-  isOptimized?: boolean;
-  maxFloor?: number;
-}
-
-const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
-  data,
-  initialConfig,
-  onConfigurationComplete,
-  maxFloor = 50,
-  additionalCategories = []
-}) => {
-  const [basePsf, setBasePsf] = useState<number>(1000);
-  const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
-    { startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
-  ]);
-  const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
-  const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
-  const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>([]);
-
-  useEffect(() => {
-    if (initialConfig) {
-      if (initialConfig.basePsf) {
-        setBasePsf(initialConfig.basePsf);
-      }
-      
-      if (initialConfig.floorRiseRules && initialConfig.floorRiseRules.length > 0) {
-        // Force default values for PSF Increment, Jump Every, and Jump PSF to be 0
-        setFloorRiseRules(initialConfig.floorRiseRules.map((rule: any) => ({
-          ...rule,
-          endFloor: rule.endFloor === undefined ? maxFloor : rule.endFloor,
-          psfIncrement: 0,
-          jumpEveryFloor: 0,
-          jumpIncrement: 0,
-        })));
-      }
-      
-      if (initialConfig.bedroomTypePricing && initialConfig.bedroomTypePricing.length > 0) {
-        setBedroomTypes(initialConfig.bedroomTypePricing);
-      }
-      
-      if (initialConfig.viewPricing && initialConfig.viewPricing.length > 0) {
-        setViewTypes(initialConfig.viewPricing);
-      }
-      
-      if (initialConfig.additionalCategoryPricing && initialConfig.additionalCategoryPricing.length > 0) {
-        setAdditionalCategoryPricing(initialConfig.additionalCategoryPricing);
-      }
-    }
-  }, [initialConfig, maxFloor]);
-
-  useEffect(() => {
-    if (floorRiseRules.length > 0) {
-      const updatedRules = [...floorRiseRules];
-      if (updatedRules[updatedRules.length - 1].endFloor === null) {
-        updatedRules[updatedRules.length - 1].endFloor = maxFloor;
-        setFloorRiseRules(updatedRules);
-      }
-    }
-  }, [maxFloor]);
-
-  useEffect(() => {
-    if (!data.length) return;
-
-    if (!initialConfig || !initialConfig.bedroomTypePricing || initialConfig.bedroomTypePricing.length === 0) {
-      const uniqueTypes = Array.from(
-        new Set(
-          data
-            .map((item) => item.type)
-            .filter((type) => type && type.trim() !== "")
-        )
-      ) as string[];
-
-      setBedroomTypes(
-        uniqueTypes.map((type) => ({
-          type,
-          basePsf: basePsf,
-          targetAvgPsf: basePsf,
-        }))
-      );
-    }
-
-    if (!initialConfig || !initialConfig.viewPricing || initialConfig.viewPricing.length === 0) {
-      const uniqueViews = Array.from(
-        new Set(
-          data
-            .map((item) => item.view)
-            .filter((view) => view && view.trim() !== "")
-        )
-      ) as string[];
-
-      setViewTypes(
-        uniqueViews.map((view) => ({
-          view,
-          psfAdjustment: 0,
-        }))
-      );
-    }
-
-    if (!initialConfig || !initialConfig.additionalCategoryPricing || initialConfig.additionalCategoryPricing.length === 0) {
-      const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
-      
-      if (additionalCategories && additionalCategories.length > 0) {
-        additionalCategories.forEach(category => {
-          if (category.categories && category.categories.length > 0) {
-            category.categories.forEach(value => {
-              initialAdditionalCategories.push({
-                column: category.column,
-                category: value,
-                psfAdjustment: 0
-              });
-            });
-          }
-        });
-      }
-      
-      setAdditionalCategoryPricing(initialAdditionalCategories);
-    }
-    
-  }, [data, basePsf, additionalCategories, initialConfig]);
-
-  const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      setBasePsf(value);
-      if (!initialConfig) {
-        setBedroomTypes(prev =>
-          prev.map(item => ({
-            ...item,
-            basePsf: value,
-            targetAvgPsf: value
-          }))
-        );
-      }
-    }
-  };
-
-  const handleAddFloorRiseRule = () => {
-    const lastRule = floorRiseRules[floorRiseRules.length - 1];
-    const newStartFloor = lastRule ? 
-      (lastRule.endFloor === null ? maxFloor : lastRule.endFloor) + 1 : 1;
-    
-    setFloorRiseRules([
-      ...floorRiseRules,
-      {
-        startFloor: newStartFloor,
-        endFloor: maxFloor,
-        psfIncrement: 0,
-        jumpEveryFloor: 0,
-        jumpIncrement: 0,
-      },
-    ]);
-  };
-
-  const handleRemoveFloorRiseRule = (index: number) => {
-    if (floorRiseRules.length <= 1) {
-      toast.error("You must have at least one floor rise rule");
-      return;
-    }
-    setFloorRiseRules(floorRiseRules.filter((_, i) => i !== index));
-  };
-
-  const updateFloorRiseRule = (index: number, field: keyof FloorRiseRule, value: number | null) => {
-    const newRules = [...floorRiseRules];
-    newRules[index] = { ...newRules[index], [field]: value };
-    setFloorRiseRules(newRules);
-  };
-
-  const updateBedroomTypePrice = (index: number, field: keyof BedroomTypePricing, value: number) => {
-    const newPricing = [...bedroomTypes];
-    newPricing[index] = { ...newPricing[index], [field]: value };
-    setBedroomTypes(newPricing);
-  };
-
-  const updateViewPricing = (index: number, value: number) => {
-    const newViewPricing = [...viewTypes];
-    newViewPricing[index] = { ...newViewPricing[index], psfAdjustment: value };
-    setViewTypes(newViewPricing);
-  };
-
-  const updateAdditionalCategoryPricing = (index: number, value: number) => {
-    const newCategoryPricing = [...additionalCategoryPricing];
-    newCategoryPricing[index] = { ...newCategoryPricing[index], psfAdjustment: value };
-    setAdditionalCategoryPricing(newCategoryPricing);
-  };
-
-  const handleSubmit = () => {
-    if (basePsf <= 0) {
-      toast.error("Base PSF must be greater than zero");
-      return;
-    }
-
-    for (let i = 0; i < floorRiseRules.length; i++) {
-      const rule = floorRiseRules[i];
-      
-      if (rule.endFloor !== null && rule.startFloor > rule.endFloor) {
-        toast.error(`Floor rise rule #${i+1} has start floor greater than end floor`);
-        return;
-      }
-      
-      for (let j = i + 1; j < floorRiseRules.length; j++) {
-        const otherRule = floorRiseRules[j];
-        const ruleEnd = rule.endFloor === null ? maxFloor : rule.endFloor;
-        const otherRuleEnd = otherRule.endFloor === null ? maxFloor : otherRule.endFloor;
-        
-        if (
-          (rule.startFloor <= otherRuleEnd && ruleEnd >= otherRule.startFloor) ||
-          (otherRule.startFloor <= ruleEnd && otherRuleEnd >= rule.startFloor)
-        ) {
-          toast.error(`Floor rise rules #${i+1} and #${j+1} have overlapping floor ranges`);
-          return;
-        }
-      }
-    }
-
-    const processedRules = floorRiseRules.map(rule => ({
-      ...rule,
-      endFloor: rule.endFloor === null ? maxFloor : rule.endFloor
-    }));
-
-    const finalConfig = {
-      basePsf,
-      floorRiseRules: processedRules,
-      bedroomTypePricing: bedroomTypes,
-      viewPricing: viewTypes,
-      additionalCategoryPricing: additionalCategoryPricing,
-      maxFloor,
-      ...(initialConfig && { 
-        targetOverallPsf: initialConfig.targetOverallPsf,
-        isOptimized: initialConfig.isOptimized,
-        optimizedTypes: initialConfig.optimizedTypes
-      })
-    };
-
-    onConfigurationComplete(finalConfig);
-  };
-
-  const groupedAdditionalCategories = additionalCategoryPricing.reduce((acc, item) => {
-    if (!acc[item.column]) {
-      acc[item.column] = [];
-    }
-    acc[item.column].push(item);
-    return acc;
-  }, {} as Record<string, AdditionalCategoryPricing[]>);
-
-  return (
-    <Card className="w-full border-2 border-indigo-100 shadow-md">
-      <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50">
-        <CardTitle className="flex items-center gap-2 text-xl text-indigo-800">
-          <Settings className="h-5 w-5 text-indigo-600" />
-          Pricing Configuration
-        </CardTitle>
-        <CardDescription className="text-indigo-600">
-          Set up base pricing and adjustment factors
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-8 p-6">
-        <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-indigo-700 flex items-center">
-              <Ruler className="h-5 w-5 mr-2 text-indigo-600" />
-              Floor Rise PSF Rules
-            </h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddFloorRiseRule}
-              className="h-9 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-indigo-700"
-            >
-              <PlusCircle className="h-4 w-4 mr-2 text-indigo-600" /> Add Rule
-            </Button>
-          </div>
-          
-          <div className="rounded-lg border border-indigo-100 overflow-hidden">
-            <Table>
-              <TableHeader className="bg-indigo-50">
-                <TableRow>
-                  <TableHead className="text-indigo-700">Start Floor</TableHead>
-                  <TableHead className="text-indigo-700">End Floor</TableHead>
-                  <TableHead className="text-indigo-700">PSF Increment</TableHead>
-                  <TableHead className="text-indigo-700">Jump Every</TableHead>
-                  <TableHead className="text-indigo-700">Jump PSF</TableHead>
-                  <TableHead className="w-24 text-indigo-700">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {floorRiseRules.map((rule, index) => (
-                  <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={rule.startFloor}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            index,
-                            "startFloor",
-                            parseInt(e.target.value) || 1
-                          )
-                        }
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={rule.startFloor}
-                        value={rule.endFloor === null ? '' : rule.endFloor}
-                        placeholder={`${maxFloor} (Default)`}
-                        onChange={(e) => {
-                          const value = e.target.value.trim() === '' ? null : parseInt(e.target.value);
-                          updateFloorRiseRule(
-                            index,
-                            "endFloor",
-                            value
-                          );
-                        }}
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={rule.psfIncrement}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            index,
-                            "psfIncrement",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={rule.jumpEveryFloor || 0}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            index,
-                            "jumpEveryFloor",
-                            parseInt(e.target.value) || 0
-                          )
-                        }
-                        placeholder="e.g., 10"
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={rule.jumpIncrement || 0}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            index,
-                            "jumpIncrement",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        placeholder="e.g., 20"
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveFloorRiseRule(index)}
-                        className="hover:bg-red-50 hover:text-red-500"
-                      >
-                        <MinusCircle className="h-4 w-4 text-red-400 hover:text-red-500" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-
-        {bedroomTypes.length > 0 && (
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
-              <Building2 className="h-5 w-5 mr-2 text-indigo-600" />
-              Bedroom Type Pricing
-            </h3>
-            <div className="rounded-lg border border-indigo-100 overflow-hidden">
-              <Table>
-                <TableHeader className="bg-indigo-50">
-                  <TableRow>
-                    <TableHead className="text-indigo-700">Bedroom Type</TableHead>
-                    <TableHead className="text-indigo-700">Base PSF</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {bedroomTypes.map((type, index) => (
-                    <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
-                      <TableCell className="font-medium">{type.type}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={type.basePsf}
-                          onChange={(e) =>
-                            updateBedroomTypePrice(
-                              index,
-                              "basePsf",
-                              parseFloat(e.target.value)
-                            )
-                          }
-                          className="border-indigo-200"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-
-        {viewTypes.length > 0 && (
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
-              <Eye className="h-5 w-5 mr-2 text-indigo-600" />
-              View Pricing Adjustments
-            </h3>
-            <div className="rounded-lg border border-indigo-100 overflow-hidden">
-              <Table>
-                <TableHeader className="bg-indigo-50">
-                  <TableRow>
-                    <TableHead className="text-indigo-700">View Type</TableHead>
-                    <TableHead className="text-indigo-700">PSF Adjustment</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {viewTypes.map((view, index) => (
-                    <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
-                      <TableCell className="font-medium">{view.view}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={view.psfAdjustment}
-                          onChange={(e) =>
-                            updateViewPricing(
-                              index,
-                              parseFloat(e.target.value)
-                            )
-                          }
-                          className="border-indigo-200"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-
-        {Object.keys(groupedAdditionalCategories).length > 0 && (
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
-              <Tag className="h-5 w-5 mr-2 text-indigo-600" />
-              Additional Category Pricing
-            </h3>
-            
-            {Object.entries(groupedAdditionalCategories).map(([column, categories]) => (
-              <div key={column} className="mb-6">
-                <h4 className="text-md font-medium text-indigo-600 mb-3 flex items-center">
-                  {column}
-                </h4>
-                <div className="rounded-lg border border-indigo-100 overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-indigo-50">
-                      <TableRow>
-                        <TableHead className="text-indigo-700">Category</TableHead>
-                        <TableHead className="text-indigo-700">PSF Adjustment</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {categories.map((item, idx) => {
-                        const index = additionalCategoryPricing.findIndex(
-                          c => c.column === item.column && c.category === item.category
-                        );
-                        return (
-                          <TableRow key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}>
-                            <TableCell className="font-medium">{item.category}</TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                value={item.psfAdjustment}
-                                onChange={(e) =>
-                                  updateAdditionalCategoryPricing(
-                                    index,
-                                    parseFloat(e.target.value)
-                                  )
-                                }
-                                className="border-indigo-200"
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex justify-end p-6 bg-gradient-to-r from-indigo-50/70 to-blue-50/70">
-        <Button 
-          onClick={handleSubmit} 
-          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
-        >
-          Apply Configuration
-        </Button>
-      </CardFooter>
-    </Card>
-  );
+export const exportConfig = (config: any) => {
+  // Deep copy the configuration to avoid mutations
+  const configCopy = JSON.parse(JSON.stringify(config));
+  const configJson = JSON.stringify(configCopy, null, 2);
+  return configJson;
 };
 
-export default PricingConfiguration;
+// =======================
+// Export to Excel
+// =======================
+
+export const exportToExcel = async (
+  data: any[],
+  includeConfig: boolean = false,
+  config: any = null,
+  summaryData: any[] | null = null
+) => {
+  try {
+    const workbook = XLSX.utils.book_new();
+
+    // Main data sheet
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Units");
+
+    // Add summary sheet if provided
+    if (summaryData) {
+      const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Pricing Summary");
+    }
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+
+    if (includeConfig && config) {
+      // Create a ZIP containing both the Excel file and the config JSON
+      const zip = new JSZip();
+      zip.file("pricing_data.xlsx", excelBuffer);
+      const configJson = exportConfig(config);
+      zip.file("config.json", configJson);
+      const zipContent = await zip.generateAsync({ type: "blob" });
+      saveAs(zipContent, "price_prism_export.zip");
+      toast.success("Exported ZIP with data and configuration");
+    } else {
+      // Export only the Excel file
+      const excelBlob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      saveAs(excelBlob, "pricing_data.xlsx");
+      toast.success("Exported pricing data successfully");
+    }
+  } catch (error) {
+    console.error("Export error:", error);
+    toast.error("Failed to export data");
+  }
+};
+
+// =======================
+// Import & Validate Config with Full Schema Validation
+// =======================
+
+/**
+ * Import configuration from a JSON file with comprehensive validation.
+ *
+ * @param file - The configuration file to import.
+ * @param currentConfig - Your current PricingConfig object.
+ *                        This is used to filter entries, for instance, only allowing bedroom types that
+ *                        already exist in your pricing configurator.
+ * @returns A Promise resolving with an object containing the filtered configuration and an array of unmatched fields.
+ */
+export const importConfig = async (
+  file: File,
+  currentConfig?: PricingConfig
+) => {
+  return new Promise<{ config: any; unmatchedFields: string[] }>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      try {
+        const jsonContent = event.target?.result as string;
+        const importedConfig = JSON.parse(jsonContent);
+
+        if (!importedConfig || typeof importedConfig !== "object") {
+          reject(new Error("Invalid configuration file format"));
+          return;
+        }
+
+        // Define allowed top-level fields for your pricing configurator
+        const allowedFields = new Set([
+          "basePsf",
+          "bedroomTypePricing",
+          "viewPricing",
+          "floorRiseRules",
+          "additionalCategoryPricing",
+          "targetOverallPsf",
+          "isOptimized",
+          "maxFloor",
+          "optimizedTypes",
+        ]);
+
+        // Required fields must be present
+        const requiredFields = [
+          "basePsf",
+          "bedroomTypePricing",
+          "viewPricing",
+          "floorRiseRules",
+        ];
+
+        const missingFields = requiredFields.filter(
+          (field) => !(field in importedConfig)
+        );
+        if (missingFields.length > 0) {
+          reject(new Error(`Missing required fields: ${missingFields.join(", ")}`));
+          return;
+        }
+
+        // Build filtered configuration: include only allowed keys
+        const filteredConfig: Record<string, any> = {};
+        const unmatchedFields: string[] = [];
+        Object.keys(importedConfig).forEach((key) => {
+          if (allowedFields.has(key)) {
+            filteredConfig[key] = importedConfig[key];
+          } else {
+            unmatchedFields.push(key);
+          }
+        });
+
+        // ---------- Scalar Validations ----------
+
+        // Validate basePsf
+        if (typeof filteredConfig.basePsf !== "number" || filteredConfig.basePsf <= 0) {
+          reject(new Error("Invalid value for basePsf. It must be a positive number."));
+          return;
+        }
+
+        // Validate targetOverallPsf if present
+        if (
+          "targetOverallPsf" in filteredConfig &&
+          typeof filteredConfig.targetOverallPsf !== "number"
+        ) {
+          reject(new Error("Invalid value for targetOverallPsf. It must be a number."));
+          return;
+        }
+
+        // Validate isOptimized if present
+        if (
+          "isOptimized" in filteredConfig &&
+          typeof filteredConfig.isOptimized !== "boolean"
+        ) {
+          reject(new Error("Invalid value for isOptimized. It must be a boolean."));
+          return;
+        }
+
+        // Validate maxFloor if present
+        if ("maxFloor" in filteredConfig && typeof filteredConfig.maxFloor !== "number") {
+          reject(new Error("Invalid value for maxFloor. It must be a number."));
+          return;
+        }
+
+        // Validate optimizedTypes if present
+        if (
+          "optimizedTypes" in filteredConfig &&
+          (!Array.isArray(filteredConfig.optimizedTypes) ||
+           !filteredConfig.optimizedTypes.every((item: any) => typeof item === "string"))
+        ) {
+          reject(new Error("Invalid value for optimizedTypes. It must be an array of strings."));
+          return;
+        }
+
+        // ---------- Array Validations ----------
+
+        // 1) Validate bedroomTypePricing
+        if (!Array.isArray(filteredConfig.bedroomTypePricing)) {
+          reject(new Error("bedroomTypePricing must be an array"));
+          return;
+        }
+        let allowedBedroomTypes: string[] = [];
+        if (currentConfig && Array.isArray(currentConfig.bedroomTypePricing)) {
+          allowedBedroomTypes = currentConfig.bedroomTypePricing.map(
+            (item) => item.type
+          );
+        }
+        filteredConfig.bedroomTypePricing = filteredConfig.bedroomTypePricing.filter(
+          (item: any) => {
+            if (
+              typeof item !== "object" ||
+              typeof item.type !== "string" ||
+              typeof item.basePsf !== "number" ||
+              typeof item.targetAvgPsf !== "number"
+            ) {
+              reject(
+                new Error(
+                  "Invalid bedroomTypePricing entry: each must have 'type' (string), 'basePsf' (number), and 'targetAvgPsf' (number)"
+                )
+              );
+              return false;
+            }
+            // Only keep bedroom type entries if currentConfig is provided and the type exists in your current configuration.
+            return allowedBedroomTypes.length === 0 || allowedBedroomTypes.includes(item.type);
+          }
+        );
+
+        // 2) Validate viewPricing
+        if (!Array.isArray(filteredConfig.viewPricing)) {
+          reject(new Error("viewPricing must be an array"));
+          return;
+        }
+        for (const item of filteredConfig.viewPricing) {
+          if (
+            typeof item !== "object" ||
+            typeof item.view !== "string" ||
+            typeof item.psfAdjustment !== "number"
+          ) {
+            reject(new Error("Invalid viewPricing entry: each must have 'view' (string) and 'psfAdjustment' (number)"));
+            return;
+          }
+        }
+
+        // 3) Validate floorRiseRules
+        if (!Array.isArray(filteredConfig.floorRiseRules)) {
+          reject(new Error("floorRiseRules must be an array"));
+          return;
+        }
+        for (const rule of filteredConfig.floorRiseRules) {
+          if (
+            typeof rule !== "object" ||
+            typeof rule.startFloor !== "number" ||
+            (rule.endFloor !== null && typeof rule.endFloor !== "number") ||
+            typeof rule.psfIncrement !== "number"
+          ) {
+            reject(new Error("Invalid floorRiseRules entry: each must have 'startFloor' (number), 'endFloor' (number|null), and 'psfIncrement' (number)"));
+            return;
+          }
+        }
+
+        // 4) Validate additionalCategoryPricing if present
+        if (
+          filteredConfig.additionalCategoryPricing &&
+          !Array.isArray(filteredConfig.additionalCategoryPricing)
+        ) {
+          reject(new Error("additionalCategoryPricing must be an array if present"));
+          return;
+        }
+        if (Array.isArray(filteredConfig.additionalCategoryPricing)) {
+          for (const catItem of filteredConfig.additionalCategoryPricing) {
+            if (
+              typeof catItem !== "object" ||
+              typeof catItem.column !== "string" ||
+              typeof catItem.category !== "string" ||
+              typeof catItem.psfAdjustment !== "number"
+            ) {
+              reject(new Error("Invalid additionalCategoryPricing entry: each must have 'column' and 'category' (strings) and 'psfAdjustment' (number)"));
+              return;
+            }
+          }
+        }
+
+        resolve({ config: filteredConfig, unmatchedFields });
+      } catch (error) {
+        reject(new Error("Failed to parse configuration file"));
+      }
+    };
+
+    reader.onerror = () => {
+      reject(new Error("Failed to read configuration file"));
+    };
+
+    reader.readAsText(file);
+  });
+};
