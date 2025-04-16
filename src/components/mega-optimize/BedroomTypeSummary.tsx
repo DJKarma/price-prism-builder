@@ -72,7 +72,9 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
       <div className="flex justify-between items-center mb-4">
         <h4 className="font-medium text-lg">Bedroom Type Summary</h4>
         
-        <Select>
+        <Select
+          value={selectedTypes.length === bedroomTypes.length ? "all" : "filtered"}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder={`${selectedTypes.length} types selected`} />
           </SelectTrigger>

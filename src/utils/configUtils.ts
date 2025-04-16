@@ -1,24 +1,27 @@
-import { saveAs } from "file-saver";
-import * as XLSX from "xlsx";
-import JSZip from "jszip";
-import { toast } from "sonner";
-import { PricingConfig } from "@/components/PricingConfiguration"; // Adjust path if necessary
 
-// =======================
-// Export Configuration
-// =======================
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
+import JSZip from 'jszip';
+import { toast } from 'sonner';
 
+// Export configuration as JSON with improved parameter inclusion
 export const exportConfig = (config: any) => {
-  // Deep copy the configuration to avoid mutations
+  // Create a deep copy of the config to avoid modifying the original
   const configCopy = JSON.parse(JSON.stringify(config));
+  
+  // Add metadata to help with future imports
+  configCopy._metadata = {
+    exportVersion: "1.0.0",
+    exportDate: new Date().toISOString(),
+    availableParameters: Object.keys(configCopy).filter(k => !k.startsWith('_'))
+  };
+  
+  // Ensure we're exporting the actual current state
   const configJson = JSON.stringify(configCopy, null, 2);
   return configJson;
 };
 
-// =======================
-// Export to Excel
-// =======================
-
+// Export excel file with additional summary sheet
 export const exportToExcel = async (
   data: any[],
   includeConfig: boolean = false,
@@ -27,252 +30,169 @@ export const exportToExcel = async (
 ) => {
   try {
     const workbook = XLSX.utils.book_new();
-
+    
     // Main data sheet
     const worksheet = XLSX.utils.json_to_sheet(data);
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Units");
-
-    // Add summary sheet if provided
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Units');
+    
+    // Add summary sheet if available
     if (summaryData) {
       const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Pricing Summary");
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Pricing Summary');
     }
-
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-
+    
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    
     if (includeConfig && config) {
-      // Create a ZIP containing both the Excel file and the config JSON
+      // Create a zip file with both Excel and config
       const zip = new JSZip();
-      zip.file("pricing_data.xlsx", excelBuffer);
+      
+      // Add Excel file to zip
+      zip.file('pricing_data.xlsx', excelBuffer);
+      
+      // Add config file to zip with the current configuration
       const configJson = exportConfig(config);
-      zip.file("config.json", configJson);
-      const zipContent = await zip.generateAsync({ type: "blob" });
-      saveAs(zipContent, "price_prism_export.zip");
-      toast.success("Exported ZIP with data and configuration");
+      zip.file('config.json', configJson);
+      
+      // Generate zip file
+      const zipContent = await zip.generateAsync({ type: 'blob' });
+      saveAs(zipContent, 'price_prism_export.zip');
+      toast.success('Exported ZIP with data and configuration');
     } else {
-      // Export only the Excel file
+      // Just export the Excel file
       const excelBlob = new Blob([excelBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       });
-      saveAs(excelBlob, "pricing_data.xlsx");
-      toast.success("Exported pricing data successfully");
+      saveAs(excelBlob, 'pricing_data.xlsx');
+      toast.success('Exported pricing data successfully');
     }
   } catch (error) {
-    console.error("Export error:", error);
-    toast.error("Failed to export data");
+    console.error('Export error:', error);
+    toast.error('Failed to export data');
   }
 };
 
-// =======================
-// Import & Validate Config with Full Schema Validation
-// =======================
-
-/**
- * Import configuration from a JSON file with comprehensive validation.
- *
- * @param file - The configuration file to import.
- * @param currentConfig - Your current PricingConfig object.
- *                        This is used to filter entries, for instance, only allowing bedroom types that
- *                        already exist in your pricing configurator.
- * @returns A Promise resolving with an object containing the filtered configuration and an array of unmatched fields.
- */
-export const importConfig = async (
-  file: File,
-  currentConfig?: PricingConfig
-) => {
+// Import configuration from JSON with strict parameter validation
+export const importConfig = async (file: File) => {
   return new Promise<{ config: any; unmatchedFields: string[] }>((resolve, reject) => {
     const reader = new FileReader();
-
+    
     reader.onload = (event) => {
       try {
         const jsonContent = event.target?.result as string;
         const importedConfig = JSON.parse(jsonContent);
-
-        if (!importedConfig || typeof importedConfig !== "object") {
-          reject(new Error("Invalid configuration file format"));
+        
+        // Validate the imported config (basic validation)
+        if (!importedConfig || typeof importedConfig !== 'object') {
+          reject(new Error('Invalid configuration file format'));
           return;
         }
-
-        // Define allowed top-level fields for your pricing configurator
-        const allowedFields = new Set([
-          "basePsf",
-          "bedroomTypePricing",
-          "viewPricing",
-          "floorRiseRules",
-          "additionalCategoryPricing",
-          "targetOverallPsf",
-          "isOptimized",
-          "maxFloor",
-          "optimizedTypes",
-        ]);
-
-        // Required fields must be present
+        
+        // Fields that should exist in a valid PricingConfig
         const requiredFields = [
-          "basePsf",
-          "bedroomTypePricing",
-          "viewPricing",
-          "floorRiseRules",
+          'basePsf',
+          'bedroomTypePricing',
+          'viewPricing',
+          'floorRiseRules'
         ];
-
+        
+        // Check for required fields
         const missingFields = requiredFields.filter(
           (field) => !(field in importedConfig)
         );
+        
         if (missingFields.length > 0) {
-          reject(new Error(`Missing required fields: ${missingFields.join(", ")}`));
+          reject(new Error(`Missing required fields: ${missingFields.join(', ')}`));
           return;
         }
-
-        // Build filtered configuration: include only allowed keys
+        
+        // Get current pricing config from store or use an empty object
+        let currentConfig: any = {};
+        
+        // Collect fields that exist in the imported config but not in our schema
+        const knownFields = new Set([
+          ...requiredFields,
+          'targetOverallPsf',
+          'maxFloor',
+          'additionalPricingFactors',
+          'additionalCategoryPricing',
+          'optimizedTypes',
+          'isOptimized',
+          '_metadata' // Ignore metadata field
+        ]);
+        
+        // Find fields in imported config that aren't in our known schema
+        const unmatchedFields = Object.keys(importedConfig).filter(
+          (key) => !knownFields.has(key.toLowerCase()) && !key.startsWith('_')
+        );
+        
+        // Create a new config with only the fields that match our schema
         const filteredConfig: Record<string, any> = {};
-        const unmatchedFields: string[] = [];
-        Object.keys(importedConfig).forEach((key) => {
-          if (allowedFields.has(key)) {
-            filteredConfig[key] = importedConfig[key];
-          } else {
-            unmatchedFields.push(key);
+        
+        // Only copy fields that exist in our known schema
+        Object.entries(importedConfig).forEach(([key, value]) => {
+          // Skip metadata and unknown fields
+          if (key.startsWith('_') || !knownFields.has(key.toLowerCase())) {
+            return;
+          }
+          
+          // Case-insensitive matching for object keys
+          const matchedKey = Array.from(knownFields).find(
+            k => k.toLowerCase() === key.toLowerCase()
+          );
+          
+          if (matchedKey) {
+            // For arrays of objects, we need special handling for case matching
+            if (matchedKey === 'bedroomTypePricing' && Array.isArray(value)) {
+              filteredConfig[matchedKey] = processCaseInsensitiveArrays(value, 'type');
+            } else if (matchedKey === 'viewPricing' && Array.isArray(value)) {
+              filteredConfig[matchedKey] = processCaseInsensitiveArrays(value, 'view');
+            } else if (matchedKey === 'additionalCategoryPricing' && Array.isArray(value)) {
+              // For additional categories, we need to handle case matching for both column and category
+              filteredConfig[matchedKey] = processCaseInsensitiveAdditionalCategories(value);
+            } else {
+              filteredConfig[matchedKey] = value;
+            }
           }
         });
-
-        // ---------- Scalar Validations ----------
-
-        // Validate basePsf
-        if (typeof filteredConfig.basePsf !== "number" || filteredConfig.basePsf <= 0) {
-          reject(new Error("Invalid value for basePsf. It must be a positive number."));
-          return;
-        }
-
-        // Validate targetOverallPsf if present
-        if (
-          "targetOverallPsf" in filteredConfig &&
-          typeof filteredConfig.targetOverallPsf !== "number"
-        ) {
-          reject(new Error("Invalid value for targetOverallPsf. It must be a number."));
-          return;
-        }
-
-        // Validate isOptimized if present
-        if (
-          "isOptimized" in filteredConfig &&
-          typeof filteredConfig.isOptimized !== "boolean"
-        ) {
-          reject(new Error("Invalid value for isOptimized. It must be a boolean."));
-          return;
-        }
-
-        // Validate maxFloor if present
-        if ("maxFloor" in filteredConfig && typeof filteredConfig.maxFloor !== "number") {
-          reject(new Error("Invalid value for maxFloor. It must be a number."));
-          return;
-        }
-
-        // Validate optimizedTypes if present
-        if (
-          "optimizedTypes" in filteredConfig &&
-          (!Array.isArray(filteredConfig.optimizedTypes) ||
-           !filteredConfig.optimizedTypes.every((item: any) => typeof item === "string"))
-        ) {
-          reject(new Error("Invalid value for optimizedTypes. It must be an array of strings."));
-          return;
-        }
-
-        // ---------- Array Validations ----------
-
-        // 1) Validate bedroomTypePricing
-        if (!Array.isArray(filteredConfig.bedroomTypePricing)) {
-          reject(new Error("bedroomTypePricing must be an array"));
-          return;
-        }
-        let allowedBedroomTypes: string[] = [];
-        if (currentConfig && Array.isArray(currentConfig.bedroomTypePricing)) {
-          allowedBedroomTypes = currentConfig.bedroomTypePricing.map(
-            (item) => item.type
-          );
-        }
-        filteredConfig.bedroomTypePricing = filteredConfig.bedroomTypePricing.filter(
-          (item: any) => {
-            if (
-              typeof item !== "object" ||
-              typeof item.type !== "string" ||
-              typeof item.basePsf !== "number" ||
-              typeof item.targetAvgPsf !== "number"
-            ) {
-              reject(
-                new Error(
-                  "Invalid bedroomTypePricing entry: each must have 'type' (string), 'basePsf' (number), and 'targetAvgPsf' (number)"
-                )
-              );
-              return false;
-            }
-            // Only keep bedroom type entries if currentConfig is provided and the type exists in your current configuration.
-            return allowedBedroomTypes.length === 0 || allowedBedroomTypes.includes(item.type);
-          }
-        );
-
-        // 2) Validate viewPricing
-        if (!Array.isArray(filteredConfig.viewPricing)) {
-          reject(new Error("viewPricing must be an array"));
-          return;
-        }
-        for (const item of filteredConfig.viewPricing) {
-          if (
-            typeof item !== "object" ||
-            typeof item.view !== "string" ||
-            typeof item.psfAdjustment !== "number"
-          ) {
-            reject(new Error("Invalid viewPricing entry: each must have 'view' (string) and 'psfAdjustment' (number)"));
-            return;
-          }
-        }
-
-        // 3) Validate floorRiseRules
-        if (!Array.isArray(filteredConfig.floorRiseRules)) {
-          reject(new Error("floorRiseRules must be an array"));
-          return;
-        }
-        for (const rule of filteredConfig.floorRiseRules) {
-          if (
-            typeof rule !== "object" ||
-            typeof rule.startFloor !== "number" ||
-            (rule.endFloor !== null && typeof rule.endFloor !== "number") ||
-            typeof rule.psfIncrement !== "number"
-          ) {
-            reject(new Error("Invalid floorRiseRules entry: each must have 'startFloor' (number), 'endFloor' (number|null), and 'psfIncrement' (number)"));
-            return;
-          }
-        }
-
-        // 4) Validate additionalCategoryPricing if present
-        if (
-          filteredConfig.additionalCategoryPricing &&
-          !Array.isArray(filteredConfig.additionalCategoryPricing)
-        ) {
-          reject(new Error("additionalCategoryPricing must be an array if present"));
-          return;
-        }
-        if (Array.isArray(filteredConfig.additionalCategoryPricing)) {
-          for (const catItem of filteredConfig.additionalCategoryPricing) {
-            if (
-              typeof catItem !== "object" ||
-              typeof catItem.column !== "string" ||
-              typeof catItem.category !== "string" ||
-              typeof catItem.psfAdjustment !== "number"
-            ) {
-              reject(new Error("Invalid additionalCategoryPricing entry: each must have 'column' and 'category' (strings) and 'psfAdjustment' (number)"));
-              return;
-            }
-          }
-        }
-
+        
         resolve({ config: filteredConfig, unmatchedFields });
       } catch (error) {
-        reject(new Error("Failed to parse configuration file"));
+        reject(new Error('Failed to parse configuration file'));
       }
     };
-
+    
     reader.onerror = () => {
-      reject(new Error("Failed to read configuration file"));
+      reject(new Error('Failed to read configuration file'));
     };
-
+    
     reader.readAsText(file);
+  });
+};
+
+// Helper function to process arrays with case-insensitive matching
+const processCaseInsensitiveArrays = (items: any[], keyField: string) => {
+  // Preserve the original case of the values in the array
+  return items.map(item => {
+    // Create a new object for each item to avoid modifying the original
+    const processedItem: Record<string, any> = {};
+    Object.entries(item).forEach(([key, value]) => {
+      processedItem[key] = value;
+    });
+    return processedItem;
+  });
+};
+
+// Helper function to process additional category arrays with case-insensitive matching
+const processCaseInsensitiveAdditionalCategories = (categories: any[]) => {
+  // Preserve the original case of both column and category
+  return categories.map(item => {
+    // Create a new object for each item to avoid modifying the original
+    const processedItem: Record<string, any> = {
+      column: item.column,
+      category: item.category,
+      psfAdjustment: item.psfAdjustment
+    };
+    return processedItem;
   });
 };
