@@ -129,6 +129,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
           const mappedKey = mappings.additionalCategories[key];
           if (!mappedKey || mappedKey === "no-match") return item;
 
+          const [mappedColumn, mappedCategory] = mappedKey.split(': ');
           const matchedImported = importedConfig.additionalCategoryPricing.find(
             (imported: any) => `${imported.column}: ${imported.category}` === mappedKey
           );
@@ -235,4 +236,3 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
 };
 
 export default ConfigImporter;
-

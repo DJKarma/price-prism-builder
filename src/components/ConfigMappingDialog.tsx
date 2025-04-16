@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -88,53 +89,63 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
     if (isOpen && currentConfig && importedConfig) {
       const currentBedroomTypes = currentConfig?.bedroomTypePricing?.map((item: any) => ({
         key: item.type,
-        value: `Base PSF: ${item.psf || 0}`
+        value: item.psf,
+        displayValue: `${item.psf || 0}`
       })) || [];
 
       const importedBedroomTypes = importedConfig?.bedroomTypePricing?.map((item: any) => ({
         key: item.type,
-        value: `Base PSF: ${item.psf || 0}`
+        value: item.psf,
+        displayValue: `${item.psf || 0}`
       })) || [];
 
       const currentViews = currentConfig?.viewPricing?.map((item: any) => ({
         key: item.view,
-        value: `Premium: ${item.premium || 0}%`
+        value: item.premium,
+        displayValue: `${item.premium || 0}%`
       })) || [];
 
       const importedViews = importedConfig?.viewPricing?.map((item: any) => ({
         key: item.view,
-        value: `Premium: ${item.premium || 0}%`
+        value: item.premium,
+        displayValue: `${item.premium || 0}%`
       })) || [];
 
       const currentAdditionalCategories = currentConfig?.additionalCategoryPricing?.map((item: any) => ({
         key: `${item.column}: ${item.category}`,
-        value: item.psfAdjustment
+        value: item.psfAdjustment,
+        displayValue: `${item.psfAdjustment || 0}`
       })) || [];
 
       const importedAdditionalCategories = importedConfig?.additionalCategoryPricing?.map((item: any) => ({
         key: `${item.column}: ${item.category}`,
-        value: item.psfAdjustment
+        value: item.psfAdjustment,
+        displayValue: `${item.psfAdjustment || 0}`
       })) || [];
 
       const currentFloorRiseRules = currentConfig?.floorRiseRules?.map((rule: any) => ({
         key: `${rule.startFloor}-${rule.endFloor}`,
-        value: `Increment: ${rule.psfIncrement || 0}`
+        value: rule.psfIncrement,
+        displayValue: `${rule.psfIncrement || 0}`
       })) || [];
 
       const importedFloorRiseRules = importedConfig?.floorRiseRules?.map((rule: any) => ({
         key: `${rule.startFloor}-${rule.endFloor}`,
-        value: `Increment: ${rule.psfIncrement || 0}`
+        value: rule.psfIncrement,
+        displayValue: `${rule.psfIncrement || 0}`
       })) || [];
 
       const scalarFields = ['basePsf', 'maxFloor', 'targetOverallPsf'];
       const currentScalarFields = scalarFields.filter(field => field in currentConfig).map(field => ({
         key: field,
-        value: currentConfig[field]
+        value: currentConfig[field],
+        displayValue: `${currentConfig[field]}`
       }));
 
       const importedScalarFields = scalarFields.filter(field => field in importedConfig).map(field => ({
         key: field,
-        value: importedConfig[field]
+        value: importedConfig[field],
+        displayValue: `${importedConfig[field]}`
       }));
 
       // Set up mapping sections with values
@@ -281,7 +292,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                             <Label className="text-sm font-medium">
                               {currentField.key}
                               <span className="block text-xs text-gray-500">
-                                Current: {currentField.value}
+                                Current: {currentField.displayValue}
                               </span>
                             </Label>
                           </div>
@@ -301,7 +312,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                                     <div>
                                       {importedField.key}
                                       <span className="block text-xs text-gray-500">
-                                        Value: {importedField.value}
+                                        Value: {importedField.displayValue}
                                       </span>
                                     </div>
                                   </SelectItem>
