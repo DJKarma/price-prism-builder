@@ -16,10 +16,10 @@ export const exportConfig = (config: any) => {
     fieldMappings: {
       bedroomTypePricing: configCopy.bedroomTypePricing?.map((item: any) => item.type) || [],
       viewPricing: configCopy.viewPricing?.map((item: any) => item.view) || [],
+      // Include the PSF adjustment along with column and category for additional categories
       additionalCategoryPricing: configCopy.additionalCategoryPricing?.map(
-  (item: any) => `${item.column}: ${item.category} (Adjustment: ${item.psfAdjustment})`
-) || []
-
+        (item: any) => `${item.column}: ${item.category} (Adjustment: ${item.psfAdjustment})`
+      ) || []
     }
   };
   
@@ -155,7 +155,7 @@ export const importConfig = async (file: File) => {
             } else if (matchedKey === 'viewPricing' && Array.isArray(value)) {
               filteredConfig[matchedKey] = processCaseInsensitiveArrays(value, 'view');
             } else if (matchedKey === 'additionalCategoryPricing' && Array.isArray(value)) {
-              // For additional categories, we need to handle case matching for both column and category
+              // For additional categories, we handle case matching for both column and category
               filteredConfig[matchedKey] = processCaseInsensitiveAdditionalCategories(value);
             } else {
               filteredConfig[matchedKey] = value;
@@ -195,12 +195,11 @@ const processCaseInsensitiveAdditionalCategories = (categories: any[]) => {
   // Preserve the original case of both column and category
   return categories.map(item => {
     // Create a new object for each item to avoid modifying the original
-    const processedItem: Record<string, any> = {
+    return {
       column: item.column,
       category: item.category,
       psfAdjustment: item.psfAdjustment
     };
-    return processedItem;
   });
 };
 
