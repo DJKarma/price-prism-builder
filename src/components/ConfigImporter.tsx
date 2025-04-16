@@ -3,7 +3,7 @@ import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { FileJson, AlertTriangle, X } from 'lucide-react';
-import { importConfig } from '@/utils/configUtils';
+import { importConfig, mergeConfigSelectively } from '@/utils/configUtils';
 import { 
   Alert,
   AlertDescription,
@@ -12,9 +12,10 @@ import {
 
 interface ConfigImporterProps {
   onConfigImported: (config: any) => void;
+  currentConfig: any;
 }
 
-const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => {
+const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, currentConfig }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [unmatchedFields, setUnmatchedFields] = useState<string[]>([]);
   const [showAlert, setShowAlert] = useState(false);
@@ -30,16 +31,20 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
     if (!file) return;
     
     try {
-      const { config, unmatchedFields } = await importConfig(file);
+      // First, validate and parse the imported file
+      const { config: importedConfig } = await importConfig(file);
       
-      // Check if config is empty or doesn't have required fields
-      if (!config || !Object.keys(config).length) {
+      // Now selectively merge with current config, only updating existing fields
+      const { mergedConfig, unmatchedFields } = mergeConfigSelectively(currentConfig, importedConfig);
+      
+      // Check if merged config is empty or doesn't have required fields
+      if (!mergedConfig || !Object.keys(mergedConfig).length) {
         toast.error("Failed to import configuration: No valid data found");
         return;
       }
 
       // Verify key configuration elements are present
-      if (!config.bedroomTypePricing || !config.viewPricing) {
+      if (!mergedConfig.bedroomTypePricing || !mergedConfig.viewPricing) {
         toast.error("Configuration file is missing critical pricing components");
         return;
       }
@@ -54,20 +59,24 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported }) => 
       }
       
       // Log the imported config for debugging
-      console.log("Imported configuration:", config);
+      console.log("Imported configuration:", mergedConfig);
+      console.log("Unmatched fields:", unmatchedFields);
       
-      // Pass the imported config to the parent component
-      onConfigImported(config);
+      // Pass the merged config to the parent component
+      onConfigImported(mergedConfig);
+      
+      // Calculate matched and unmatched parameter counts for toast
+      const matchedCount = Object.keys(importedConfig)
+        .filter(key => !key.startsWith('_') && !unmatchedFields.includes(key))
+        .length;
       
       // Show success toast with field count and warning about unmatched fields
-      const fieldsCount = Object.keys(config).length;
-      
       if (unmatchedFields.length > 0) {
-        toast.warning(`Config imported with ${fieldsCount} valid parameters. ${unmatchedFields.length} parameters could not be applied.`, {
+        toast.warning(`Config imported with ${matchedCount} valid parameters. ${unmatchedFields.length} parameters could not be applied.`, {
           duration: 5000,
         });
       } else {
-        toast.success(`Config imported successfully. ${fieldsCount} parameters applied.`);
+        toast.success(`Config imported successfully. ${matchedCount} parameters applied.`);
       }
     } catch (error) {
       toast.error((error as Error).message || 'Failed to import configuration');

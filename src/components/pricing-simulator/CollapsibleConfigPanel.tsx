@@ -1,3 +1,4 @@
+
 import React from "react";
 import { 
   Accordion,
@@ -24,110 +25,10 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
   maxFloor,
   additionalCategories
 }) => {
-  // Handle config import, preserving existing values for params not in import
+  // Handle config import
   const handleConfigImport = (importedConfig: any) => {
-    // Create a merged config that preserves existing values
-    const mergedConfig = {
-      ...pricingConfig,
-      ...importedConfig,
-      // Handle nested objects like bedroomTypePricing and viewPricing
-      // by matching on type/view and merging
-      bedroomTypePricing: mergeConfigObjects(
-        pricingConfig?.bedroomTypePricing || [],
-        importedConfig?.bedroomTypePricing || [],
-        'type'
-      ),
-      viewPricing: mergeConfigObjects(
-        pricingConfig?.viewPricing || [],
-        importedConfig?.viewPricing || [],
-        'view'
-      ),
-      // Handle additionalCategoryPricing by matching on column and category
-      additionalCategoryPricing: mergeAdditionalCategories(
-        pricingConfig?.additionalCategoryPricing || [],
-        importedConfig?.additionalCategoryPricing || []
-      )
-    };
-    
-    onConfigUpdate(mergedConfig);
-  };
-  
-  // Merge arrays of objects based on a key field with case-insensitive matching
-  const mergeConfigObjects = (existing: any[], imported: any[], keyField: string) => {
-    if (!imported.length) return existing;
-    if (!existing.length) return imported;
-    
-    // Create a map of existing objects by key (case-insensitive)
-    const existingMap = new Map(
-      existing.map(item => [item[keyField].toLowerCase(), item])
-    );
-    
-    // For each imported item, try to match it with existing items case-insensitively
-    const result = [...existing]; // Start with a copy of existing items
-    
-    imported.forEach(importedItem => {
-      if (!importedItem[keyField]) return; // Skip items without the key field
-      
-      const importedKey = importedItem[keyField].toLowerCase();
-      const existingIndex = result.findIndex(item => 
-        item[keyField].toLowerCase() === importedKey
-      );
-      
-      if (existingIndex >= 0) {
-        // If found, update the existing item with imported values
-        // but keep the original case for the key field
-        const originalKeyValue = result[existingIndex][keyField];
-        result[existingIndex] = { 
-          ...result[existingIndex], 
-          ...importedItem,
-          [keyField]: originalKeyValue // Keep original case for key field
-        };
-      } else {
-        // If not found, add the imported item
-        result.push(importedItem);
-      }
-    });
-    
-    return result;
-  };
-  
-  // Special merge for additionalCategoryPricing with case-insensitive matching
-  const mergeAdditionalCategories = (existing: any[], imported: any[]) => {
-    if (!imported.length) return existing;
-    if (!existing.length) return imported;
-    
-    const result = [...existing]; // Start with a copy of existing items
-    
-    imported.forEach(importedItem => {
-      if (!importedItem.column || !importedItem.category) return; // Skip invalid items
-      
-      const importedColumnLower = importedItem.column.toLowerCase();
-      const importedCategoryLower = importedItem.category.toLowerCase();
-      
-      // Find matching item with case-insensitive comparison
-      const existingIndex = result.findIndex(item => 
-        item.column.toLowerCase() === importedColumnLower && 
-        item.category.toLowerCase() === importedCategoryLower
-      );
-      
-      if (existingIndex >= 0) {
-        // If found, update the existing item but keep original case for column and category
-        const originalColumn = result[existingIndex].column;
-        const originalCategory = result[existingIndex].category;
-        
-        result[existingIndex] = { 
-          ...result[existingIndex], 
-          ...importedItem,
-          column: originalColumn, // Keep original case
-          category: originalCategory // Keep original case
-        };
-      } else {
-        // If not found, add the imported item
-        result.push(importedItem);
-      }
-    });
-    
-    return result;
+    // Pass the merged config directly from ConfigImporter
+    onConfigUpdate(importedConfig);
   };
   
   return (
@@ -145,7 +46,10 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
                 </span>
               </div>
               <div className="flex items-center">
-                <ConfigImporter onConfigImported={handleConfigImport} />
+                <ConfigImporter 
+                  onConfigImported={handleConfigImport} 
+                  currentConfig={pricingConfig}
+                />
               </div>
             </div>
           </AccordionTrigger>

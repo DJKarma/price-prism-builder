@@ -1,4 +1,3 @@
-
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
@@ -195,4 +194,244 @@ const processCaseInsensitiveAdditionalCategories = (categories: any[]) => {
     };
     return processedItem;
   });
+};
+
+// Selective import that only updates existing fields in current config
+export const mergeConfigSelectively = (
+  currentConfig: any, 
+  importedConfig: any
+): { mergedConfig: any; unmatchedFields: string[] } => {
+  // Make copies to avoid modifying originals
+  const result = JSON.parse(JSON.stringify(currentConfig || {}));
+  const unmatchedFields: string[] = [];
+  
+  // Skip metadata fields
+  const skipFields = ['_metadata'];
+  
+  // Process top-level fields
+  Object.keys(importedConfig).forEach(key => {
+    if (skipFields.includes(key)) return;
+    
+    // If field doesn't exist in current config, track as unmatched
+    if (!(key in result)) {
+      unmatchedFields.push(key);
+      return;
+    }
+    
+    // Handle special cases for array fields that need matching by ID or key
+    if (key === 'bedroomTypePricing') {
+      result[key] = mergeArrayByKey(result[key], importedConfig[key], 'type', unmatchedFields);
+    } 
+    else if (key === 'viewPricing') {
+      result[key] = mergeArrayByKey(result[key], importedConfig[key], 'view', unmatchedFields);
+    } 
+    else if (key === 'additionalCategoryPricing') {
+      result[key] = mergeAdditionalCategories(result[key], importedConfig[key], unmatchedFields);
+    } 
+    else if (key === 'floorRiseRules') {
+      // For floor rise rules we match by start/end floor range
+      result[key] = mergeFloorRules(result[key], importedConfig[key], unmatchedFields);
+    }
+    else if (typeof importedConfig[key] !== 'object' || importedConfig[key] === null) {
+      // Simple value fields (numbers, strings, booleans)
+      result[key] = importedConfig[key];
+    }
+    else {
+      // For nested objects that aren't special cases
+      const nestedResult = mergeNestedObject(result[key], importedConfig[key], unmatchedFields, key);
+      result[key] = nestedResult.merged;
+      // Extend unmatchedFields with any nested unmatched fields
+      unmatchedFields.push(...nestedResult.unmatched.map(field => `${key}.${field}`));
+    }
+  });
+  
+  return { mergedConfig: result, unmatchedFields };
+};
+
+// Helper for merging nested objects
+const mergeNestedObject = (current: any, imported: any, unmatchedFields: string[], parentKey: string) => {
+  const result = { ...current };
+  const unmatched: string[] = [];
+  
+  if (!current || typeof current !== 'object') {
+    // If current is not an object, we can't merge
+    return { merged: current, unmatched: Object.keys(imported) };
+  }
+  
+  Object.keys(imported).forEach(key => {
+    if (!(key in current)) {
+      unmatched.push(key);
+      return;
+    }
+    
+    if (typeof imported[key] !== 'object' || imported[key] === null) {
+      // Simple value
+      result[key] = imported[key];
+    } else {
+      // Recursively merge nested objects
+      const nestedResult = mergeNestedObject(current[key], imported[key], unmatchedFields, `${parentKey}.${key}`);
+      result[key] = nestedResult.merged;
+      unmatched.push(...nestedResult.unmatched.map(field => `${key}.${field}`));
+    }
+  });
+  
+  return { merged: result, unmatched };
+};
+
+// Helper for merging arrays by a key field (case-insensitive)
+const mergeArrayByKey = (currentArray: any[], importedArray: any[], keyField: string, unmatchedFields: string[]) => {
+  if (!Array.isArray(currentArray) || !currentArray.length) return currentArray;
+  if (!Array.isArray(importedArray) || !importedArray.length) return currentArray;
+  
+  // Create a deep copy to avoid modifying the original
+  const result = JSON.parse(JSON.stringify(currentArray));
+  
+  // Build a map of current items by their key (case-insensitive)
+  const currentMap = new Map();
+  result.forEach((item, index) => {
+    if (item[keyField]) {
+      currentMap.set(item[keyField].toLowerCase(), index);
+    }
+  });
+  
+  // For each imported item, try to find a matching current item
+  importedArray.forEach(importedItem => {
+    if (!importedItem[keyField]) return;
+    
+    const importedKey = importedItem[keyField].toLowerCase();
+    
+    // Find the index of the matching item (case-insensitive)
+    const matchingIndex = currentMap.get(importedKey);
+    
+    if (matchingIndex !== undefined) {
+      // If we found a match, update the values but preserve the original keyField
+      const originalKeyValue = result[matchingIndex][keyField];
+      
+      // Update all fields except the key field
+      Object.keys(importedItem).forEach(field => {
+        if (field !== keyField) {
+          result[matchingIndex][field] = importedItem[field];
+        }
+      });
+      
+      // Ensure we keep the original case of the key field
+      result[matchingIndex][keyField] = originalKeyValue;
+    } else {
+      // If no match found, track as unmatched
+      unmatchedFields.push(`${keyField}:${importedItem[keyField]}`);
+    }
+  });
+  
+  return result;
+};
+
+// Helper for merging additional categories
+const mergeAdditionalCategories = (currentArray: any[], importedArray: any[], unmatchedFields: string[]) => {
+  if (!Array.isArray(currentArray) || !currentArray.length) return currentArray;
+  if (!Array.isArray(importedArray) || !importedArray.length) return currentArray;
+  
+  // Create a deep copy to avoid modifying the original
+  const result = JSON.parse(JSON.stringify(currentArray));
+  
+  // Build a map of current items by their combined column+category key (case-insensitive)
+  const currentMap = new Map();
+  result.forEach((item, index) => {
+    if (item.column && item.category) {
+      const key = `${item.column.toLowerCase()}:${item.category.toLowerCase()}`;
+      currentMap.set(key, index);
+    }
+  });
+  
+  // For each imported item, try to find a matching current item
+  importedArray.forEach(importedItem => {
+    if (!importedItem.column || !importedItem.category) return;
+    
+    const importedKey = `${importedItem.column.toLowerCase()}:${importedItem.category.toLowerCase()}`;
+    
+    // Find the index of the matching item (case-insensitive)
+    const matchingIndex = currentMap.get(importedKey);
+    
+    if (matchingIndex !== undefined) {
+      // If we found a match, update the values but preserve the original column/category
+      const originalColumn = result[matchingIndex].column;
+      const originalCategory = result[matchingIndex].category;
+      
+      // Update all fields
+      Object.keys(importedItem).forEach(field => {
+        if (field !== 'column' && field !== 'category') {
+          result[matchingIndex][field] = importedItem[field];
+        }
+      });
+      
+      // Ensure we keep the original case of column/category
+      result[matchingIndex].column = originalColumn;
+      result[matchingIndex].category = originalCategory;
+    } else {
+      // If no match found, track as unmatched
+      unmatchedFields.push(`${importedItem.column}:${importedItem.category}`);
+    }
+  });
+  
+  return result;
+};
+
+// Helper for merging floor rise rules
+const mergeFloorRules = (currentRules: any[], importedRules: any[], unmatchedFields: string[]) => {
+  if (!Array.isArray(currentRules) || !currentRules.length) return currentRules;
+  if (!Array.isArray(importedRules) || !importedRules.length) return currentRules;
+  
+  // Create a deep copy to avoid modifying the original
+  const result = JSON.parse(JSON.stringify(currentRules));
+  
+  // For each imported rule, try to find a matching current rule by floor range
+  importedRules.forEach(importedRule => {
+    const importedStart = importedRule.startFloor;
+    const importedEnd = importedRule.endFloor;
+    
+    if (typeof importedStart !== 'number') return;
+    
+    // Try to find an exact match by start and end floor
+    const exactMatchIndex = result.findIndex(rule => 
+      rule.startFloor === importedStart && 
+      rule.endFloor === importedEnd
+    );
+    
+    if (exactMatchIndex !== -1) {
+      // Found exact match, update all fields except start/end floor
+      const fieldsToUpdate = ['psfIncrement', 'jumpEveryFloor', 'jumpIncrement'];
+      fieldsToUpdate.forEach(field => {
+        if (field in importedRule) {
+          result[exactMatchIndex][field] = importedRule[field];
+        }
+      });
+    } else {
+      // Try to find an overlapping range
+      const overlappingIndex = result.findIndex(rule => {
+        const ruleStart = rule.startFloor;
+        const ruleEnd = rule.endFloor === null ? Infinity : rule.endFloor;
+        const importedEndValue = importedEnd === null ? Infinity : importedEnd;
+        
+        // Check if ranges overlap
+        return (
+          (importedStart <= ruleEnd && importedEndValue >= ruleStart) ||
+          (importedStart === ruleStart)
+        );
+      });
+      
+      if (overlappingIndex !== -1) {
+        // Found overlapping range, update fields
+        const fieldsToUpdate = ['psfIncrement', 'jumpEveryFloor', 'jumpIncrement'];
+        fieldsToUpdate.forEach(field => {
+          if (field in importedRule) {
+            result[overlappingIndex][field] = importedRule[field];
+          }
+        });
+      } else {
+        // No match found, track as unmatched
+        unmatchedFields.push(`FloorRule:${importedStart}-${importedEnd || 'MAX'}`);
+      }
+    }
+  });
+  
+  return result;
 };
