@@ -80,6 +80,36 @@ export interface PricingConfig {
   maxFloor?: number;
 }
 
+// Helper function to compute default additional categories from props.
+const computeDefaultAdditionalCategories = (
+  initialConfig: any,
+  additionalCategories: Array<{ column: string, categories: string[] }>
+): AdditionalCategoryPricing[] => {
+  if (
+    initialConfig &&
+    initialConfig.additionalCategoryPricing &&
+    initialConfig.additionalCategoryPricing.length > 0
+  ) {
+    return initialConfig.additionalCategoryPricing;
+  }
+  if (additionalCategories && additionalCategories.length > 0) {
+    const defaults: AdditionalCategoryPricing[] = [];
+    additionalCategories.forEach(category => {
+      if (category.categories && category.categories.length > 0) {
+        category.categories.forEach(value => {
+          defaults.push({
+            column: category.column,
+            category: value,
+            psfAdjustment: 0
+          });
+        });
+      }
+    });
+    return defaults;
+  }
+  return [];
+};
+
 const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   data,
   initialConfig,
@@ -93,9 +123,18 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   ]);
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
-  const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>([]);
+  
+  // Initialize additional categories state with default values based on initialConfig and additionalCategories prop.
+  const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>(
+    computeDefaultAdditionalCategories(initialConfig, additionalCategories)
+  );
 
-  // Initialize from initial config if provided
+  // If initialConfig changes or additionalCategories prop changes, update additional categories state.
+  useEffect(() => {
+    setAdditionalCategoryPricing(computeDefaultAdditionalCategories(initialConfig, additionalCategories));
+  }, [initialConfig, additionalCategories]);
+
+  // Initialize state from initialConfig if provided
   useEffect(() => {
     if (initialConfig) {
       if (initialConfig.basePsf) {
@@ -120,10 +159,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       if (initialConfig.viewPricing && initialConfig.viewPricing.length > 0) {
         setViewTypes(initialConfig.viewPricing);
       }
-      
-      if (initialConfig.additionalCategoryPricing && initialConfig.additionalCategoryPricing.length > 0) {
-        setAdditionalCategoryPricing(initialConfig.additionalCategoryPricing);
-      }
     }
   }, [initialConfig, maxFloor]);
 
@@ -138,30 +173,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     }
   }, [maxFloor]);
 
-  // Set additional categories from additionalCategories prop if initialConfig doesn't include them.
-  useEffect(() => {
-    if (!initialConfig || !initialConfig.additionalCategoryPricing || initialConfig.additionalCategoryPricing.length === 0) {
-      const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
-      
-      if (additionalCategories && additionalCategories.length > 0) {
-        additionalCategories.forEach(category => {
-          if (category.categories && category.categories.length > 0) {
-            category.categories.forEach(value => {
-              initialAdditionalCategories.push({
-                column: category.column,
-                category: value,
-                psfAdjustment: 0
-              });
-            });
-          }
-        });
-      }
-      
-      setAdditionalCategoryPricing(initialAdditionalCategories);
-    }
-  }, [initialConfig, additionalCategories]);
-
-  // Process data to set bedroom types and view types (if not provided by initialConfig)
+  // Process data for bedroom types and view types (if not provided by initialConfig)
   useEffect(() => {
     if (!data.length) return;
 
@@ -277,7 +289,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       const rule = floorRiseRules[i];
       
       if (rule.endFloor !== null && rule.startFloor > rule.endFloor) {
-        toast.error(`Floor rise rule #${i+1} has start floor greater than end floor`);
+        toast.error(`Floor rise rule #${i + 1} has start floor greater than end floor`);
         return;
       }
       
@@ -290,7 +302,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           (rule.startFloor <= otherRuleEnd && ruleEnd >= otherRule.startFloor) ||
           (otherRule.startFloor <= ruleEnd && otherRuleEnd >= rule.startFloor)
         ) {
-          toast.error(`Floor rise rules #${i+1} and #${j+1} have overlapping floor ranges`);
+          toast.error(`Floor rise rules #${i + 1} and #${j + 1} have overlapping floor ranges`);
           return;
         }
       }
