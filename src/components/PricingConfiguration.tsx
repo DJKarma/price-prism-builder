@@ -80,36 +80,6 @@ export interface PricingConfig {
   maxFloor?: number;
 }
 
-// Helper function to compute default additional categories from props.
-const computeDefaultAdditionalCategories = (
-  initialConfig: any,
-  additionalCategories: Array<{ column: string, categories: string[] }>
-): AdditionalCategoryPricing[] => {
-  if (
-    initialConfig &&
-    initialConfig.additionalCategoryPricing &&
-    initialConfig.additionalCategoryPricing.length > 0
-  ) {
-    return initialConfig.additionalCategoryPricing;
-  }
-  if (additionalCategories && additionalCategories.length > 0) {
-    const defaults: AdditionalCategoryPricing[] = [];
-    additionalCategories.forEach(category => {
-      if (category.categories && category.categories.length > 0) {
-        category.categories.forEach(value => {
-          defaults.push({
-            column: category.column,
-            category: value,
-            psfAdjustment: 0
-          });
-        });
-      }
-    });
-    return defaults;
-  }
-  return [];
-};
-
 const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   data,
   initialConfig,
@@ -123,18 +93,29 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   ]);
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
-  
-  // Initialize additional categories state with default values based on initialConfig and additionalCategories prop.
-  const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>(
-    computeDefaultAdditionalCategories(initialConfig, additionalCategories)
-  );
+  // Always initialize additionalCategoryPricing:
+  const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>([]);
 
-  // If initialConfig changes or additionalCategories prop changes, update additional categories state.
+  // Update additionalCategoryPricing from initialConfig or additionalCategories prop on mount and when they change.
   useEffect(() => {
-    setAdditionalCategoryPricing(computeDefaultAdditionalCategories(initialConfig, additionalCategories));
+    if (initialConfig && initialConfig.additionalCategoryPricing && initialConfig.additionalCategoryPricing.length > 0) {
+      setAdditionalCategoryPricing(initialConfig.additionalCategoryPricing);
+    } else if (additionalCategories && additionalCategories.length > 0) {
+      // Build defaults from additionalCategories prop
+      const computed = additionalCategories.flatMap(category =>
+        category.categories.map((value) => ({
+          column: category.column,
+          category: value,
+          psfAdjustment: 0,
+        }))
+      );
+      setAdditionalCategoryPricing(computed);
+    } else {
+      setAdditionalCategoryPricing([]);
+    }
   }, [initialConfig, additionalCategories]);
 
-  // Initialize state from initialConfig if provided
+  // Initialize other values from initialConfig if provided
   useEffect(() => {
     if (initialConfig) {
       if (initialConfig.basePsf) {
@@ -173,7 +154,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     }
   }, [maxFloor]);
 
-  // Process data for bedroom types and view types (if not provided by initialConfig)
+  // Process bedroom types and view types from data (if not provided by initialConfig)
   useEffect(() => {
     if (!data.length) return;
 
@@ -222,7 +203,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           prev.map(item => ({
             ...item,
             basePsf: value,
-            targetAvgPsf: value
+            targetAvgPsf: value,
           }))
         );
       }
