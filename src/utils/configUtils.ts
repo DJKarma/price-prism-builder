@@ -1,4 +1,3 @@
-
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
@@ -81,7 +80,20 @@ export const importConfig = async (file: File) => {
           return;
         }
         
-        // Fields that should exist in a valid PricingConfig
+        // Define the allowed fields (fields present in your pricing configurator)
+        const allowedFields = new Set([
+          'basePsf',
+          'bedroomTypePricing',
+          'viewPricing',
+          'floorRiseRules',
+          'additionalCategoryPricing',
+          'targetOverallPsf',
+          'isOptimized',
+          'maxFloor',
+          'optimizedTypes',
+        ]);
+        
+        // Check for required fields
         const requiredFields = [
           'basePsf',
           'bedroomTypePricing',
@@ -89,7 +101,6 @@ export const importConfig = async (file: File) => {
           'floorRiseRules'
         ];
         
-        // Check for required fields
         const missingFields = requiredFields.filter(
           (field) => !(field in importedConfig)
         );
@@ -99,22 +110,19 @@ export const importConfig = async (file: File) => {
           return;
         }
         
-        // Collect fields that exist in the imported config but not in our schema
-        const knownFields = new Set([
-          ...requiredFields,
-          'targetOverallPsf',
-          'maxFloor',
-          'additionalPricingFactors',
-          'additionalCategoryPricing',
-          'optimizedTypes',
-          'isOptimized'
-        ]);
+        // Build a filtered config that only includes allowed keys.
+        // Also, collect any keys in importedConfig that are not allowed.
+        const filteredConfig: Record<string, any> = {};
+        const unmatchedFields: string[] = [];
+        Object.keys(importedConfig).forEach(key => {
+          if (allowedFields.has(key)) {
+            filteredConfig[key] = importedConfig[key];
+          } else {
+            unmatchedFields.push(key);
+          }
+        });
         
-        const unmatchedFields = Object.keys(importedConfig).filter(
-          (key) => !knownFields.has(key)
-        );
-        
-        resolve({ config: importedConfig, unmatchedFields });
+        resolve({ config: filteredConfig, unmatchedFields });
       } catch (error) {
         reject(new Error('Failed to parse configuration file'));
       }
