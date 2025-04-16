@@ -1,3 +1,4 @@
+
 import React from "react";
 import { 
   Accordion,
@@ -42,7 +43,7 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
                   Price Configuration Panel
                 </span>
               </div>
-              <div className="flex items-center">
+              <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
                 <ConfigImporter 
                   onConfigImported={handleConfigImport} 
                   currentConfig={pricingConfig}

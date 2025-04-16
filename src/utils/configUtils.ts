@@ -12,7 +12,14 @@ export const exportConfig = (config: any) => {
   configCopy._metadata = {
     exportVersion: "1.0.0",
     exportDate: new Date().toISOString(),
-    availableParameters: Object.keys(configCopy).filter(k => !k.startsWith('_'))
+    availableParameters: Object.keys(configCopy).filter(k => !k.startsWith('_')),
+    fieldMappings: {
+      bedroomTypePricing: configCopy.bedroomTypePricing?.map((item: any) => item.type) || [],
+      viewPricing: configCopy.viewPricing?.map((item: any) => item.view) || [],
+      additionalCategoryPricing: configCopy.additionalCategoryPricing?.map(
+        (item: any) => `${item.column}: ${item.category}`
+      ) || []
+    }
   };
   
   // Ensure we're exporting the actual current state
