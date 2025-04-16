@@ -95,6 +95,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
   const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>([]);
 
+  // Initialize from initial config if provided
   useEffect(() => {
     if (initialConfig) {
       if (initialConfig.basePsf) {
@@ -126,6 +127,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     }
   }, [initialConfig, maxFloor]);
 
+  // Ensure that the last floor rise rule has an endFloor (defaulting to maxFloor if null)
   useEffect(() => {
     if (floorRiseRules.length > 0) {
       const updatedRules = [...floorRiseRules];
@@ -136,6 +138,30 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     }
   }, [maxFloor]);
 
+  // Set additional categories from additionalCategories prop if initialConfig doesn't include them.
+  useEffect(() => {
+    if (!initialConfig || !initialConfig.additionalCategoryPricing || initialConfig.additionalCategoryPricing.length === 0) {
+      const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
+      
+      if (additionalCategories && additionalCategories.length > 0) {
+        additionalCategories.forEach(category => {
+          if (category.categories && category.categories.length > 0) {
+            category.categories.forEach(value => {
+              initialAdditionalCategories.push({
+                column: category.column,
+                category: value,
+                psfAdjustment: 0
+              });
+            });
+          }
+        });
+      }
+      
+      setAdditionalCategoryPricing(initialAdditionalCategories);
+    }
+  }, [initialConfig, additionalCategories]);
+
+  // Process data to set bedroom types and view types (if not provided by initialConfig)
   useEffect(() => {
     if (!data.length) return;
 
@@ -173,28 +199,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
         }))
       );
     }
-
-    if (!initialConfig || !initialConfig.additionalCategoryPricing || initialConfig.additionalCategoryPricing.length === 0) {
-      const initialAdditionalCategories: AdditionalCategoryPricing[] = [];
-      
-      if (additionalCategories && additionalCategories.length > 0) {
-        additionalCategories.forEach(category => {
-          if (category.categories && category.categories.length > 0) {
-            category.categories.forEach(value => {
-              initialAdditionalCategories.push({
-                column: category.column,
-                category: value,
-                psfAdjustment: 0
-              });
-            });
-          }
-        });
-      }
-      
-      setAdditionalCategoryPricing(initialAdditionalCategories);
-    }
-    
-  }, [data, basePsf, additionalCategories, initialConfig]);
+  }, [data, basePsf, initialConfig]);
 
   const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
@@ -267,6 +272,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       return;
     }
 
+    // Validate floor rise rules for overlapping or invalid ranges
     for (let i = 0; i < floorRiseRules.length; i++) {
       const rule = floorRiseRules[i];
       
