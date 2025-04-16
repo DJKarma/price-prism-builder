@@ -17,8 +17,9 @@ export const exportConfig = (config: any) => {
       bedroomTypePricing: configCopy.bedroomTypePricing?.map((item: any) => item.type) || [],
       viewPricing: configCopy.viewPricing?.map((item: any) => item.view) || [],
       additionalCategoryPricing: configCopy.additionalCategoryPricing?.map(
-        (item: any) => `${item.column}: ${item.category}`
-      ) || []
+  (item: any) => `${item.column}: ${item.category} (Adjustment: ${item.psfAdjustment})`
+) || []
+
     }
   };
   
