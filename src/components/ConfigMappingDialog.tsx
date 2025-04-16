@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -23,8 +22,8 @@ import { ArrowRight, AlertCircle, ImportIcon } from 'lucide-react';
 
 interface MappingSection {
   title: string;
-  currentFields: string[];
-  importedFields: string[];
+  currentFields: any[];
+  importedFields: any[];
   mappings: Record<string, string>;
   description: string;
 }
@@ -87,34 +86,58 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
   // Initialize mapping data when dialog opens or configs change
   useEffect(() => {
     if (isOpen && currentConfig && importedConfig) {
-      // Extract fields from current config
-      const currentBedroomTypes = currentConfig?.bedroomTypePricing?.map((item: any) => item.type) || [];
-      const currentViews = currentConfig?.viewPricing?.map((item: any) => item.view) || [];
-      const currentAdditionalCategories = currentConfig?.additionalCategoryPricing?.map((item: any) => 
-        `${item.column}: ${item.category}`
-      ) || [];
-      
-      // Extract floor rise rules
-      const currentFloorRiseRules = currentConfig?.floorRiseRules?.map((rule: any) => 
-        `${rule.startFloor}-${rule.endFloor}`
-      ) || [];
-      
-      // Extract scalar fields
+      const currentBedroomTypes = currentConfig?.bedroomTypePricing?.map((item: any) => ({
+        key: item.type,
+        value: `Base PSF: ${item.psf || 0}`
+      })) || [];
+
+      const importedBedroomTypes = importedConfig?.bedroomTypePricing?.map((item: any) => ({
+        key: item.type,
+        value: `Base PSF: ${item.psf || 0}`
+      })) || [];
+
+      const currentViews = currentConfig?.viewPricing?.map((item: any) => ({
+        key: item.view,
+        value: `Premium: ${item.premium || 0}%`
+      })) || [];
+
+      const importedViews = importedConfig?.viewPricing?.map((item: any) => ({
+        key: item.view,
+        value: `Premium: ${item.premium || 0}%`
+      })) || [];
+
+      const currentAdditionalCategories = currentConfig?.additionalCategoryPricing?.map((item: any) => ({
+        key: `${item.column}: ${item.category}`,
+        value: item.psfAdjustment
+      })) || [];
+
+      const importedAdditionalCategories = importedConfig?.additionalCategoryPricing?.map((item: any) => ({
+        key: `${item.column}: ${item.category}`,
+        value: item.psfAdjustment
+      })) || [];
+
+      const currentFloorRiseRules = currentConfig?.floorRiseRules?.map((rule: any) => ({
+        key: `${rule.startFloor}-${rule.endFloor}`,
+        value: `Increment: ${rule.psfIncrement || 0}`
+      })) || [];
+
+      const importedFloorRiseRules = importedConfig?.floorRiseRules?.map((rule: any) => ({
+        key: `${rule.startFloor}-${rule.endFloor}`,
+        value: `Increment: ${rule.psfIncrement || 0}`
+      })) || [];
+
       const scalarFields = ['basePsf', 'maxFloor', 'targetOverallPsf'];
-      const currentScalarFields = scalarFields.filter(field => field in currentConfig);
-      
-      // Extract fields from imported config
-      const importedBedroomTypes = importedConfig?.bedroomTypePricing?.map((item: any) => item.type) || [];
-      const importedViews = importedConfig?.viewPricing?.map((item: any) => item.view) || [];
-      const importedAdditionalCategories = importedConfig?.additionalCategoryPricing?.map((item: any) => 
-        `${item.column}: ${item.category}`
-      ) || [];
-      const importedFloorRiseRules = importedConfig?.floorRiseRules?.map((rule: any) => 
-        `${rule.startFloor}-${rule.endFloor}`
-      ) || [];
-      const importedScalarFields = scalarFields.filter(field => field in importedConfig);
-      
-      // Set up mapping sections
+      const currentScalarFields = scalarFields.filter(field => field in currentConfig).map(field => ({
+        key: field,
+        value: currentConfig[field]
+      }));
+
+      const importedScalarFields = scalarFields.filter(field => field in importedConfig).map(field => ({
+        key: field,
+        value: importedConfig[field]
+      }));
+
+      // Set up mapping sections with values
       const updatedSections = {
         bedroomTypes: {
           title: "Bedroom Types",
@@ -135,7 +158,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
           currentFields: currentAdditionalCategories,
           importedFields: importedAdditionalCategories,
           mappings: {},
-          description: "Match imported additional categories to your current categories"
+          description: "Match imported additional categories to your current configuration"
         },
         floorRiseRules: {
           title: "Floor Rise Rules",
@@ -158,20 +181,18 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
         const section = updatedSections[sectionKey];
         
         section.currentFields.forEach(currentField => {
-          // Try to find an exact match first
           const exactMatch = section.importedFields.find(
-            importedField => importedField.toLowerCase() === currentField.toLowerCase()
+            importedField => importedField.key.toLowerCase() === currentField.key.toLowerCase()
           );
           
           if (exactMatch) {
-            section.mappings[currentField] = exactMatch;
+            section.mappings[currentField.key] = exactMatch.key;
           }
         });
       });
       
       setMappingSections(updatedSections);
       
-      // Check if there are any fields to map
       const hasFields = Object.values(updatedSections).some(
         section => section.currentFields.length > 0 && section.importedFields.length > 0
       );
@@ -202,7 +223,6 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
     onClose();
   };
 
-  // Count total mapped fields
   const countMappedFields = () => {
     let count = 0;
     Object.values(mappingSections).forEach(section => {
@@ -255,25 +275,35 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                   </div>
                   <ScrollArea className="h-[200px] w-full rounded-md border p-4">
                     <div className="space-y-3 pr-4">
-                      {section.currentFields.map((currentField) => (
-                        <div key={currentField} className="flex items-center gap-4">
+                      {section.currentFields.map((currentField: any) => (
+                        <div key={currentField.key} className="flex items-center gap-4">
                           <div className="w-1/3">
-                            <Label className="text-sm font-medium">{currentField}</Label>
+                            <Label className="text-sm font-medium">
+                              {currentField.key}
+                              <span className="block text-xs text-gray-500">
+                                Current: {currentField.value}
+                              </span>
+                            </Label>
                           </div>
                           <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
                           <div className="flex-1">
                             <Select
-                              value={section.mappings[currentField] || ""}
-                              onValueChange={(value) => handleMapping(key, currentField, value)}
+                              value={section.mappings[currentField.key] || ""}
+                              onValueChange={(value) => handleMapping(key, currentField.key, value)}
                             >
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Select matching field..." />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="no-match">No match</SelectItem>
-                                {section.importedFields.map((importedField) => (
-                                  <SelectItem key={importedField} value={importedField}>
-                                    {importedField}
+                                {section.importedFields.map((importedField: any) => (
+                                  <SelectItem key={importedField.key} value={importedField.key}>
+                                    <div>
+                                      {importedField.key}
+                                      <span className="block text-xs text-gray-500">
+                                        Value: {importedField.value}
+                                      </span>
+                                    </div>
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -306,4 +336,3 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
 };
 
 export default ConfigMappingDialog;
-
