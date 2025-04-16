@@ -48,6 +48,9 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
             return;
           }
           
+          // Log the imported config to help with debugging
+          console.log("Imported config:", parsedConfig);
+          
           // Store the imported config and show the mapping dialog
           setImportedConfig(parsedConfig);
           setShowMappingDialog(true);
@@ -70,6 +73,9 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
     if (!importedConfig) return;
 
     try {
+      // Log the mappings for debugging
+      console.log("Received mappings:", mappings);
+      
       // Map matched fields between current config and imported config
       const mappedConfig = JSON.parse(JSON.stringify(currentConfig));
       
@@ -123,7 +129,8 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
       }
 
       // Update additional category pricing based on mappings
-      if (mappedConfig.additionalCategoryPricing && importedConfig.additionalCategoryPricing) {
+      if (mappedConfig.additionalCategoryPricing && importedConfig.additionalCategoryPricing && mappings.additionalCategories) {
+        console.log("Mapping additional categories:", mappings.additionalCategories);
         mappedConfig.additionalCategoryPricing = mappedConfig.additionalCategoryPricing.map((item: any) => {
           const key = `${item.column}: ${item.category}`;
           const mappedKey = mappings.additionalCategories[key];
@@ -187,7 +194,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
       const totalMappedFields = 
         Object.values(mappings.bedroomTypes).filter(val => val && val !== "no-match").length +
         Object.values(mappings.views).filter(val => val && val !== "no-match").length +
-        Object.values(mappings.additionalCategories).filter(val => val !== "no-match").length +
+        Object.values(mappings.additionalCategories || {}).filter(val => val !== "no-match").length +
         Object.values(mappings.floorRiseRules).filter(val => val !== "no-match").length +
         Object.values(mappings.scalarFields).filter(val => val !== "no-match").length;
 

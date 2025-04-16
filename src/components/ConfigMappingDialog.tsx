@@ -87,6 +87,9 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
   // Initialize mapping data when dialog opens or configs change
   useEffect(() => {
     if (isOpen && currentConfig && importedConfig) {
+      console.log("Current config:", currentConfig);
+      console.log("Imported config:", importedConfig);
+      
       const currentBedroomTypes = currentConfig?.bedroomTypePricing?.map((item: any) => ({
         key: item.type,
         value: item.psf,
@@ -111,17 +114,21 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
         displayValue: `${item.premium || 0}%`
       })) || [];
 
-      const currentAdditionalCategories = currentConfig?.additionalCategoryPricing?.map((item: any) => ({
+      // Ensure we're correctly extracting additional categories from both configs
+      const currentAdditionalCategories = (currentConfig?.additionalCategoryPricing || []).map((item: any) => ({
         key: `${item.column}: ${item.category}`,
         value: item.psfAdjustment,
         displayValue: `${item.psfAdjustment || 0}`
-      })) || [];
+      }));
 
-      const importedAdditionalCategories = importedConfig?.additionalCategoryPricing?.map((item: any) => ({
+      const importedAdditionalCategories = (importedConfig?.additionalCategoryPricing || []).map((item: any) => ({
         key: `${item.column}: ${item.category}`,
         value: item.psfAdjustment,
         displayValue: `${item.psfAdjustment || 0}`
-      })) || [];
+      }));
+      
+      console.log("Current additional categories:", currentAdditionalCategories);
+      console.log("Imported additional categories:", importedAdditionalCategories);
 
       const currentFloorRiseRules = currentConfig?.floorRiseRules?.map((rule: any) => ({
         key: `${rule.startFloor}-${rule.endFloor}`,
