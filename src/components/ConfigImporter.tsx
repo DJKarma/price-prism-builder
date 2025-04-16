@@ -128,6 +128,11 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
         });
       }
 
+      // Initialize additionalCategoryPricing if it doesn't exist
+      if (!mappedConfig.additionalCategoryPricing && importedConfig.additionalCategoryPricing) {
+        mappedConfig.additionalCategoryPricing = [];
+      }
+
       // Update additional category pricing based on mappings
       if (mappedConfig.additionalCategoryPricing && importedConfig.additionalCategoryPricing && mappings.additionalCategories) {
         console.log("Mapping additional categories:", mappings.additionalCategories);
@@ -138,7 +143,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({ onConfigImported, curre
 
           const [mappedColumn, mappedCategory] = mappedKey.split(': ');
           const matchedImported = importedConfig.additionalCategoryPricing.find(
-            (imported: any) => `${imported.column}: ${imported.category}` === mappedKey
+            (imported: any) => imported.column === mappedColumn && imported.category === mappedCategory
           );
           
           if (matchedImported) {

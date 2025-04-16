@@ -90,70 +90,78 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
       console.log("Current config:", currentConfig);
       console.log("Imported config:", importedConfig);
       
-      const currentBedroomTypes = currentConfig?.bedroomTypePricing?.map((item: any) => ({
+      // Extract bedroom types with their actual field values
+      const currentBedroomTypes = (currentConfig?.bedroomTypePricing || []).map((item: any) => ({
         key: item.type,
-        value: item.psf,
-        displayValue: `${item.psf || 0}`
-      })) || [];
+        value: item.basePsf || 0,
+        displayValue: `${item.basePsf || 0}`
+      }));
 
-      const importedBedroomTypes = importedConfig?.bedroomTypePricing?.map((item: any) => ({
+      const importedBedroomTypes = (importedConfig?.bedroomTypePricing || []).map((item: any) => ({
         key: item.type,
-        value: item.psf,
-        displayValue: `${item.psf || 0}`
-      })) || [];
+        value: item.basePsf || 0,
+        displayValue: `${item.basePsf || 0}`
+      }));
 
-      const currentViews = currentConfig?.viewPricing?.map((item: any) => ({
+      // Extract views with their premium values
+      const currentViews = (currentConfig?.viewPricing || []).map((item: any) => ({
         key: item.view,
-        value: item.premium,
-        displayValue: `${item.premium || 0}%`
-      })) || [];
+        value: item.psfAdjustment || 0,
+        displayValue: `${item.psfAdjustment || 0}`
+      }));
 
-      const importedViews = importedConfig?.viewPricing?.map((item: any) => ({
+      const importedViews = (importedConfig?.viewPricing || []).map((item: any) => ({
         key: item.view,
-        value: item.premium,
-        displayValue: `${item.premium || 0}%`
-      })) || [];
+        value: item.psfAdjustment || 0,
+        displayValue: `${item.psfAdjustment || 0}`
+      }));
 
       // Ensure we're correctly extracting additional categories from both configs
       const currentAdditionalCategories = (currentConfig?.additionalCategoryPricing || []).map((item: any) => ({
         key: `${item.column}: ${item.category}`,
-        value: item.psfAdjustment,
+        value: item.psfAdjustment || 0,
         displayValue: `${item.psfAdjustment || 0}`
       }));
 
       const importedAdditionalCategories = (importedConfig?.additionalCategoryPricing || []).map((item: any) => ({
         key: `${item.column}: ${item.category}`,
-        value: item.psfAdjustment,
+        value: item.psfAdjustment || 0,
         displayValue: `${item.psfAdjustment || 0}`
       }));
       
       console.log("Current additional categories:", currentAdditionalCategories);
       console.log("Imported additional categories:", importedAdditionalCategories);
 
-      const currentFloorRiseRules = currentConfig?.floorRiseRules?.map((rule: any) => ({
+      // Extract floor rise rules
+      const currentFloorRiseRules = (currentConfig?.floorRiseRules || []).map((rule: any) => ({
         key: `${rule.startFloor}-${rule.endFloor}`,
-        value: rule.psfIncrement,
+        value: rule.psfIncrement || 0,
         displayValue: `${rule.psfIncrement || 0}`
-      })) || [];
+      }));
 
-      const importedFloorRiseRules = importedConfig?.floorRiseRules?.map((rule: any) => ({
+      const importedFloorRiseRules = (importedConfig?.floorRiseRules || []).map((rule: any) => ({
         key: `${rule.startFloor}-${rule.endFloor}`,
-        value: rule.psfIncrement,
+        value: rule.psfIncrement || 0,
         displayValue: `${rule.psfIncrement || 0}`
-      })) || [];
+      }));
 
+      // Extract scalar fields
       const scalarFields = ['basePsf', 'maxFloor', 'targetOverallPsf'];
-      const currentScalarFields = scalarFields.filter(field => field in currentConfig).map(field => ({
-        key: field,
-        value: currentConfig[field],
-        displayValue: `${currentConfig[field]}`
-      }));
+      const currentScalarFields = scalarFields
+        .filter(field => field in currentConfig)
+        .map(field => ({
+          key: field,
+          value: currentConfig[field],
+          displayValue: `${currentConfig[field]}`
+        }));
 
-      const importedScalarFields = scalarFields.filter(field => field in importedConfig).map(field => ({
-        key: field,
-        value: importedConfig[field],
-        displayValue: `${importedConfig[field]}`
-      }));
+      const importedScalarFields = scalarFields
+        .filter(field => field in importedConfig)
+        .map(field => ({
+          key: field,
+          value: importedConfig[field],
+          displayValue: `${importedConfig[field]}`
+        }));
 
       // Set up mapping sections with values
       const updatedSections = {
@@ -251,7 +259,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-indigo-700 flex items-center gap-2">
             <ImportIcon className="h-5 w-5" />
@@ -262,7 +270,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 px-1">
+        <ScrollArea className="flex-1 px-1 overflow-y-auto">
           {!hasFieldsToMap ? (
             <Alert variant="destructive" className="my-4">
               <AlertCircle className="h-4 w-4" />
@@ -291,46 +299,44 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                     <h3 className="font-medium text-lg text-indigo-600">{section.title}</h3>
                     <p className="text-sm text-gray-500">{section.description}</p>
                   </div>
-                  <ScrollArea className="h-[200px] w-full rounded-md border p-4">
-                    <div className="space-y-3 pr-4">
-                      {section.currentFields.map((currentField: any) => (
-                        <div key={currentField.key} className="flex items-center gap-4">
-                          <div className="w-1/3">
-                            <Label className="text-sm font-medium">
-                              {currentField.key}
-                              <span className="block text-xs text-gray-500">
-                                Current: {currentField.displayValue}
-                              </span>
-                            </Label>
-                          </div>
-                          <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          <div className="flex-1">
-                            <Select
-                              value={section.mappings[currentField.key] || ""}
-                              onValueChange={(value) => handleMapping(key, currentField.key, value)}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select matching field..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="no-match">No match</SelectItem>
-                                {section.importedFields.map((importedField: any) => (
-                                  <SelectItem key={importedField.key} value={importedField.key}>
-                                    <div>
-                                      {importedField.key}
-                                      <span className="block text-xs text-gray-500">
-                                        Value: {importedField.displayValue}
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                  <div className="space-y-3 pr-4">
+                    {section.currentFields.map((currentField: any) => (
+                      <div key={currentField.key} className="flex items-center gap-4">
+                        <div className="w-1/3">
+                          <Label className="text-sm font-medium">
+                            {currentField.key}
+                            <span className="block text-xs text-gray-500">
+                              Current value: {currentField.displayValue}
+                            </span>
+                          </Label>
                         </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                        <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <div className="flex-1">
+                          <Select
+                            value={section.mappings[currentField.key] || ""}
+                            onValueChange={(value) => handleMapping(key, currentField.key, value)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select matching field..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="no-match">No match</SelectItem>
+                              {section.importedFields.map((importedField: any) => (
+                                <SelectItem key={importedField.key} value={importedField.key}>
+                                  <div>
+                                    {importedField.key}
+                                    <span className="block text-xs text-gray-500">
+                                      Value: {importedField.displayValue}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : null
             ))}
