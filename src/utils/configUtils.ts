@@ -11,7 +11,7 @@ import { toast } from "sonner";
 export const exportConfig = (config: any) => {
   // Create a deep copy of the config to avoid modifying the original
   const configCopy = JSON.parse(JSON.stringify(config));
-  // Format as JSON
+  // Ensure we're exporting the actual current state
   const configJson = JSON.stringify(configCopy, null, 2);
   return configJson;
 };
@@ -33,7 +33,7 @@ export const exportToExcel = async (
     const worksheet = XLSX.utils.json_to_sheet(data);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Units");
 
-    // Optionally add summary sheet
+    // Add summary sheet if available
     if (summaryData) {
       const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
       XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Pricing Summary");
@@ -42,17 +42,16 @@ export const exportToExcel = async (
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
 
     if (includeConfig && config) {
-      // Create ZIP with Excel + config
+      // Create a zip file with both Excel and config
       const zip = new JSZip();
       zip.file("pricing_data.xlsx", excelBuffer);
       const configJson = exportConfig(config);
       zip.file("config.json", configJson);
-
       const zipContent = await zip.generateAsync({ type: "blob" });
       saveAs(zipContent, "price_prism_export.zip");
       toast.success("Exported ZIP with data and configuration");
     } else {
-      // Just export Excel
+      // Just export the Excel file
       const excelBlob = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
@@ -69,7 +68,18 @@ export const exportToExcel = async (
 // Import & Validate Config
 // =======================
 
-export const importConfig = async (file: File) => {
+/**
+ * Import configuration from a JSON file.
+ * 
+ * @param file - the configuration file to import.
+ * @param currentBedroomTypes (optional) - an array of allowed bedroom type strings.
+ *        When provided, only bedroomTypePricing entries with a matching type will be kept.
+ * @returns A promise with the validated and filtered configuration as well as unmatched fields.
+ */
+export const importConfig = async (
+  file: File,
+  currentBedroomTypes?: string[]
+) => {
   return new Promise<{ config: any; unmatchedFields: string[] }>((resolve, reject) => {
     const reader = new FileReader();
 
@@ -78,13 +88,13 @@ export const importConfig = async (file: File) => {
         const jsonContent = event.target?.result as string;
         const importedConfig = JSON.parse(jsonContent);
 
-        // Preliminary check
+        // Preliminary check to ensure valid JSON
         if (!importedConfig || typeof importedConfig !== "object") {
           reject(new Error("Invalid configuration file format"));
           return;
         }
 
-        // Allowed fields in pricing configurator
+        // Define the allowed top-level fields for your pricing configurator
         const allowedFields = new Set([
           "basePsf",
           "bedroomTypePricing",
@@ -110,49 +120,44 @@ export const importConfig = async (file: File) => {
           (field) => !(field in importedConfig)
         );
         if (missingFields.length > 0) {
-          reject(
-            new Error(`Missing required fields: ${missingFields.join(", ")}`)
-          );
+          reject(new Error(`Missing required fields: ${missingFields.join(", ")}`));
           return;
         }
 
-        // Build a new config that only includes allowed keys
+        // Build a filtered config that only includes allowed keys and collect unmatched keys
         const filteredConfig: Record<string, any> = {};
         const unmatchedFields: string[] = [];
-        for (const key of Object.keys(importedConfig)) {
+        Object.keys(importedConfig).forEach((key) => {
           if (allowedFields.has(key)) {
             filteredConfig[key] = importedConfig[key];
           } else {
             unmatchedFields.push(key);
           }
-        }
+        });
 
-        // ====== Deeper Validation ======
-        // This step ensures that the arrays in the config have the correct shape.
-        // If any mismatch is detected, we reject the file to prevent overwriting.
+        // ----- Deep Validation -----
 
-        // 1) Validate bedroomTypePricing
+        // Validate bedroomTypePricing array
         if (!Array.isArray(filteredConfig.bedroomTypePricing)) {
           reject(new Error("bedroomTypePricing must be an array"));
           return;
         }
-        for (const item of filteredConfig.bedroomTypePricing) {
-          if (
-            typeof item !== "object" ||
-            typeof item.type !== "string" ||
-            typeof item.basePsf !== "number"
-            // optionally check for targetAvgPsf as well
-          ) {
-            reject(
-              new Error(
-                `Invalid bedroomTypePricing entry: must have 'type' (string) and 'basePsf' (number)`
-              )
-            );
-            return;
+        // If a current list of bedroom types is provided, filter out entries not matching it.
+        filteredConfig.bedroomTypePricing = filteredConfig.bedroomTypePricing.filter(
+          (item: any) => {
+            if (typeof item !== "object" || typeof item.type !== "string" || typeof item.basePsf !== "number") {
+              reject(new Error(`Invalid bedroomTypePricing entry: must have 'type' (string) and 'basePsf' (number)`));
+              return false;
+            }
+            // Only keep if currentBedroomTypes is not provided or the type exists in currentBedroomTypes
+            if (currentBedroomTypes && currentBedroomTypes.length > 0) {
+              return currentBedroomTypes.includes(item.type);
+            }
+            return true;
           }
-        }
+        );
 
-        // 2) Validate viewPricing
+        // Validate viewPricing array
         if (!Array.isArray(filteredConfig.viewPricing)) {
           reject(new Error("viewPricing must be an array"));
           return;
@@ -165,14 +170,14 @@ export const importConfig = async (file: File) => {
           ) {
             reject(
               new Error(
-                `Invalid viewPricing entry: must have 'view' (string) and 'psfAdjustment' (number)`
+                "Invalid viewPricing entry: must have 'view' (string) and 'psfAdjustment' (number)"
               )
             );
             return;
           }
         }
 
-        // 3) Validate floorRiseRules
+        // Validate floorRiseRules array
         if (!Array.isArray(filteredConfig.floorRiseRules)) {
           reject(new Error("floorRiseRules must be an array"));
           return;
@@ -183,18 +188,17 @@ export const importConfig = async (file: File) => {
             typeof rule.startFloor !== "number" ||
             (rule.endFloor !== null && typeof rule.endFloor !== "number") ||
             typeof rule.psfIncrement !== "number"
-            // jumpEveryFloor, jumpIncrement can be optional or 0
           ) {
             reject(
               new Error(
-                `Invalid floorRiseRules entry: must have 'startFloor' (number), 'endFloor' (number|null), 'psfIncrement' (number)`
+                "Invalid floorRiseRules entry: must have 'startFloor' (number), 'endFloor' (number|null), and 'psfIncrement' (number)"
               )
             );
             return;
           }
         }
 
-        // 4) Validate additionalCategoryPricing (if present)
+        // Validate additionalCategoryPricing if present
         if (
           filteredConfig.additionalCategoryPricing &&
           !Array.isArray(filteredConfig.additionalCategoryPricing)
@@ -212,7 +216,7 @@ export const importConfig = async (file: File) => {
             ) {
               reject(
                 new Error(
-                  `Invalid additionalCategoryPricing entry: must have 'column', 'category' (strings), and 'psfAdjustment' (number)`
+                  "Invalid additionalCategoryPricing entry: must have 'column', 'category' (strings), and 'psfAdjustment' (number)"
                 )
               );
               return;
@@ -220,7 +224,6 @@ export const importConfig = async (file: File) => {
           }
         }
 
-        // If we pass all checks, resolve
         resolve({ config: filteredConfig, unmatchedFields });
       } catch (error) {
         reject(new Error("Failed to parse configuration file"));
