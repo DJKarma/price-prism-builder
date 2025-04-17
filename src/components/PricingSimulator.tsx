@@ -1,28 +1,33 @@
-
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { TableIcon } from "lucide-react";
 import { toast } from "sonner";
 import { simulatePricing } from "@/utils/psfOptimizer";
 import PricingFilters from "./pricing-simulator/PricingFilters";
 import PricingTable from "./pricing-simulator/PricingTable";
 import PricingExportControls from "./pricing-simulator/PricingExportControls";
+import CollapsibleConfigPanel from "./pricing-simulator/CollapsibleConfigPanel";
 import { useUnitFilters } from "./pricing-simulator/useUnitFilters";
 import { createSummaryData } from "./pricing-simulator/pricingUtils";
-import CollapsibleConfigPanel from "./pricing-simulator/CollapsibleConfigPanel";
 
 export interface UnitWithPricing extends Record<string, any> {
   totalPrice: number;
-  finalTotalPrice: number; // Ceiled total price
+  finalTotalPrice: number;
   balconyArea?: number;
   balconyPercentage?: number;
   basePriceComponent?: number;
   floorPriceComponent?: number;
   viewPriceComponent?: number;
-  finalPsf: number; // SA PSF value
-  finalAcPsf: number; // AC PSF value
-  isOptimized?: boolean; // Flag to indicate if this unit's price was optimized
-  additionalCategoryPriceComponents?: Record<string, number>; // Store additional category price contributions
+  finalPsf: number;
+  finalAcPsf: number;
+  isOptimized?: boolean;
+  additionalCategoryPriceComponents?: Record<string, number>;
 }
 
 interface PricingSimulatorProps {
@@ -31,6 +36,7 @@ interface PricingSimulatorProps {
   onConfigUpdate?: (updatedConfig: any) => void;
   additionalCategories?: Array<{ column: string; categories: string[] }>;
   maxFloor?: number;
+  hideConfigPanel?: boolean;
 }
 
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
@@ -39,10 +45,13 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   onConfigUpdate,
   additionalCategories = [],
   maxFloor = 50,
+  hideConfigPanel = false,
 }) => {
   const [units, setUnits] = useState<UnitWithPricing[]>([]);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
-  const [additionalColumnValues, setAdditionalColumnValues] = useState<Record<string, string[]>>({});
+  const [additionalColumnValues, setAdditionalColumnValues] = useState<
+    Record<string, string[]>
+  >({});
 
   const defaultVisibleColumns = [
     "name",
@@ -56,8 +65,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     "finalAcPsf",
     "isOptimized",
   ];
-
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleColumns);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    defaultVisibleColumns
+  );
 
   const {
     filteredUnits,
@@ -79,7 +89,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       const optimizedTypes = pricingConfig.optimizedTypes;
       if (optimizedTypes.length === 1) {
         setSelectedTypes([optimizedTypes[0]]);
-        toast.info(`Filtered to show optimized bedroom type: ${optimizedTypes[0]}`);
+        toast.info(
+          `Filtered to show optimized bedroom type: ${optimizedTypes[0]}`
+        );
       }
     }
   }, [pricingConfig?.optimizedTypes, selectedTypes, setSelectedTypes]);
@@ -87,84 +99,57 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
 
-    if (pricingConfig.additionalCategoryPricing && pricingConfig.additionalCategoryPricing.length > 0) {
-      const columnsSet = new Set<string>();
-      const columnValuesMap: Record<string, Set<string>> = {};
+    if (
+      pricingConfig.additionalCategoryPricing?.length
+    ) {
+      const cols = new Set<string>();
+      const mapVals: Record<string, Set<string>> = {};
 
       pricingConfig.additionalCategoryPricing.forEach((item: any) => {
         if (typeof item.column === "string") {
-          columnsSet.add(item.column);
-
-          if (!columnValuesMap[item.column]) {
-            columnValuesMap[item.column] = new Set<string>();
-          }
-
-          if (item.category) {
-            columnValuesMap[item.column].add(item.category);
-          }
+          cols.add(item.column);
+          mapVals[item.column] = mapVals[item.column] || new Set();
+          if (item.category) mapVals[item.column].add(item.category);
         }
       });
 
-      const columns = Array.from(columnsSet) as string[];
-      setAdditionalColumns(columns);
+      const colArr = Array.from(cols);
+      setAdditionalColumns(colArr);
 
-      const valuesMap: Record<string, string[]> = {};
-      Object.entries(columnValuesMap).forEach(([col, valuesSet]) => {
-        valuesMap[col] = Array.from(valuesSet);
+      const valsMap: Record<string, string[]> = {};
+      colArr.forEach((col) => {
+        valsMap[col] = Array.from(mapVals[col]);
       });
-      setAdditionalColumnValues(valuesMap);
+      setAdditionalColumnValues(valsMap);
 
-      const initialFilters: Record<string, string[]> = {};
-      columns.forEach((col) => {
-        initialFilters[col] = [];
-      });
-      setSelectedAdditionalFilters(initialFilters);
+      const init: Record<string, string[]> = {};
+      colArr.forEach((col) => (init[col] = []));
+      setSelectedAdditionalFilters(init);
     }
 
-    const calculatedUnits = simulatePricing(data, pricingConfig);
-    setUnits(calculatedUnits);
+    setUnits(simulatePricing(data, pricingConfig));
   }, [data, pricingConfig, setSelectedAdditionalFilters]);
 
   const handlePricingConfigChange = (newConfig: any) => {
-    if (onConfigUpdate) {
-      onConfigUpdate(newConfig);
-    }
+    onConfigUpdate?.(newConfig);
   };
 
   const handleSort = (key: string) => {
-    setSortConfig((prevConfig) => {
-      if (prevConfig.key === key) {
-        return {
-          key,
-          direction: prevConfig.direction === "ascending" ? "descending" : "ascending",
-        };
-      }
-      return { key, direction: "ascending" };
-    });
+    setSortConfig((prev) => ({
+      key,
+      direction:
+        prev.key === key && prev.direction === "ascending"
+          ? "descending"
+          : "ascending",
+    }));
   };
 
-  const getUniqueValues = (fieldName: string): string[] => {
-    const values = new Set<string>();
-    units.forEach((unit) => {
-      if (unit[fieldName]) {
-        values.add(unit[fieldName]);
-      }
-    });
-    if (fieldName === "floor") {
-      return Array.from(values).sort((a, b) => parseInt(a) - parseInt(b));
-    }
-    return Array.from(values).sort();
-  };
-
-  const getUniqueAdditionalValues = (column: string): string[] => {
-    const values = new Set<string>();
-    units.forEach((unit) => {
-      const columnKey = `${column}_value`;
-      if (unit[columnKey]) {
-        values.add(unit[columnKey]);
-      }
-    });
-    return Array.from(values).sort();
+  const getUniqueValues = (field: string) => {
+    const vals = new Set<string>();
+    units.forEach((u) => u[field] && vals.add(u[field]));
+    return field === "floor"
+      ? Array.from(vals).sort((a, b) => parseInt(a) - parseInt(b))
+      : Array.from(vals).sort();
   };
 
   const resetColumnVisibility = () => {
@@ -174,18 +159,10 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
   const toggleColumnVisibility = (columnId: string) => {
     setVisibleColumns((prev) => {
-      const isCurrentlyVisible = prev.includes(columnId);
-
-      const column = allColumns.find((col) => col.id === columnId);
-      if (column?.required && isCurrentlyVisible) {
-        return prev;
-      }
-
-      if (isCurrentlyVisible) {
-        return prev.filter((id) => id !== columnId);
-      } else {
-        return [...prev, columnId];
-      }
+      const isVisible = prev.includes(columnId);
+      const colDef = allColumns.find((c) => c.id === columnId);
+      if (colDef?.required && isVisible) return prev;
+      return isVisible ? prev.filter((i) => i !== columnId) : [...prev, columnId];
     });
   };
 
@@ -207,30 +184,16 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "isOptimized", label: "Optimized", required: true },
   ];
 
-  const uniqueTypes = getUniqueValues("type");
-  const uniqueViews = getUniqueValues("view");
-  const uniqueFloors = getUniqueValues("floor");
-
-  const activeFiltersCount =
-    (selectedTypes.length > 0 ? 1 : 0) +
-    (selectedViews.length > 0 ? 1 : 0) +
-    (selectedFloors.length > 0 ? 1 : 0) +
-    Object.values(selectedAdditionalFilters).reduce(
-      (count, values) => count + (values.length > 0 ? 1 : 0),
-      0
-    );
-
   return (
     <div className="space-y-6">
-      {onConfigUpdate && (
-        // Removed extra animate-pulse class so only the subtle glow defined in the CollapsibleConfigPanel applies.
+      {onConfigUpdate && !hideConfigPanel && (
         <div className="hover:shadow-lg transition-all duration-300 rounded-lg hover:shadow-indigo-100/50">
           <CollapsibleConfigPanel
             data={data}
             pricingConfig={pricingConfig}
             onConfigUpdate={handlePricingConfigChange}
-            maxFloor={maxFloor}
             additionalCategories={additionalCategories}
+            maxFloor={maxFloor}
           />
         </div>
       )}
@@ -247,9 +210,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         </CardHeader>
         <CardContent>
           <PricingFilters
-            uniqueTypes={uniqueTypes}
-            uniqueViews={uniqueViews}
-            uniqueFloors={uniqueFloors}
+            uniqueTypes={getUniqueValues("type")}
+            uniqueViews={getUniqueValues("view")}
+            uniqueFloors={getUniqueValues("floor")}
             selectedTypes={selectedTypes}
             setSelectedTypes={setSelectedTypes}
             selectedViews={selectedViews}
@@ -257,7 +220,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             selectedFloors={selectedFloors}
             setSelectedFloors={setSelectedFloors}
             additionalColumns={additionalColumns}
-            getUniqueAdditionalValues={getUniqueAdditionalValues}
+            getUniqueAdditionalValues={(col) =>
+              Array.from(new Set(units.map((u) => u[`${col}_value`]))).sort()
+            }
             selectedAdditionalFilters={selectedAdditionalFilters}
             setSelectedAdditionalFilters={setSelectedAdditionalFilters}
             resetFilters={resetFilters}
@@ -282,8 +247,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           />
         </CardContent>
       </Card>
-      
-      {/* The CSS for glow effect has been moved to global CSS or component-specific styles */}
     </div>
   );
 };
