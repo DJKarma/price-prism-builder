@@ -29,12 +29,13 @@ interface PricingSummaryProps {
 type MetricType = "avg" | "min" | "max";
 type MetricCategory = "psf" | "acPsf" | "size" | "price";
 
-/* ───────── animated number helper ───────── */
+/* ───────────────── animated number ───────────────── */
 const AnimatedNumber: React.FC<{ value: number; run: boolean }> = ({
   value,
   run,
 }) => {
   const [disp, setDisp] = useState(value);
+
   useEffect(() => {
     if (!run) return setDisp(value);
     let i = 0;
@@ -53,16 +54,18 @@ const AnimatedNumber: React.FC<{ value: number; run: boolean }> = ({
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, run]);
+
   return <>{disp.toLocaleString()}</>;
 };
 
+/* ───────────────── component ───────────────── */
 const PricingSummary: React.FC<PricingSummaryProps> = ({
   data,
   showDollarSign = true,
   highlightedTypes = [],
   showAcPsf = false,
 }) => {
-  /* ───────── state ───────── */
+  /* ---------- state ---------- */
   const [summaryData, setSummaryData] = useState<any[]>([]);
   const [totalSummary, setTotalSummary] = useState<any>({});
   const [sortConfig, setSortConfig] = useState<{
@@ -79,35 +82,35 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     price: ["avg"],
   });
 
-  /* ───────── helpers to format numbers ───────── */
-  const formatLargeNumber = (num: number) =>
-    num >= 1_000_000
-      ? `${(num / 1_000_000).toFixed(2)}M`
-      : num >= 1_000
-      ? `${(num / 1_000).toFixed(0)}K`
-      : num.toFixed(0);
+  /* ---------- format helpers ---------- */
+  const formatLargeNumber = (n: number) =>
+    n >= 1_000_000
+      ? `${(n / 1_000_000).toFixed(2)}M`
+      : n >= 1_000
+      ? `${(n / 1_000).toFixed(0)}K`
+      : n.toFixed(0);
 
-  const formatNumber = (num: number, price = false) =>
-    !isFinite(num) || isNaN(num)
+  const formatNumber = (n: number, price = false) =>
+    !isFinite(n) || isNaN(n)
       ? "-"
       : price
-      ? formatLargeNumber(num)
-      : Math.ceil(num).toLocaleString();
+      ? formatLargeNumber(n)
+      : Math.ceil(n).toLocaleString();
 
-  /* ───────── build summary arrays (same logic you had) ───────── */
+  /* ---------- build summary + total ---------- */
   useEffect(() => {
     if (!data?.length) return;
 
-    /* --- group by bedroom type --- */
-    const typeGroups: Record<string, any[]> = {};
+    /* group by type */
+    const groups: Record<string, any[]> = {};
     data.forEach((u) => {
       const t = u.type || "Unknown";
-      typeGroups[t] = typeGroups[t] || [];
-      typeGroups[t].push(u);
+      groups[t] = groups[t] || [];
+      groups[t].push(u);
     });
 
-    const typeSummary = Object.keys(typeGroups).map((t) => {
-      const items = typeGroups[t].filter(
+    const perType = Object.keys(groups).map((t) => {
+      const items = groups[t].filter(
         (u) => Number(u.sellArea) > 0 && u.finalTotalPrice > 0
       );
       if (!items.length)
@@ -130,39 +133,40 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           totalValue: 0,
         };
 
-      const unitCount = items.length;
-      const sellAreas = items.map((u) => Number(u.sellArea));
-      const prices = items.map((u) => u.finalTotalPrice);
-      const psfs = items.map(
+      const saArr = items.map((u) => Number(u.sellArea));
+      const priceArr = items.map((u) => u.finalTotalPrice);
+      const psfArr = items.map(
         (u) => u.finalPsf || u.finalTotalPrice / Number(u.sellArea || 1)
       );
       const acItems = items.filter((u) => Number(u.acArea) > 0);
-      const acPsfs = acItems.map(
+      const acPsfArr = acItems.map(
         (u) => u.finalAcPsf || u.finalTotalPrice / Number(u.acArea || 1)
       );
 
       return {
         type: t,
-        unitCount,
-        totalArea: sellAreas.reduce((s, v) => s + v, 0),
-        avgSize: sellAreas.reduce((s, v) => s + v, 0) / unitCount,
-        minSize: Math.min(...sellAreas),
-        maxSize: Math.max(...sellAreas),
-        avgPrice: prices.reduce((s, v) => s + v, 0) / unitCount,
-        minPrice: Math.min(...prices),
-        maxPrice: Math.max(...prices),
-        avgPsf: psfs.reduce((s, v) => s + v, 0) / unitCount,
-        minPsf: Math.min(...psfs),
-        maxPsf: Math.max(...psfs),
-        avgAcPsf: acPsfs.length ? acPsfs.reduce((s, v) => s + v, 0) / acPsfs.length : 0,
-        minAcPsf: acPsfs.length ? Math.min(...acPsfs) : 0,
-        maxAcPsf: acPsfs.length ? Math.max(...acPsfs) : 0,
-        totalValue: prices.reduce((s, v) => s + v, 0),
+        unitCount: items.length,
+        totalArea: saArr.reduce((s, v) => s + v, 0),
+        avgSize: saArr.reduce((s, v) => s + v, 0) / items.length,
+        minSize: Math.min(...saArr),
+        maxSize: Math.max(...saArr),
+        avgPrice: priceArr.reduce((s, v) => s + v, 0) / items.length,
+        minPrice: Math.min(...priceArr),
+        maxPrice: Math.max(...priceArr),
+        avgPsf: psfArr.reduce((s, v) => s + v, 0) / items.length,
+        minPsf: Math.min(...psfArr),
+        maxPsf: Math.max(...psfArr),
+        avgAcPsf: acPsfArr.length
+          ? acPsfArr.reduce((s, v) => s + v, 0) / acPsfArr.length
+          : 0,
+        minAcPsf: acPsfArr.length ? Math.min(...acPsfArr) : 0,
+        maxAcPsf: acPsfArr.length ? Math.max(...acPsfArr) : 0,
+        totalValue: priceArr.reduce((s, v) => s + v, 0),
       };
     });
 
-    /* apply sort */
-    typeSummary.sort((a, b) =>
+    /* sort */
+    perType.sort((a, b) =>
       a[sortConfig.key] < b[sortConfig.key]
         ? sortConfig.direction === "ascending"
           ? -1
@@ -174,58 +178,72 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         : 0
     );
 
-    /* build TOTAL row */
-    const allValid = data.filter(
+    /* TOTAL */
+    const valid = data.filter(
       (u) => Number(u.sellArea) > 0 && u.finalTotalPrice > 0
     );
-    const totSell = allValid.reduce((s, u) => s + Number(u.sellArea), 0);
-    const totVal = allValid.reduce((s, u) => s + u.finalTotalPrice, 0);
-    const totUnits = allValid.length;
+    const totSell = valid.reduce((s, u) => s + Number(u.sellArea), 0);
+    const totVal = valid.reduce((s, u) => s + u.finalTotalPrice, 0);
+    const totUnits = valid.length;
     const totPsf = totSell ? totVal / totSell : 0;
+
+    /* AC totals */
+    const acValid = valid.filter((u) => Number(u.acArea) > 0);
+    let avgAc = 0,
+      minAc = 0,
+      maxAc = 0;
+    if (acValid.length) {
+      const totAcArea = acValid.reduce((s, u) => s + Number(u.acArea), 0);
+      const acPsfs = acValid.map(
+        (u) => u.finalAcPsf || u.finalTotalPrice / Number(u.acArea || 1)
+      );
+      avgAc = totVal / totAcArea;
+      minAc = Math.min(...acPsfs);
+      maxAc = Math.max(...acPsfs);
+    }
 
     setTotalSummary({
       unitCount: totUnits,
       totalArea: totSell,
       avgSize: totSell / (totUnits || 1),
-      minSize: Math.min(...allValid.map((u) => Number(u.sellArea))),
-      maxSize: Math.max(...allValid.map((u) => Number(u.sellArea))),
+      minSize: Math.min(...valid.map((u) => Number(u.sellArea))),
+      maxSize: Math.max(...valid.map((u) => Number(u.sellArea))),
       avgPrice: totVal / (totUnits || 1),
-      minPrice: Math.min(...allValid.map((u) => u.finalTotalPrice)),
-      maxPrice: Math.max(...allValid.map((u) => u.finalTotalPrice)),
+      minPrice: Math.min(...valid.map((u) => u.finalTotalPrice)),
+      maxPrice: Math.max(...valid.map((u) => u.finalTotalPrice)),
       totalValue: totVal,
       avgPsf: totPsf,
       minPsf: Math.min(
-        ...allValid.map(
+        ...valid.map(
           (u) => u.finalPsf || u.finalTotalPrice / Number(u.sellArea || 1)
         )
       ),
       maxPsf: Math.max(
-        ...allValid.map(
+        ...valid.map(
           (u) => u.finalPsf || u.finalTotalPrice / Number(u.sellArea || 1)
         )
       ),
-      avgAcPsf: 0,
-      minAcPsf: 0,
-      maxAcPsf: 0,
+      avgAcPsf: avgAc,
+      minAcPsf: minAc,
+      maxAcPsf: maxAc,
     });
 
-    setSummaryData(typeSummary);
+    setSummaryData(perType);
   }, [data, sortConfig]);
 
-  /* ───────── metric selector helpers ───────── */
-  const toggleMetric = (cat: MetricCategory, metric: MetricType) => {
+  /* ---------- metric selector helpers ---------- */
+  const toggleMetric = (cat: MetricCategory, m: MetricType) =>
     setSelectedMetrics((prev) => {
       const list = prev[cat];
       return {
         ...prev,
-        [cat]: list.includes(metric)
+        [cat]: list.includes(m)
           ? list.length === 1
             ? list
-            : list.filter((m) => m !== metric)
-          : [...list, metric],
+            : list.filter((x) => x !== m)
+          : [...list, m],
       };
     });
-  };
 
   const renderMetricSelector = (cat: MetricCategory, label: string) => (
     <div className="flex flex-col gap-1">
@@ -272,14 +290,13 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     cat: MetricCategory,
     flash: boolean
   ) => {
-    const metrics = selectedMetrics[cat];
-    if (!metrics.length) return null;
+    const list = selectedMetrics[cat];
+    if (!list.length) return null;
     return (
       <div className="space-y-1">
-        {metrics.map((m) => {
-          const val = getMetricValue(row, cat, m);
-          const label =
-            m === "avg" ? "Avg" : m === "min" ? "Min" : m === "max" ? "Max" : "";
+        {list.map((m) => {
+          const v = getMetricValue(row, cat, m);
+          const label = m === "avg" ? "Avg" : m === "min" ? "Min" : "Max";
           return (
             <div
               key={`${cat}-${m}`}
@@ -287,9 +304,9 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
             >
               <span className="font-medium text-xs">{label}:</span>{" "}
               {flash ? (
-                <AnimatedNumber value={val} run={flash} />
+                <AnimatedNumber value={v} run={flash} />
               ) : (
-                formatNumber(val, cat === "price")
+                formatNumber(v, cat === "price")
               )}
             </div>
           );
@@ -298,7 +315,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     );
   };
 
-  /* ───────── JSX ───────── */
+  /* ---------- JSX ---------- */
   return (
     <Card className="w-full shadow-sm">
       <CardHeader>
@@ -370,7 +387,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                 );
               })}
 
-              {/* TOTAL row */}
+              {/* TOTAL */}
               <TableRow className="bg-gray-50 font-medium">
                 <TableCell>TOTAL</TableCell>
                 <TableCell className="text-right">
