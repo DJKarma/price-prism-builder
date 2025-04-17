@@ -4,24 +4,16 @@ import CSVUploader from "@/components/CSVUploader";
 import ColumnMapper from "@/components/ColumnMapper";
 import PricingSimulator from "@/components/PricingSimulator";
 import MegaOptimize from "@/components/MegaOptimize";
+import CollapsibleConfigPanel from "@/components/pricing-simulator/CollapsibleConfigPanel";
 import { Toaster, toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  Upload,
-  FileSpreadsheet,
-  LineChart,
-  PieChart,
-} from "lucide-react";
+import { ArrowLeft, Upload, FileSpreadsheet, LineChart, PieChart } from "lucide-react";
 import { usePricingStore } from "@/store/pricingStore";
 
 const Index = () => {
   /* ---------------- local UI state ---------------- */
-  const [activeTab, setActiveTab] = useState<"upload" | "map" | "simulate">(
-    "upload"
-  );
-  const [transitionDirection, setTransitionDirection] =
-    useState<"forward" | "backward">("forward");
+  const [activeTab, setActiveTab] = useState<"upload" | "map" | "simulate">("upload");
+  const [transitionDirection, setTransitionDirection] = useState<"forward" | "backward">("forward");
   const [tabChanging, setTabChanging] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
 
@@ -60,14 +52,11 @@ const Index = () => {
   };
 
   /* ---------------- step handlers ---------------- */
-
-  /* Upload → Map */
   const handleDataParsed = (data: any[], headers: string[]) => {
     setCsvData(data, headers);
     changeTab("map", "forward");
   };
 
-  /* Map → Simulate  (auto‑apply default config) */
   const handleMappingComplete = (
     mapping: Record<string, string>,
     data: any[],
@@ -75,35 +64,24 @@ const Index = () => {
   ) => {
     setMappedData(data, categories);
 
-    /* ---------- build a default config exactly like “Apply” ---------- */
     const BASE_PSF = 1000;
-
-    // bedroom types
     const uniqueTypes = Array.from(
-      new Set(
-        data.map((u) => u.type).filter((t: string) => t && t.trim() !== "")
-      )
+      new Set(data.map((u) => u.type).filter((t: string) => t?.trim()))
     ) as string[];
-
     const bedroomTypePricing = uniqueTypes.map((t) => ({
       type: t,
       basePsf: BASE_PSF,
       targetAvgPsf: BASE_PSF,
     }));
 
-    // views
     const uniqueViews = Array.from(
-      new Set(
-        data.map((u) => u.view).filter((v: string) => v && v.trim() !== "")
-      )
+      new Set(data.map((u) => u.view).filter((v: string) => v?.trim()))
     ) as string[];
-
     const viewPricing = uniqueViews.map((v) => ({
       view: v,
       psfAdjustment: 0,
     }));
 
-    // additional category defaults (if any)
     const additionalCategoryPricing = categories.flatMap((cat) =>
       cat.categories.map((value) => ({
         column: cat.column,
@@ -112,7 +90,6 @@ const Index = () => {
       }))
     );
 
-    // final object
     const defaultConfig = {
       basePsf: BASE_PSF,
       bedroomTypePricing,
@@ -130,7 +107,7 @@ const Index = () => {
       maxFloor,
     };
 
-    setPricingConfig(defaultConfig); // does what “Apply Configuration” would do
+    setPricingConfig(defaultConfig);
     changeTab("simulate", "forward");
   };
 
@@ -163,7 +140,6 @@ const Index = () => {
     }, 300);
   };
 
-  /* ---------------- render helpers ---------------- */
   const getStepIcon = (step: string, active: boolean) => {
     const cls = `h-4 w-4 ${active ? "text-white" : "text-gray-600"}`;
     if (step === "upload") return <Upload className={cls} />;
@@ -181,7 +157,7 @@ const Index = () => {
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" closeButton richColors />
 
-      {/* ---------- header ---------- */}
+      {/* header */}
       <header className="gradient-bg text-white py-8 animate-fade-in">
         <div className="container mx-auto px-4">
           <h1 className="text-3xl md:text-4xl font-bold mb-2 flex items-center">
@@ -194,7 +170,7 @@ const Index = () => {
         </div>
       </header>
 
-      {/* ---------- main ---------- */}
+      {/* main */}
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={handleManualTabChange}>
           {/* step headers */}
@@ -289,18 +265,36 @@ const Index = () => {
                     </Button>
                   </div>
 
-                  <MegaOptimize
-                    data={mappedData}
-                    pricingConfig={pricingConfig}
-                    onOptimized={handleConfigUpdate}
-                  />
+                  {/* 2‑column grid: summary + config */}
+                  <div className="grid grid-cols-12 gap-6 mb-6">
+                    <div className="col-span-8">
+                      <MegaOptimize
+                        data={mappedData}
+                        pricingConfig={pricingConfig}
+                        onOptimized={handleConfigUpdate}
+                      />
+                    </div>
+                    <div className="col-span-4">
+                      <div className="hover:shadow-lg transition-all duration-300 rounded-lg hover:shadow-indigo-100/50">
+                        <CollapsibleConfigPanel
+                          data={mappedData}
+                          pricingConfig={pricingConfig}
+                          onConfigUpdate={handleConfigUpdate}
+                          additionalCategories={additionalCategories}
+                          maxFloor={maxFloor}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
+                  {/* below: full‑width table without duplicating config */}
                   <PricingSimulator
                     data={mappedData}
                     pricingConfig={pricingConfig}
                     onConfigUpdate={handleConfigUpdate}
                     additionalCategories={additionalCategories}
                     maxFloor={maxFloor}
+                    hideConfigPanel
                     key={`simulator-${forceUpdate}`}
                   />
                 </>
@@ -310,7 +304,7 @@ const Index = () => {
         </Tabs>
       </main>
 
-      {/* ---------- footer ---------- */}
+      {/* footer */}
       <footer className="bg-gray-800 text-white p-6 mt-10">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center">
           <div className="mb-4 md:mb-0 animate-fade-in">
@@ -325,7 +319,7 @@ const Index = () => {
           <div className="text-sm opacity-75 animate-fade-in">
             &copy; {new Date().getFullYear()} Price Prism Builder. All rights
             reserved. <br />
-            <span className="font-medium">Created by Dhananjay Shembe​kar</span>
+            <span className="font-medium">Created by Dhananjay Shembekar</span>
           </div>
         </div>
       </footer>
