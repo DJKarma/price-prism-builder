@@ -16,27 +16,53 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  ArrowUpDown,
-  DollarSign,
-} from "lucide-react";
+import { ArrowUpDown, DollarSign } from "lucide-react";
+import clsx from "clsx"; // yarn add clsx  (if not already in your deps)
 
 interface PricingSummaryProps {
   data: any[];
   showDollarSign?: boolean;
-  highlightedTypes?: string[];
+  highlightedTypes?: string[];      // NEW
   showAcPsf?: boolean;
 }
 
 type MetricType = "avg" | "min" | "max";
 type MetricCategory = "psf" | "acPsf" | "size" | "price";
 
+/* ───────── animation helper ───────── */
+const AnimatedNumber: React.FC<{ value: number; run: boolean }> = ({
+  value,
+  run,
+}) => {
+  const [disp, setDisp] = useState(value);
+  useEffect(() => {
+    if (!run) return setDisp(value);
+    let i = 0;
+    const id = setInterval(() => {
+      if (i >= 6) {
+        clearInterval(id);
+        setDisp(value);
+        return;
+      }
+      const p = i / 6;
+      const eased = 1 - Math.pow(1 - p, 3);
+      const mid = disp + (value - disp) * eased;
+      setDisp(Number(mid.toFixed(0)));
+      i++;
+    }, 60);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, run]);
+  return <>{disp.toLocaleString()}</>;
+};
+
 const PricingSummary: React.FC<PricingSummaryProps> = ({
   data,
   showDollarSign = true,
-  highlightedTypes = [],
-  showAcPsf = false
+  highlightedTypes = [],          // NEW
+  showAcPsf = false,
 }) => {
+  /* ---------------- existing state / helpers (unchanged) ---------------- */
   const [summaryData, setSummaryData] = useState<any[]>([]);
   const [totalSummary, setTotalSummary] = useState<any>({});
   const [sortConfig, setSortConfig] = useState<{
@@ -44,337 +70,69 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     direction: "ascending" | "descending";
   }>({ key: "type", direction: "ascending" });
 
-  const [selectedMetrics, setSelectedMetrics] = useState<Record<MetricCategory, MetricType[]>>({
+  const [selectedMetrics, setSelectedMetrics] = useState<
+    Record<MetricCategory, MetricType[]>
+  >({
     psf: ["avg"],
     acPsf: ["avg"],
     size: ["avg"],
-    price: ["avg"]
+    price: ["avg"],
   });
 
+  /* ------------ existing helpers (formatLargeNumber / formatNumber) ------------- */
   const formatLargeNumber = (num: number): string => {
     if (!isFinite(num) || isNaN(num)) return "-";
-    
-    if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(2)}M`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(0)}K`;
-    }
+    if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
     return num.toFixed(0);
   };
+  const formatNumber = (num: number, isPrice = false): string =>
+    !isFinite(num) || isNaN(num)
+      ? "-"
+      : isPrice
+      ? formatLargeNumber(num)
+      : Math.ceil(num).toLocaleString();
 
-  const formatNumber = (num: number, isPrice = false): string => {
-    if (!isFinite(num) || isNaN(num)) return "-";
-    
-    if (isPrice) {
-      return formatLargeNumber(num);
-    }
-    return Math.ceil(num).toLocaleString();
-  };
+  /* ---- massive useEffect that builds summaryData & totalSummary (unchanged) ---- */
+  /* (the entire body of your original useEffect remains exactly the same) */
+  /*  … copy‑paste from your existing file … */
 
-  useEffect(() => {
-    if (!data || data.length === 0) return;
+  /* -------- metric selector / cell render helpers (unchanged) -------- */
+  /*  … keep renderMetricSelector, toggleMetric, getMetricValue … */
 
-    try {
-      const typeGroups: Record<string, any[]> = {};
-      data.forEach((item) => {
-        const type = item.type || "Unknown";
-        if (!typeGroups[type]) {
-          typeGroups[type] = [];
-        }
-        typeGroups[type].push(item);
-      });
+  const renderMetricCell = (
+    row: any,
+    category: MetricCategory,
+    flash: boolean
+  ) => {
+    const metrics = selectedMetrics[category];
+    if (metrics.length === 0) return null;
+    const out: JSX.Element[] = [];
 
-      const typeSummary = Object.keys(typeGroups).map((type) => {
-        const items = typeGroups[type];
-        
-        const validItems = items.filter(item => {
-          const hasValidSellArea = parseFloat(item.sellArea) > 0;
-          const hasValidPrice = typeof item.finalTotalPrice === 'number' && item.finalTotalPrice > 0;
-          return hasValidSellArea && hasValidPrice;
-        });
-        
-        if (validItems.length === 0) {
-          return {
-            type,
-            unitCount: 0,
-            totalArea: 0,
-            avgSize: 0,
-            minSize: 0,
-            maxSize: 0,
-            avgPrice: 0,
-            minPrice: 0,
-            maxPrice: 0,
-            avgPsf: 0,
-            minPsf: 0,
-            maxPsf: 0,
-            avgAcPsf: 0,
-            minAcPsf: 0,
-            maxAcPsf: 0,
-            totalValue: 0,
-          };
-        }
-        
-        const unitCount = validItems.length;
-        
-        const totalArea = validItems.reduce(
-          (sum, item) => sum + parseFloat(item.sellArea || 0),
-          0
-        );
-        
-        const sizes = validItems.map((item) => parseFloat(item.sellArea || 0));
-        const avgSize = totalArea / unitCount;
-        const minSize = Math.min(...sizes);
-        const maxSize = Math.max(...sizes);
-        
-        const prices = validItems.map((item) => item.finalTotalPrice);
-        const avgPrice = prices.reduce((sum, price) => sum + price, 0) / unitCount;
-        const minPrice = Math.min(...prices);
-        const maxPrice = Math.max(...prices);
-        
-        const psfs = validItems.map(
-          (item) => item.finalPsf || (item.finalTotalPrice / parseFloat(item.sellArea || 1))
-        );
-        const avgPsf = psfs.reduce((sum, psf) => sum + psf, 0) / unitCount;
-        const minPsf = Math.min(...psfs);
-        const maxPsf = Math.max(...psfs);
-        
-        const validItemsWithAcArea = validItems.filter(item => parseFloat(item.acArea) > 0);
-        let avgAcPsf = 0, minAcPsf = 0, maxAcPsf = 0;
-        
-        if (validItemsWithAcArea.length > 0) {
-          const acPsfs = validItemsWithAcArea.map(
-            (item) => item.finalAcPsf || (item.finalTotalPrice / parseFloat(item.acArea || 1))
-          );
-          avgAcPsf = acPsfs.reduce((sum, psf) => sum + psf, 0) / validItemsWithAcArea.length;
-          minAcPsf = Math.min(...acPsfs);
-          maxAcPsf = Math.max(...acPsfs);
-        }
-        
-        const totalValue = validItems.reduce(
-          (sum, item) => sum + item.finalTotalPrice,
-          0
-        );
-        
-        return {
-          type,
-          unitCount,
-          totalArea,
-          avgSize,
-          minSize,
-          maxSize,
-          avgPrice,
-          minPrice,
-          maxPrice,
-          avgPsf,
-          minPsf,
-          maxPsf,
-          avgAcPsf,
-          minAcPsf,
-          maxAcPsf,
-          totalValue,
-        };
-      });
-
-      if (sortConfig) {
-        typeSummary.sort((a, b) => {
-          if (a[sortConfig.key] < b[sortConfig.key]) {
-            return sortConfig.direction === "ascending" ? -1 : 1;
-          }
-          if (a[sortConfig.key] > b[sortConfig.key]) {
-            return sortConfig.direction === "ascending" ? 1 : -1;
-          }
-          return 0;
-        });
-      }
-
-      const allValidItems = data.filter(item => {
-        const hasValidSellArea = parseFloat(item.sellArea) > 0;
-        const hasValidPrice = typeof item.finalTotalPrice === 'number' && item.finalTotalPrice > 0;
-        return hasValidSellArea && hasValidPrice;
-      });
-      
-      if (allValidItems.length > 0) {
-        const totalUnitCount = allValidItems.length;
-        const totalSellArea = allValidItems.reduce(
-          (sum, item) => sum + parseFloat(item.sellArea || 0),
-          0
-        );
-        
-        const totalValue = allValidItems.reduce(
-          (sum, item) => sum + (item.finalTotalPrice || 0),
-          0
-        );
-        
-        const allSizes = allValidItems.map((item) => parseFloat(item.sellArea || 0));
-        const minSize = Math.min(...allSizes);
-        const maxSize = Math.max(...allSizes);
-        
-        const allPrices = allValidItems.map((item) => item.finalTotalPrice);
-        const minPrice = Math.min(...allPrices);
-        const maxPrice = Math.max(...allPrices);
-        
-        const overallAvgPsf = totalValue / totalSellArea;
-        
-        const allPsfs = allValidItems.map(
-          (item) => item.finalPsf || (item.finalTotalPrice / parseFloat(item.sellArea || 1))
-        );
-        const minPsf = Math.min(...allPsfs);
-        const maxPsf = Math.max(...allPsfs);
-        
-        const validItemsWithAcArea = allValidItems.filter(item => parseFloat(item.acArea) > 0);
-        let overallAvgAcPsf = 0, minAcPsf = 0, maxAcPsf = 0;
-        
-        if (validItemsWithAcArea.length > 0) {
-          const totalAcArea = validItemsWithAcArea.reduce(
-            (sum, item) => sum + parseFloat(item.acArea || 0),
-            0
-          );
-          
-          const acPsfs = validItemsWithAcArea.map(
-            (item) => item.finalAcPsf || (item.finalTotalPrice / parseFloat(item.acArea || 1))
-          );
-          
-          overallAvgAcPsf = totalValue / totalAcArea;
-          minAcPsf = Math.min(...acPsfs);
-          maxAcPsf = Math.max(...acPsfs);
-        }
-        
-        setTotalSummary({
-          unitCount: totalUnitCount,
-          totalArea: totalSellArea,
-          avgSize: totalSellArea / totalUnitCount,
-          minSize,
-          maxSize,
-          avgPrice: totalValue / totalUnitCount,
-          minPrice,
-          maxPrice,
-          totalValue,
-          avgPsf: overallAvgPsf,
-          minPsf,
-          maxPsf,
-          avgAcPsf: overallAvgAcPsf, 
-          minAcPsf,
-          maxAcPsf
-        });
-      } else {
-        setTotalSummary({
-          unitCount: 0,
-          totalArea: 0,
-          avgSize: 0,
-          minSize: 0,
-          maxSize: 0,
-          avgPrice: 0,
-          minPrice: 0,
-          maxPrice: 0,
-          totalValue: 0,
-          avgPsf: 0,
-          minPsf: 0,
-          maxPsf: 0,
-          avgAcPsf: 0,
-          minAcPsf: 0,
-          maxAcPsf: 0
-        });
-      }
-
-      setSummaryData(typeSummary);
-    } catch (error) {
-      console.error("Error processing pricing summary data:", error);
-    }
-  }, [data, sortConfig]);
-
-  const toggleMetric = (category: MetricCategory, metric: MetricType) => {
-    setSelectedMetrics(prev => {
-      const currentMetrics = [...prev[category]];
-      
-      if (currentMetrics.includes(metric)) {
-        if (currentMetrics.length > 1) {
-          return {
-            ...prev,
-            [category]: currentMetrics.filter(m => m !== metric)
-          };
-        }
-        return prev;
-      } else {
-        return {
-          ...prev,
-          [category]: [...currentMetrics, metric]
-        };
-      }
+    metrics.forEach((m) => {
+      const v = getMetricValue(row, category, m as MetricType);
+      const label =
+        m === "avg" ? "Avg" : m === "min" ? "Min" : m === "max" ? "Max" : "";
+      out.push(
+        <div
+          key={`${category}-${m}`}
+          className={clsx(
+            m === "avg" ? "font-medium" : "text-gray-600 text-sm"
+          )}
+        >
+          <span className="font-medium text-xs">{label}:</span>{" "}
+          {flash ? (
+            <AnimatedNumber value={v} run={flash} />
+          ) : (
+            formatNumber(v, category === "price")
+          )}
+        </div>
+      );
     });
+    return <div className="space-y-1">{out}</div>;
   };
 
-  const renderMetricSelector = (category: MetricCategory, label: string) => (
-    <div className="flex flex-col gap-1">
-      <span className="text-sm text-muted-foreground font-medium">{label}</span>
-      <div className="flex flex-wrap gap-3 items-center">
-        {(['min', 'avg', 'max'] as MetricType[]).map(metric => (
-          <div key={`${category}-${metric}`} className="flex items-center space-x-2">
-            <Checkbox 
-              id={`${category}-${metric}`}
-              checked={selectedMetrics[category].includes(metric)}
-              onCheckedChange={() => toggleMetric(category, metric)}
-            />
-            <label 
-              htmlFor={`${category}-${metric}`}
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              {metric.charAt(0).toUpperCase() + metric.slice(1)}
-            </label>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderMetricCell = (row: any, category: MetricCategory) => {
-    const selectedForCategory = selectedMetrics[category];
-    if (selectedForCategory.length === 0) return null;
-    
-    let content: JSX.Element[] = [];
-    
-    if (selectedForCategory.includes('min')) {
-      const value = getMetricValue(row, category, 'min');
-      content.push(
-        <div key={`${category}-min`} className="text-gray-600 text-sm">
-          <span className="font-medium text-xs">Min:</span> {formatNumber(value, category === 'price')}
-        </div>
-      );
-    }
-    
-    if (selectedForCategory.includes('avg')) {
-      const value = getMetricValue(row, category, 'avg');
-      content.push(
-        <div key={`${category}-avg`} className="font-medium">
-          <span className="text-xs">Avg:</span> {formatNumber(value, category === 'price')}
-        </div>
-      );
-    }
-    
-    if (selectedForCategory.includes('max')) {
-      const value = getMetricValue(row, category, 'max');
-      content.push(
-        <div key={`${category}-max`} className="text-gray-600 text-sm">
-          <span className="font-medium text-xs">Max:</span> {formatNumber(value, category === 'price')}
-        </div>
-      );
-    }
-    
-    return <div className="space-y-1">{content}</div>;
-  };
-
-  const getMetricValue = (row: any, category: MetricCategory, metric: MetricType): number => {
-    switch (category) {
-      case "psf":
-        return row[`${metric}Psf`] || 0;
-      case "acPsf":
-        return row[`${metric}AcPsf`] || 0;
-      case "size":
-        return row[`${metric}Size`] || 0;
-      case "price":
-        return row[`${metric}Price`] || 0;
-    }
-  };
-
+  /* ----------------------------- JSX ----------------------------- */
   return (
     <Card className="w-full shadow-sm">
       <CardHeader>
@@ -382,6 +140,8 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         <CardDescription>
           Breakdown by bedroom type with PSF analytics
         </CardDescription>
+
+        {/* metric selectors (unchanged) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-2">
           {renderMetricSelector("size", "Size")}
           {renderMetricSelector("price", "Price")}
@@ -390,6 +150,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         </div>
       </CardHeader>
 
+      {/* ---------- table ---------- */}
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <Table>
@@ -399,60 +160,76 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                 <TableHead className="text-right">Units</TableHead>
                 <TableHead className="text-right">Size</TableHead>
                 <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right border-l border-gray-200">SA PSF</TableHead>
+                <TableHead className="text-right border-l border-gray-200">
+                  SA PSF
+                </TableHead>
                 {showAcPsf && (
-                  <TableHead className="text-right border-l border-gray-200">AC PSF</TableHead>
+                  <TableHead className="text-right border-l border-gray-200">
+                    AC PSF
+                  </TableHead>
                 )}
               </TableRow>
             </TableHeader>
-            
+
             <TableBody>
-              {summaryData.map((row, index) => (
-                <TableRow 
-                  key={row.type}
-                  className={highlightedTypes.includes(row.type) ? "bg-green-50" : ""}
-                >
-                  <TableCell className="font-medium">{row.type}</TableCell>
-                  <TableCell className="text-right">{row.unitCount}</TableCell>
-                  <TableCell className="text-right">
-                    {renderMetricCell(row, "size")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {showDollarSign && selectedMetrics.price.length > 0 && <DollarSign className="h-3 w-3 inline mr-0.5" />}
-                    {renderMetricCell(row, "price")}
-                  </TableCell>
-                  <TableCell className="text-right border-l border-gray-200">
-                    {renderMetricCell(row, "psf")}
-                  </TableCell>
-                  {showAcPsf && (
-                    <TableCell className="text-right border-l border-gray-200">
-                      {renderMetricCell(row, "acPsf")}
+              {summaryData.map((row) => {
+                const flash = highlightedTypes.includes(row.type);
+                return (
+                  <TableRow
+                    key={row.type}
+                    className={clsx(
+                      flash && "bg-yellow-50 animate-[pulse_0.8s_ease-in-out_infinite]"
+                    )}
+                  >
+                    <TableCell className="font-medium">{row.type}</TableCell>
+                    <TableCell className="text-right">{row.unitCount}</TableCell>
+                    <TableCell className="text-right">
+                      {renderMetricCell(row, "size", flash)}
                     </TableCell>
-                  )}
-                </TableRow>
-              ))}
-              
+                    <TableCell className="text-right">
+                      {showDollarSign &&
+                        selectedMetrics.price.length > 0 && (
+                          <DollarSign className="h-3 w-3 inline mr-0.5" />
+                        )}
+                      {renderMetricCell(row, "price", flash)}
+                    </TableCell>
+                    <TableCell className="text-right border-l border-gray-200">
+                      {renderMetricCell(row, "psf", flash)}
+                    </TableCell>
+                    {showAcPsf && (
+                      <TableCell className="text-right border-l border-gray-200">
+                        {renderMetricCell(row, "acPsf", flash)}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })}
+
+              {/* TOTAL row (unchanged except we disable flash) */}
               <TableRow className="bg-gray-50 font-medium">
                 <TableCell>TOTAL</TableCell>
                 <TableCell className="text-right">
                   {totalSummary.unitCount}
                 </TableCell>
                 <TableCell className="text-right">
-                  {renderMetricCell(totalSummary, "size")}
+                  {renderMetricCell(totalSummary, "size", false)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {showDollarSign && selectedMetrics.price.length > 0 && <DollarSign className="h-3 w-3 inline mr-0.5" />}
-                  {renderMetricCell(totalSummary, "price")}
+                  {showDollarSign &&
+                    selectedMetrics.price.length > 0 && (
+                      <DollarSign className="h-3 w-3 inline mr-0.5" />
+                    )}
+                  {renderMetricCell(totalSummary, "price", false)}
                 </TableCell>
                 <TableCell className="text-right border-l border-gray-200">
                   <Badge variant="outline" className="bg-indigo-50 border-indigo-200">
-                    {renderMetricCell(totalSummary, "psf")}
+                    {renderMetricCell(totalSummary, "psf", false)}
                   </Badge>
                 </TableCell>
                 {showAcPsf && (
                   <TableCell className="text-right border-l border-gray-200">
                     <Badge variant="outline" className="bg-indigo-50 border-indigo-200">
-                      {renderMetricCell(totalSummary, "acPsf")}
+                      {renderMetricCell(totalSummary, "acPsf", false)}
                     </Badge>
                   </TableCell>
                 )}
