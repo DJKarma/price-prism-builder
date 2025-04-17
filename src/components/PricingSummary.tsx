@@ -16,20 +16,20 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowUpDown, DollarSign } from "lucide-react";
-import clsx from "clsx"; // yarn add clsx  (if not already in your deps)
+import { DollarSign } from "lucide-react";
+import clsx from "clsx";
 
 interface PricingSummaryProps {
   data: any[];
   showDollarSign?: boolean;
-  highlightedTypes?: string[];      // NEW
+  highlightedTypes?: string[];
   showAcPsf?: boolean;
 }
 
 type MetricType = "avg" | "min" | "max";
 type MetricCategory = "psf" | "acPsf" | "size" | "price";
 
-/* ───────── animation helper ───────── */
+/* ───────── animated number helper ───────── */
 const AnimatedNumber: React.FC<{ value: number; run: boolean }> = ({
   value,
   run,
@@ -39,7 +39,7 @@ const AnimatedNumber: React.FC<{ value: number; run: boolean }> = ({
     if (!run) return setDisp(value);
     let i = 0;
     const id = setInterval(() => {
-      if (i >= 6) {
+      if (i === 6) {
         clearInterval(id);
         setDisp(value);
         return;
@@ -59,10 +59,10 @@ const AnimatedNumber: React.FC<{ value: number; run: boolean }> = ({
 const PricingSummary: React.FC<PricingSummaryProps> = ({
   data,
   showDollarSign = true,
-  highlightedTypes = [],          // NEW
+  highlightedTypes = [],
   showAcPsf = false,
 }) => {
-  /* ---------------- existing state / helpers (unchanged) ---------------- */
+  /* ───────── state ───────── */
   const [summaryData, setSummaryData] = useState<any[]>([]);
   const [totalSummary, setTotalSummary] = useState<any>({});
   const [sortConfig, setSortConfig] = useState<{
@@ -79,60 +79,226 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
     price: ["avg"],
   });
 
-  /* ------------ existing helpers (formatLargeNumber / formatNumber) ------------- */
-  const formatLargeNumber = (num: number): string => {
-    if (!isFinite(num) || isNaN(num)) return "-";
-    if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
-    return num.toFixed(0);
-  };
-  const formatNumber = (num: number, isPrice = false): string =>
+  /* ───────── helpers to format numbers ───────── */
+  const formatLargeNumber = (num: number) =>
+    num >= 1_000_000
+      ? `${(num / 1_000_000).toFixed(2)}M`
+      : num >= 1_000
+      ? `${(num / 1_000).toFixed(0)}K`
+      : num.toFixed(0);
+
+  const formatNumber = (num: number, price = false) =>
     !isFinite(num) || isNaN(num)
       ? "-"
-      : isPrice
+      : price
       ? formatLargeNumber(num)
       : Math.ceil(num).toLocaleString();
 
-  /* ---- massive useEffect that builds summaryData & totalSummary (unchanged) ---- */
-  /* (the entire body of your original useEffect remains exactly the same) */
-  /*  … copy‑paste from your existing file … */
+  /* ───────── build summary arrays (same logic you had) ───────── */
+  useEffect(() => {
+    if (!data?.length) return;
 
-  /* -------- metric selector / cell render helpers (unchanged) -------- */
-  /*  … keep renderMetricSelector, toggleMetric, getMetricValue … */
+    /* --- group by bedroom type --- */
+    const typeGroups: Record<string, any[]> = {};
+    data.forEach((u) => {
+      const t = u.type || "Unknown";
+      typeGroups[t] = typeGroups[t] || [];
+      typeGroups[t].push(u);
+    });
+
+    const typeSummary = Object.keys(typeGroups).map((t) => {
+      const items = typeGroups[t].filter(
+        (u) => Number(u.sellArea) > 0 && u.finalTotalPrice > 0
+      );
+      if (!items.length)
+        return {
+          type: t,
+          unitCount: 0,
+          totalArea: 0,
+          avgSize: 0,
+          minSize: 0,
+          maxSize: 0,
+          avgPrice: 0,
+          minPrice: 0,
+          maxPrice: 0,
+          avgPsf: 0,
+          minPsf: 0,
+          maxPsf: 0,
+          avgAcPsf: 0,
+          minAcPsf: 0,
+          maxAcPsf: 0,
+          totalValue: 0,
+        };
+
+      const unitCount = items.length;
+      const sellAreas = items.map((u) => Number(u.sellArea));
+      const prices = items.map((u) => u.finalTotalPrice);
+      const psfs = items.map(
+        (u) => u.finalPsf || u.finalTotalPrice / Number(u.sellArea || 1)
+      );
+      const acItems = items.filter((u) => Number(u.acArea) > 0);
+      const acPsfs = acItems.map(
+        (u) => u.finalAcPsf || u.finalTotalPrice / Number(u.acArea || 1)
+      );
+
+      return {
+        type: t,
+        unitCount,
+        totalArea: sellAreas.reduce((s, v) => s + v, 0),
+        avgSize: sellAreas.reduce((s, v) => s + v, 0) / unitCount,
+        minSize: Math.min(...sellAreas),
+        maxSize: Math.max(...sellAreas),
+        avgPrice: prices.reduce((s, v) => s + v, 0) / unitCount,
+        minPrice: Math.min(...prices),
+        maxPrice: Math.max(...prices),
+        avgPsf: psfs.reduce((s, v) => s + v, 0) / unitCount,
+        minPsf: Math.min(...psfs),
+        maxPsf: Math.max(...psfs),
+        avgAcPsf: acPsfs.length ? acPsfs.reduce((s, v) => s + v, 0) / acPsfs.length : 0,
+        minAcPsf: acPsfs.length ? Math.min(...acPsfs) : 0,
+        maxAcPsf: acPsfs.length ? Math.max(...acPsfs) : 0,
+        totalValue: prices.reduce((s, v) => s + v, 0),
+      };
+    });
+
+    /* apply sort */
+    typeSummary.sort((a, b) =>
+      a[sortConfig.key] < b[sortConfig.key]
+        ? sortConfig.direction === "ascending"
+          ? -1
+          : 1
+        : a[sortConfig.key] > b[sortConfig.key]
+        ? sortConfig.direction === "ascending"
+          ? 1
+          : -1
+        : 0
+    );
+
+    /* build TOTAL row */
+    const allValid = data.filter(
+      (u) => Number(u.sellArea) > 0 && u.finalTotalPrice > 0
+    );
+    const totSell = allValid.reduce((s, u) => s + Number(u.sellArea), 0);
+    const totVal = allValid.reduce((s, u) => s + u.finalTotalPrice, 0);
+    const totUnits = allValid.length;
+    const totPsf = totSell ? totVal / totSell : 0;
+
+    setTotalSummary({
+      unitCount: totUnits,
+      totalArea: totSell,
+      avgSize: totSell / (totUnits || 1),
+      minSize: Math.min(...allValid.map((u) => Number(u.sellArea))),
+      maxSize: Math.max(...allValid.map((u) => Number(u.sellArea))),
+      avgPrice: totVal / (totUnits || 1),
+      minPrice: Math.min(...allValid.map((u) => u.finalTotalPrice)),
+      maxPrice: Math.max(...allValid.map((u) => u.finalTotalPrice)),
+      totalValue: totVal,
+      avgPsf: totPsf,
+      minPsf: Math.min(
+        ...allValid.map(
+          (u) => u.finalPsf || u.finalTotalPrice / Number(u.sellArea || 1)
+        )
+      ),
+      maxPsf: Math.max(
+        ...allValid.map(
+          (u) => u.finalPsf || u.finalTotalPrice / Number(u.sellArea || 1)
+        )
+      ),
+      avgAcPsf: 0,
+      minAcPsf: 0,
+      maxAcPsf: 0,
+    });
+
+    setSummaryData(typeSummary);
+  }, [data, sortConfig]);
+
+  /* ───────── metric selector helpers ───────── */
+  const toggleMetric = (cat: MetricCategory, metric: MetricType) => {
+    setSelectedMetrics((prev) => {
+      const list = prev[cat];
+      return {
+        ...prev,
+        [cat]: list.includes(metric)
+          ? list.length === 1
+            ? list
+            : list.filter((m) => m !== metric)
+          : [...list, metric],
+      };
+    });
+  };
+
+  const renderMetricSelector = (cat: MetricCategory, label: string) => (
+    <div className="flex flex-col gap-1">
+      <span className="text-sm text-muted-foreground font-medium">{label}</span>
+      <div className="flex flex-wrap gap-3 items-center">
+        {(["min", "avg", "max"] as MetricType[]).map((m) => (
+          <div key={`${cat}-${m}`} className="flex items-center space-x-2">
+            <Checkbox
+              id={`${cat}-${m}`}
+              checked={selectedMetrics[cat].includes(m)}
+              onCheckedChange={() => toggleMetric(cat, m)}
+            />
+            <label
+              htmlFor={`${cat}-${m}`}
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              {m.toUpperCase()}
+            </label>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const getMetricValue = (
+    row: any,
+    cat: MetricCategory,
+    metric: MetricType
+  ) => {
+    switch (cat) {
+      case "psf":
+        return row[`${metric}Psf`] || 0;
+      case "acPsf":
+        return row[`${metric}AcPsf`] || 0;
+      case "size":
+        return row[`${metric}Size`] || 0;
+      case "price":
+        return row[`${metric}Price`] || 0;
+    }
+  };
 
   const renderMetricCell = (
     row: any,
-    category: MetricCategory,
+    cat: MetricCategory,
     flash: boolean
   ) => {
-    const metrics = selectedMetrics[category];
-    if (metrics.length === 0) return null;
-    const out: JSX.Element[] = [];
-
-    metrics.forEach((m) => {
-      const v = getMetricValue(row, category, m as MetricType);
-      const label =
-        m === "avg" ? "Avg" : m === "min" ? "Min" : m === "max" ? "Max" : "";
-      out.push(
-        <div
-          key={`${category}-${m}`}
-          className={clsx(
-            m === "avg" ? "font-medium" : "text-gray-600 text-sm"
-          )}
-        >
-          <span className="font-medium text-xs">{label}:</span>{" "}
-          {flash ? (
-            <AnimatedNumber value={v} run={flash} />
-          ) : (
-            formatNumber(v, category === "price")
-          )}
-        </div>
-      );
-    });
-    return <div className="space-y-1">{out}</div>;
+    const metrics = selectedMetrics[cat];
+    if (!metrics.length) return null;
+    return (
+      <div className="space-y-1">
+        {metrics.map((m) => {
+          const val = getMetricValue(row, cat, m);
+          const label =
+            m === "avg" ? "Avg" : m === "min" ? "Min" : m === "max" ? "Max" : "";
+          return (
+            <div
+              key={`${cat}-${m}`}
+              className={clsx(m === "avg" ? "font-medium" : "text-gray-600 text-sm")}
+            >
+              <span className="font-medium text-xs">{label}:</span>{" "}
+              {flash ? (
+                <AnimatedNumber value={val} run={flash} />
+              ) : (
+                formatNumber(val, cat === "price")
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
-  /* ----------------------------- JSX ----------------------------- */
+  /* ───────── JSX ───────── */
   return (
     <Card className="w-full shadow-sm">
       <CardHeader>
@@ -141,7 +307,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           Breakdown by bedroom type with PSF analytics
         </CardDescription>
 
-        {/* metric selectors (unchanged) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-2">
           {renderMetricSelector("size", "Size")}
           {renderMetricSelector("price", "Price")}
@@ -150,7 +315,6 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         </div>
       </CardHeader>
 
-      {/* ---------- table ---------- */}
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <Table>
@@ -178,7 +342,8 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                   <TableRow
                     key={row.type}
                     className={clsx(
-                      flash && "bg-yellow-50 animate-[pulse_0.8s_ease-in-out_infinite]"
+                      flash &&
+                        "bg-yellow-50 animate-[pulse_0.8s_ease-in-out_infinite]"
                     )}
                   >
                     <TableCell className="font-medium">{row.type}</TableCell>
@@ -205,7 +370,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                 );
               })}
 
-              {/* TOTAL row (unchanged except we disable flash) */}
+              {/* TOTAL row */}
               <TableRow className="bg-gray-50 font-medium">
                 <TableCell>TOTAL</TableCell>
                 <TableCell className="text-right">
@@ -215,10 +380,9 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                   {renderMetricCell(totalSummary, "size", false)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {showDollarSign &&
-                    selectedMetrics.price.length > 0 && (
-                      <DollarSign className="h-3 w-3 inline mr-0.5" />
-                    )}
+                  {showDollarSign && selectedMetrics.price.length > 0 && (
+                    <DollarSign className="h-3 w-3 inline mr-0.5" />
+                  )}
                   {renderMetricCell(totalSummary, "price", false)}
                 </TableCell>
                 <TableCell className="text-right border-l border-gray-200">
