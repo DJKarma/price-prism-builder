@@ -24,7 +24,7 @@ import OptimizationControls from "./OptimizationControls";
 import OptimizationModeSelector from "./OptimizationModeSelector";
 import PricingSummary from "@/components/PricingSummary";
 
-/* ────────── helpers (unchanged) ────────── */
+/* ────────────────── helpers ────────────────── */
 
 const sortTypes = (a: any, b: any) => {
   const aM = (a.type ?? "").match(/\d+/);
@@ -41,19 +41,27 @@ const fmt = (n: number, d = 2) =>
 
 const SlotNumber: React.FC<{ v: number; anim?: boolean }> = ({ v, anim }) => {
   const [disp, setDisp] = useState(v);
+
   useEffect(() => {
     if (!anim || Math.abs(disp - v) < 0.01) return setDisp(v);
+
     let i = 0;
     const id = setInterval(() => {
-      if (i === 6) return clearInterval(id);
+      if (i === 6) {
+        clearInterval(id);
+        setDisp(v);
+        return;
+      }
       const p = i / 6;
       const eased = 1 - Math.pow(1 - p, 3);
       const mid = disp + (v - disp) * eased;
       setDisp(Number(mid.toFixed(2)));
       i++;
     }, 60);
+
     return () => clearInterval(id);
-  }, [v, anim]);
+  }, [v, anim]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <span className={anim ? "transition-transform scale-105" : ""}>
       {fmt(disp, 2)}
@@ -61,14 +69,14 @@ const SlotNumber: React.FC<{ v: number; anim?: boolean }> = ({ v, anim }) => {
   );
 };
 
-/* ────────── component ────────── */
+/* ────────────────── component ────────────────── */
 
 const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   data,
   pricingConfig,
   onOptimized,
 }) => {
-  /* lists */
+  /* bedroom‑type list */
   const bedroomTypes = useMemo(
     () =>
       [...(pricingConfig?.bedroomTypePricing ?? [])]
@@ -77,11 +85,12 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     [pricingConfig]
   );
 
-  /* local UI */
+  /* local UI state */
   const [selectedTypes, setSelectedTypes] = useState<string[]>(bedroomTypes);
-  const [animate, setAnimate] = useState(false);
+  const [animateNums, setAnimateNums] = useState(false);
   const [metric, setMetric] = useState<"sellArea" | "acArea">("sellArea");
   const [processed, setProcessed] = useState<any[]>([]);
+  const [highlightedTypes, setHighlightedTypes] = useState<string[]>([]); // NEW
 
   /* optimizer hook */
   const {
@@ -97,29 +106,42 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     revertOptimization,
   } = useOptimizer(data, pricingConfig, onOptimized);
 
-  /* preprocess units (unchanged logic) */
+  /* preprocess units (simplified—keeps only fields required for summary) */
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
-    const out = data.map((u) => {
+
+    const processedUnits = data.map((u) => {
       const bed = pricingConfig.bedroomTypePricing.find((b: any) => b.type === u.type);
       const base = bed?.basePsf ?? pricingConfig.basePsf;
       const sa = Number(u.sellArea) || 0;
       const psf = base;
-      const total = Math.ceil((psf * sa) / 1000) * 1000;
-      return { ...u, finalPsf: sa ? total / sa : 0, finalTotalPrice: total };
+      const tot = Math.ceil((psf * sa) / 1000) * 1000;
+      return { ...u, finalPsf: sa ? tot / sa : 0, finalTotalPrice: tot };
     });
-    setProcessed(out);
+
+    setProcessed(processedUnits);
   }, [data, pricingConfig]);
 
-  /* handlers */
+  /* optimise handler */
   const optimise = () => {
-    if (!selectedTypes.length) return toast.error("Select bedroom types");
-    setAnimate(true);
+    if (!selectedTypes.length) {
+      toast.error("Select bedroom types");
+      return;
+    }
+
+    setAnimateNums(true);
+    setHighlightedTypes(selectedTypes);              // highlight rows
+
     toast.promise(
-      new Promise((res) => {
+      new Promise((resolve) => {
         runMegaOptimization(selectedTypes, metric);
-        setTimeout(() => setAnimate(false), 1500);
-        setTimeout(res, 700);
+
+        setTimeout(() => {
+          setAnimateNums(false);
+          setHighlightedTypes([]);                   // clear after 3 s
+        }, 3000);
+
+        setTimeout(resolve, 800);
       }),
       { loading: "Optimizing…", success: "Done!", error: "Failed" }
     );
@@ -129,10 +151,10 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   const currentOverall =
     metric === "sellArea" ? currentOverallPsf : currentOverallAcPsf;
 
-  /* ────────── render ────────── */
+  /* ────────────────── render ────────────────── */
   return (
     <Card className="border-2 border-indigo-100 shadow-lg mb-6">
-      {/* header */}
+      {/* ───── header ───── */}
       <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div>
@@ -152,12 +174,15 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent className="max-w-[280px]">
-                Mega Optimize tweaks premiums with constrained gradient descent to
-                hit your target PSF.
+                Mega Optimize tweaks premiums via constrained gradient descent
+                to hit your target PSF.
               </TooltipContent>
             </Tooltip>
             {isOptimized && (
-              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+              <Badge
+                variant="outline"
+                className="bg-green-50 text-green-700 border-green-200"
+              >
                 Optimized
               </Badge>
             )}
@@ -165,24 +190,24 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         </div>
       </CardHeader>
 
-      {/* content */}
+      {/* ───── content ───── */}
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          {/* LEFT (setup) */}
+          {/* LEFT column (setup) */}
           <div className="md:col-span-4 space-y-6">
-            {/* Current PSF */}
+            {/* current PSF card */}
             <div className="rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 p-4 text-center shadow-md">
               <h3 className="text-indigo-700 text-lg font-medium">
                 Current Overall PSF ({metric === "sellArea" ? "SA" : "AC"})
               </h3>
               <p className="text-3xl font-bold text-indigo-900 flex justify-center items-center">
                 <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse mr-1" />
-                <SlotNumber v={currentOverall} anim={animate} />
+                <SlotNumber v={currentOverall} anim={animateNums} />
                 <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse ml-1" />
               </p>
             </div>
 
-            {/* Target PSF by type */}
+            {/* target PSF by type */}
             <div className="rounded-lg border border-indigo-100 p-4 bg-white">
               <h3 className="text-sm font-medium text-indigo-700 mb-3">
                 Target PSF by Bedroom Type
@@ -207,7 +232,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               </div>
             </div>
 
-            {/* Bedroom selector */}
+            {/* bedroom selector */}
             <BedroomTypeSelector
               bedroomTypes={bedroomTypes}
               selectedTypes={selectedTypes}
@@ -215,18 +240,19 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
             />
           </div>
 
-          {/* RIGHT (summary) */}
+          {/* RIGHT column (summary) */}
           <div className="md:col-span-8">
             <PricingSummary
               data={processed.length ? processed : data}
               showDollarSign={false}
               showAcPsf
+              highlightedTypes={highlightedTypes}      /* new prop */
             />
           </div>
 
-          {/* ───── second row: 3 items in‑line ───── */}
+          {/* ───── second row: 3 inline cards ───── */}
           <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-6">
-            {/* Select PSF metric */}
+            {/* PSF metric selector */}
             <div className="md:col-span-4 rounded-lg border border-indigo-100 p-4 bg-white">
               <h3 className="text-sm font-medium text-indigo-700 mb-3">
                 Select PSF Type to Optimize
@@ -251,7 +277,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               </div>
             </div>
 
-            {/* Target slider & buttons */}
+            {/* target slider + buttons */}
             <div className="md:col-span-4">
               <OptimizationControls
                 currentOverallPsf={currentOverall}
@@ -265,7 +291,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               />
             </div>
 
-            {/* Mode selector */}
+            {/* optimisation mode selector */}
             <div className="md:col-span-4">
               <OptimizationModeSelector
                 optimizationMode={optimizationMode}
@@ -276,7 +302,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
         </div>
       </CardContent>
 
-      {/* footer */}
+      {/* ───── footer ───── */}
       <CardFooter className="p-4 bg-gradient-to-r from-indigo-50/50 to-blue-50/50 rounded-b text-sm text-muted-foreground">
         {optimizationMode === "basePsf"
           ? "Base PSF optimisation adjusts only bedroom‑type PSF values."
