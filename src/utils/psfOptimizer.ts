@@ -1,4 +1,3 @@
-
 // Add the simulatePricing function to the existing file
 export const simulatePricing = (data: any[], config: any) => {
   return data.map((unit) => {
@@ -75,21 +74,35 @@ export const simulatePricing = (data: any[], config: any) => {
       });
     }
     
-    // Calculate the total price and PSF values
-    const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
-    
+    // 1. Derive balcony area if not provided
     const sellArea = parseFloat(unit.sellArea) || 0;
     const acArea = parseFloat(unit.acArea) || 0;
     
     let balconyArea = parseFloat(unit.balcony) || 0;
     if (sellArea > 0 && acArea > 0) {
       if (!unit.balcony || unit.balcony === '0') {
-        balconyArea = sellArea - acArea;
+        balconyArea = Math.max(0, sellArea - acArea);
       }
     }
+    
+    // 2. Fetch user settings for balcony pricing
+    const { fullAreaPct = 0, remainderRate = 0 } = config.balconyPricing || {};
+    const fullPct = fullAreaPct / 100;
+    const remRatePct = remainderRate / 100;
+    
+    // 3. Calculate effective priced area with balcony adjustments
+    const effectiveArea = 
+      sellArea - balconyArea +  // Start with AC area (sellArea - balcony)
+      balconyArea * fullPct +   // Add full-rate portion of balcony
+      balconyArea * (1 - fullPct) * remRatePct; // Add discounted portion of balcony
+    
+    // Calculate balcony percentage
     const balconyPercentage = sellArea > 0 ? (balconyArea / sellArea) * 100 : 0;
     
-    const totalPrice = basePsfWithAdjustments * sellArea;
+    // Calculate the total price and PSF values with balcony adjustments
+    const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
+    
+    const totalPrice = basePsfWithAdjustments * effectiveArea;
     const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
     
     const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
@@ -115,6 +128,7 @@ export const simulatePricing = (data: any[], config: any) => {
       viewPsfAdjustment,
       additionalCategoryAdjustment: additionalAdjustment,
       additionalCategoryPriceComponents,
+      effectiveArea,
       isOptimized: false
     };
   });

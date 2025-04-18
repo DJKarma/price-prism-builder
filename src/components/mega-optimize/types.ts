@@ -35,3 +35,8 @@ export interface OptimizationResult {
     unitsAffected: number;
   };
 }
+
+export interface BalconyPricing {
+  fullAreaPct: number;   // % of balcony area priced at 100% of Base PSF
+  remainderRate: number; // % of Base PSF applied to the remaining balcony area
+}

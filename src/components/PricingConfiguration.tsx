@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -18,7 +19,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Settings, PlusCircle, MinusCircle, Ruler, Building2, Eye, Tag } from "lucide-react";
+import { Settings, PlusCircle, MinusCircle, Ruler, Building2, Eye, Tag, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 
 interface PricingConfigurationProps {
@@ -54,6 +55,11 @@ export interface AdditionalCategoryPricing {
   psfAdjustment: number;
 }
 
+export interface BalconyPricing {
+  fullAreaPct: number;
+  remainderRate: number;
+}
+
 export interface PricingConfig {
   basePsf: number;
   bedroomTypePricing: Array<{
@@ -75,6 +81,7 @@ export interface PricingConfig {
     jumpIncrement?: number;
   }>;
   additionalCategoryPricing?: AdditionalCategoryPricing[];
+  balconyPricing?: BalconyPricing;
   targetOverallPsf?: number;
   isOptimized?: boolean;
   maxFloor?: number;
@@ -95,6 +102,29 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
   // Always initialize additionalCategoryPricing:
   const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>([]);
+  // Add state for balcony pricing
+  const [hasBalcony, setHasBalcony] = useState<boolean>(false);
+  const [balconyPricing, setBalconyPricing] = useState<BalconyPricing>({
+    fullAreaPct: 0,
+    remainderRate: 0
+  });
+
+  // Check if data has balcony or if sellArea - acArea > 0
+  useEffect(() => {
+    if (!data.length) return;
+    
+    // Check if there's an explicit balcony column
+    const hasExplicitBalcony = data.some(item => item.balcony !== undefined);
+    
+    // Check if any unit has sellArea > acArea
+    const hasImplicitBalcony = data.some(item => {
+      const sellArea = parseFloat(item.sellArea) || 0;
+      const acArea = parseFloat(item.acArea) || 0;
+      return sellArea > acArea;
+    });
+    
+    setHasBalcony(hasExplicitBalcony || hasImplicitBalcony);
+  }, [data]);
 
   // Update additionalCategoryPricing from initialConfig or additionalCategories prop on mount and when they change.
   useEffect(() => {
@@ -139,6 +169,11 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       
       if (initialConfig.viewPricing && initialConfig.viewPricing.length > 0) {
         setViewTypes(initialConfig.viewPricing);
+      }
+      
+      // Initialize balcony pricing from config if available
+      if (initialConfig.balconyPricing) {
+        setBalconyPricing(initialConfig.balconyPricing);
       }
     }
   }, [initialConfig, maxFloor]);
@@ -208,6 +243,13 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
         );
       }
     }
+  };
+
+  const handleBalconyPricingChange = (field: keyof BalconyPricing, value: number) => {
+    setBalconyPricing(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const handleAddFloorRiseRule = () => {
@@ -300,6 +342,8 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       bedroomTypePricing: bedroomTypes,
       viewPricing: viewTypes,
       additionalCategoryPricing: additionalCategoryPricing,
+      // Include balcony pricing in the config if balcony is detected
+      ...(hasBalcony && { balconyPricing }),
       maxFloor,
       ...(initialConfig && { 
         targetOverallPsf: initialConfig.targetOverallPsf,
@@ -455,6 +499,62 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
             </Table>
           </div>
         </div>
+
+        {/* Balcony Pricing Section - only show if balcony is detected */}
+        {hasBalcony && (
+          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
+            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
+              <DollarSign className="h-5 w-5 mr-2 text-indigo-600" />
+              Balcony Pricing
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label htmlFor="fullAreaPct" className="text-indigo-700">
+                  % of balcony area at full Base PSF
+                </Label>
+                <Input
+                  id="fullAreaPct"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={balconyPricing.fullAreaPct}
+                  onChange={(e) =>
+                    handleBalconyPricingChange(
+                      "fullAreaPct",
+                      Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
+                    )
+                  }
+                  className="border-indigo-200"
+                />
+                <p className="text-xs text-gray-500">
+                  This percentage of the balcony area will be priced at 100% of the Base PSF
+                </p>
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="remainderRate" className="text-indigo-700">
+                  Discount rate on remaining area (% of Base PSF)
+                </Label>
+                <Input
+                  id="remainderRate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={balconyPricing.remainderRate}
+                  onChange={(e) =>
+                    handleBalconyPricingChange(
+                      "remainderRate",
+                      Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
+                    )
+                  }
+                  className="border-indigo-200"
+                />
+                <p className="text-xs text-gray-500">
+                  The remaining balcony area will be priced at this percentage of the Base PSF
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {bedroomTypes.length > 0 && (
           <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
