@@ -111,3 +111,34 @@
 .hover-scale:hover {
   transform: scale(1.05);
 }
+/* ─── glowing rotating border for Price Configuration Panel ───────── */
+.glow-border {
+  position: relative;          /* anchor the pseudo-element */
+}
+
+.glow-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;                    /* cover full card */
+  padding: 2px;                /* border thickness */
+  border-radius: 0.5rem;       /* match your Card rounding */
+  background: conic-gradient(
+      from 0deg,
+      #6366f1,
+      #8b5cf6,
+      #ec4899,
+      #6366f1
+  );
+  animation: spinBorder 4s linear infinite;
+
+  /* hollow‑out the middle so only the outer ring is visible */
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+
+@keyframes spinBorder {
+  to { transform: rotate(1turn); }
+}
