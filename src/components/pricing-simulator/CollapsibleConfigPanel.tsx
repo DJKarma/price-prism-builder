@@ -27,7 +27,6 @@ const CollapsibleConfigPanel: React.FC<Props> = ({
   const handleConfigImport = (cfg: any) => onConfigUpdate(cfg);
 
   return (
-    /* pulse-glow gives a soft “breathing” indication */
     <div className="pulse-glow mb-6 border rounded-lg shadow-sm">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="configuration" className="border-none">
