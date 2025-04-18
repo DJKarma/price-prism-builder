@@ -143,3 +143,13 @@
 @keyframes spinBorder {
   to { transform: rotate(1turn); }
 }
+/* ─── subtle breathing glow for expandable panel ─────────────── */
+@keyframes subtlePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.45); }
+  50%      { box-shadow: 0 0 8px 4px rgba(99,102,241,0.25); }
+}
+
+.pulse-glow {
+  animation: subtlePulse 3s ease-in-out infinite;
+  border-radius: 0.5rem;   /* match panel rounding */
+}
