@@ -1,387 +1,273 @@
 // src/components/pricing-simulator/PricingTable.tsx
 import React from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  FixedHeaderTable,
-} from "@/components/ui/table";
 import { ArrowUpDown, Check } from "lucide-react";
 import { formatNumberWithCommas } from "./pricingUtils";
 import { UnitWithPricing } from "../PricingSimulator";
 
-interface PricingTableProps {
+interface Props {
   filteredUnits: UnitWithPricing[];
   visibleColumns: string[];
   additionalColumns: string[];
-  sortConfig: {
-    key: string;
-    direction: "ascending" | "descending";
-  };
   handleSort: (key: string) => void;
 }
 
-const PricingTable: React.FC<PricingTableProps> = ({
+export default function PricingTable({
   filteredUnits,
   visibleColumns,
   additionalColumns,
-  sortConfig,
   handleSort,
-}) => {
+}: Props) {
   return (
-    <FixedHeaderTable
-      maxHeight="650px"
+    <div
       className="
-        overflow-y-scroll       /* always show vertical scrollbar */
-        scrollbar-thin          /* thinner scrollbar */
-        scrollbar-thumb-indigo-300 scrollbar-track-indigo-50 
-        border-indigo-100/50 shadow-sm
+        max-h-[650px] overflow-y-scroll overflow-x-auto
+        scrollbar-thin scrollbar-thumb-indigo-300 scrollbar-track-indigo-50
+        border border-gray-200 rounded-b
       "
     >
-      <Table className="min-w-full table-fixed">
-        {/* make the header sticky */}
-        <TableHeader className="sticky top-0 z-20 bg-gradient-to-r from-indigo-50/80 to-blue-50/80">
-          <TableRow>
-            {visibleColumns.includes("name") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap"
-                onClick={() => handleSort("name")}
-              >
-                <div className="flex items-center">
-                  Unit <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
+      <table className="min-w-full table-fixed border-separate border-spacing-0">
+        <thead className="bg-indigo-50 sticky top-0 z-10">
+          <tr>
+            {/* basic columns */}
+            {["name", "type", "floor", "view"].map((col) =>
+              visibleColumns.includes(col) ? (
+                <th
+                  key={col}
+                  onClick={() => handleSort(col)}
+                  className="px-2 py-1 text-left text-sm border-b border-gray-200 cursor-pointer"
+                >
+                  <div className="flex items-center">
+                    {col.charAt(0).toUpperCase() + col.slice(1)}{" "}
+                    <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </th>
+              ) : null
             )}
-            {visibleColumns.includes("type") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap"
-                onClick={() => handleSort("type")}
-              >
-                <div className="flex items-center">
-                  Type <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("floor") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap"
-                onClick={() => handleSort("floor")}
-              >
-                <div className="flex items-center">
-                  Floor <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("view") && (
-              <TableHead className="whitespace-nowrap">View</TableHead>
-            )}
+
             {/* raw additional categories */}
             {additionalColumns.map((col) =>
               visibleColumns.includes(col) ? (
-                <TableHead key={col} className="whitespace-nowrap">
+                <th
+                  key={col}
+                  className="px-2 py-1 text-left text-sm border-b border-gray-200"
+                >
                   {col}
-                </TableHead>
+                </th>
               ) : null
             )}
-            {/* additional‐category premiums */}
+
+            {/* premiums for additional */}
             {additionalColumns.map((col) =>
               visibleColumns.includes(`${col}_premium`) ? (
-                <TableHead
+                <th
                   key={`${col}_premium`}
-                  className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
+                  onClick={() => handleSort(`${col}_premium`)}
+                  className="px-2 py-1 text-right text-xs text-muted-foreground border-b border-gray-200 cursor-pointer"
                 >
-                  <div className="flex items-center justify-end">
-                    {col} Premium <ArrowUpDown className="ml-1 h-4 w-4" />
+                  <div className="flex justify-end items-center">
+                    {col} Premium <ArrowUpDown className="ml-1 h-3 w-3" />
                   </div>
-                </TableHead>
+                </th>
               ) : null
             )}
-            {visibleColumns.includes("sellArea") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap"
-                onClick={() => handleSort("sellArea")}
-              >
-                <div className="flex items-center">
-                  Sell Area <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("acArea") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap"
-                onClick={() => handleSort("acArea")}
-              >
-                <div className="flex items-center">
-                  AC Area <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("basePsf") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
-                onClick={() => handleSort("basePsf")}
-              >
-                <div className="flex items-center justify-end">
-                  Base PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("floorAdjustment") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
-                onClick={() => handleSort("floorAdjustment")}
-              >
-                <div className="flex items-center justify-end">
-                  Floor Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("viewPsfAdjustment") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
-                onClick={() => handleSort("viewPsfAdjustment")}
-              >
-                <div className="flex items-center justify-end">
-                  View Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("additionalAdjustment") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
-                onClick={() => handleSort("additionalAdjustment")}
-              >
-                <div className="flex items-center justify-end">
-                  Add‑Cat Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("psfAfterAllAdjustments") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
-                onClick={() => handleSort("psfAfterAllAdjustments")}
-              >
-                <div className="flex items-center justify-end">
-                  Base + All Premiums <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
+
+            {/* area & balcony */}
+            {[
+              "sellArea",
+              "acArea",
+              "balconyArea",
+              "balconyPercentage",
+            ].map((col) =>
+              visibleColumns.includes(col) ? (
+                <th
+                  key={col}
+                  onClick={() => handleSort(col)}
+                  className="px-2 py-1 text-right text-sm border-b border-gray-200 cursor-pointer whitespace-nowrap"
+                >
+                  <div className="flex justify-end items-center">
+                    {col === "balconyPercentage"
+                      ? "Balcony %"
+                      : col.charAt(0).toUpperCase() + col.slice(1)}{" "}
+                    <ArrowUpDown className="ml-1 h-4 w-4" />
+                  </div>
+                </th>
+              ) : null
             )}
 
-            {/* now your three “missing” ones */}
-            {visibleColumns.includes("balconyPrice") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
-                onClick={() => handleSort("balconyPrice")}
-              >
-                <div className="flex items-center justify-end">
-                  Balcony Price <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("acAreaPrice") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
-                onClick={() => handleSort("acAreaPrice")}
-              >
-                <div className="flex items-center justify-end">
-                  AC‑Area Price <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("totalPriceRaw") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
-                onClick={() => handleSort("totalPriceRaw")}
-              >
-                <div className="flex items-center justify-end">
-                  Total Price (unc.) <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
+            {/* pricing & PSF columns */}
+            {[
+              "basePsf",
+              "floorAdjustment",
+              "viewPsfAdjustment",
+              "additionalAdjustment",
+              "psfAfterAllAdjustments",
+              "balconyPrice",
+              "acAreaPrice",
+              "totalPriceRaw",
+              "finalTotalPrice",
+              "finalPsf",
+              "finalAcPsf",
+            ].map((col) =>
+              visibleColumns.includes(col) ? (
+                <th
+                  key={col}
+                  onClick={() => handleSort(col)}
+                  className="px-2 py-1 text-right text-xs text-muted-foreground border-b border-gray-200 cursor-pointer whitespace-nowrap"
+                >
+                  <div className="flex justify-end items-center">
+                    {col
+                      .replace(/([A-Z])/g, " $1")    /* split CamelCase */
+                      .replace("Raw", " (unc.)")    /* prettify */
+                      .trim()}{" "}
+                    {col !== "finalTotalPrice" && <ArrowUpDown className="ml-1 h-3 w-3" />}
+                  </div>
+                </th>
+              ) : null
             )}
 
-            {visibleColumns.includes("finalTotalPrice") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap border-l border-indigo-100/50"
-                onClick={() => handleSort("finalTotalPrice")}
-              >
-                <div className="flex items-center">
-                  Final Price <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("finalPsf") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap"
-                onClick={() => handleSort("finalPsf")}
-              >
-                <div className="flex items-center">
-                  SA PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
-            {visibleColumns.includes("finalAcPsf") && (
-              <TableHead
-                className="cursor-pointer whitespace-nowrap"
-                onClick={() => handleSort("finalAcPsf")}
-              >
-                <div className="flex items-center">
-                  AC PSF <ArrowUpDown className="ml-1 h-4 w-4" />
-                </div>
-              </TableHead>
-            )}
+            {/* Optimized */}
             {visibleColumns.includes("isOptimized") && (
-              <TableHead className="whitespace-nowrap">Optimized</TableHead>
+              <th className="px-2 py-1 text-center text-sm border-b border-gray-200">
+                Optimized
+              </th>
             )}
-          </TableRow>
-        </TableHeader>
+          </tr>
+        </thead>
 
-        <TableBody>
+        <tbody>
           {filteredUnits.length > 0 ? (
             filteredUnits.map((unit, idx) => (
-              <TableRow
+              <tr
                 key={unit.name ?? idx}
-                className={`
-                  ${
-                    unit.isOptimized
-                      ? "bg-green-50/80"
-                      : "hover:bg-indigo-50/30"
-                  }
-                  transition-colors duration-150 ease-in-out
-                `}
+                className={`${
+                  unit.isOptimized ? "bg-green-50" : "hover:bg-indigo-50/30"
+                } transition-colors`}
               >
                 {visibleColumns.includes("name") && (
-                  <TableCell>{unit.name}</TableCell>
+                  <td className="px-2 py-1 border-b border-gray-100">{unit.name}</td>
                 )}
                 {visibleColumns.includes("type") && (
-                  <TableCell>{unit.type}</TableCell>
+                  <td className="px-2 py-1 border-b border-gray-100">{unit.type}</td>
                 )}
                 {visibleColumns.includes("floor") && (
-                  <TableCell>{unit.floor}</TableCell>
+                  <td className="px-2 py-1 border-b border-gray-100">{unit.floor}</td>
                 )}
                 {visibleColumns.includes("view") && (
-                  <TableCell>{unit.view}</TableCell>
+                  <td className="px-2 py-1 border-b border-gray-100">{unit.view}</td>
                 )}
 
-                {/* raw additional categories */}
+                {/* raw additional */}
                 {additionalColumns.map((col) =>
                   visibleColumns.includes(col) ? (
-                    <TableCell key={col}>
-                      {unit[`${col}_value`] ?? "-"}
-                    </TableCell>
+                    <td key={col} className="px-2 py-1 border-b border-gray-100">
+                      {unit[`${col}_value`] ?? "–"}
+                    </td>
                   ) : null
                 )}
 
-                {/* additional‑category premiums */}
+                {/* premiums additional */}
                 {additionalColumns.map((col) =>
                   visibleColumns.includes(`${col}_premium`) ? (
-                    <TableCell key={`${col}_premium`} className="text-right">
-                      {unit.additionalCategoryPriceComponents?.[
-                        `${col}: ${unit[`${col}_value`]}`
-                      ] ?? 0}
-                    </TableCell>
+                    <td key={`${col}_premium`} className="px-2 py-1 border-b border-gray-100 text-right">
+                      {unit.additionalCategoryPriceComponents?.[`${col}: ${unit[`${col}_value`]}`] ?? 0}
+                    </td>
                   ) : null
                 )}
 
                 {visibleColumns.includes("sellArea") && (
-                  <TableCell className="text-right">
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
                     {parseFloat(unit.sellArea).toFixed(2)}
-                  </TableCell>
+                  </td>
                 )}
                 {visibleColumns.includes("acArea") && (
-                  <TableCell className="text-right">
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
                     {parseFloat(unit.acArea).toFixed(2)}
-                  </TableCell>
+                  </td>
+                )}
+                {visibleColumns.includes("balconyArea") && (
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                    {unit.balconyArea.toFixed(2)}
+                  </td>
+                )}
+                {visibleColumns.includes("balconyPercentage") && (
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                    {unit.balconyPercentage.toFixed(2)}%
+                  </td>
                 )}
                 {visibleColumns.includes("basePsf") && (
-                  <TableCell className="text-right">
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
                     {unit.basePsf.toFixed(2)}
-                  </TableCell>
+                  </td>
                 )}
                 {visibleColumns.includes("floorAdjustment") && (
-                  <TableCell className="text-right">
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
                     {unit.floorAdjustment.toFixed(2)}
-                  </TableCell>
+                  </td>
                 )}
                 {visibleColumns.includes("viewPsfAdjustment") && (
-                  <TableCell className="text-right">
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
                     {unit.viewPsfAdjustment.toFixed(2)}
-                  </TableCell>
+                  </td>
                 )}
                 {visibleColumns.includes("additionalAdjustment") && (
-                  <TableCell className="text-right">
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
                     {unit.additionalAdjustment.toFixed(2)}
-                  </TableCell>
+                  </td>
                 )}
                 {visibleColumns.includes("psfAfterAllAdjustments") && (
-                  <TableCell className="text-right">
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
                     {unit.psfAfterAllAdjustments.toFixed(2)}
-                  </TableCell>
+                  </td>
                 )}
-
-                {/* the 3 extras */}
                 {visibleColumns.includes("balconyPrice") && (
-                  <TableCell className="text-right">
-                    {unit.balconyPrice.toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                    })}
-                  </TableCell>
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                    {unit.balconyPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </td>
                 )}
                 {visibleColumns.includes("acAreaPrice") && (
-                  <TableCell className="text-right">
-                    {unit.acAreaPrice.toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                    })}
-                  </TableCell>
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                    {unit.acAreaPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </td>
                 )}
                 {visibleColumns.includes("totalPriceRaw") && (
-                  <TableCell className="text-right border-r border-indigo-100/50">
-                    {unit.totalPriceRaw.toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                    })}
-                  </TableCell>
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                    {unit.totalPriceRaw.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </td>
                 )}
-
                 {visibleColumns.includes("finalTotalPrice") && (
-                  <TableCell className="font-medium text-right border-l border-indigo-100/50">
+                  <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
                     {formatNumberWithCommas(unit.finalTotalPrice)}
-                  </TableCell>
+                  </td>
                 )}
                 {visibleColumns.includes("finalPsf") && (
-                  <TableCell className="font-medium text-right">
+                  <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
                     {unit.finalPsf.toFixed(2)}
-                  </TableCell>
+                  </td>
                 )}
                 {visibleColumns.includes("finalAcPsf") && (
-                  <TableCell className="font-medium text-right">
+                  <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
                     {unit.finalAcPsf.toFixed(2)}
-                  </TableCell>
+                  </td>
                 )}
                 {visibleColumns.includes("isOptimized") && (
-                  <TableCell className="text-center">
-                    {unit.isOptimized && (
-                      <Check className="h-5 w-5 text-green-600 mx-auto" />
-                    )}
-                  </TableCell>
+                  <td className="px-2 py-1 border-b border-gray-100 text-center">
+                    {unit.isOptimized && <Check className="mx-auto h-5 w-5 text-green-600" />}
+                  </td>
                 )}
-              </TableRow>
+              </tr>
             ))
           ) : (
-            <TableRow>
-              <TableCell
+            <tr>
+              <td
                 colSpan={visibleColumns.length || 1}
-                className="text‐center py‐6 text‐gray‐500 italic"
+                className="py-6 text-center text-gray-500 italic"
               >
                 No units match your filter criteria
-              </TableCell>
-            </TableRow>
+              </td>
+            </tr>
           )}
-        </TableBody>
-      </Table>
-    </FixedHeaderTable>
+        </tbody>
+      </table>
+    </div>
   );
-};
-
-export default PricingTable;
+}
