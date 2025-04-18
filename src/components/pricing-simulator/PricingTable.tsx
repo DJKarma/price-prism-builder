@@ -129,10 +129,10 @@ const PricingTable: React.FC<PricingTableProps> = ({
             
             {visibleColumns.includes("basePsf") && (
               <TableHead
-                className="cursor-pointer whitespace-nowrap"
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
                 onClick={() => handleSort("basePsf")}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-end">
                   Base PSF <ArrowUpDown className="ml-1 h-4 w-4" />
                 </div>
               </TableHead>
@@ -140,10 +140,10 @@ const PricingTable: React.FC<PricingTableProps> = ({
             
             {visibleColumns.includes("floorAdjustment") && (
               <TableHead
-                className="cursor-pointer whitespace-nowrap"
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
                 onClick={() => handleSort("floorAdjustment")}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-end">
                   Floor Premium <ArrowUpDown className="ml-1 h-4 w-4" />
                 </div>
               </TableHead>
@@ -151,32 +151,40 @@ const PricingTable: React.FC<PricingTableProps> = ({
             
             {visibleColumns.includes("viewPsfAdjustment") && (
               <TableHead
-                className="cursor-pointer whitespace-nowrap"
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
                 onClick={() => handleSort("viewPsfAdjustment")}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-end">
                   View Premium <ArrowUpDown className="ml-1 h-4 w-4" />
                 </div>
               </TableHead>
             )}
             
-            {additionalColumns.map(column => (
-              visibleColumns.includes(`${column}_premium`) && (
-                <TableHead
-                  key={`${column}_premium`}
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => handleSort("additionalCategoryAdjustment")}
-                >
-                  <div className="flex items-center">
-                    {column} Premium <ArrowUpDown className="ml-1 h-4 w-4" />
-                  </div>
-                </TableHead>
-              )
-            ))}
+            {visibleColumns.includes("additionalAdjustment") && (
+              <TableHead
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
+                onClick={() => handleSort("additionalAdjustment")}
+              >
+                <div className="flex items-center justify-end">
+                  Add-Cat Premium <ArrowUpDown className="ml-1 h-4 w-4" />
+                </div>
+              </TableHead>
+            )}
+            
+            {visibleColumns.includes("psfAfterAllAdjustments") && (
+              <TableHead
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
+                onClick={() => handleSort("psfAfterAllAdjustments")}
+              >
+                <div className="flex items-center justify-end">
+                  Base + All Premiums <ArrowUpDown className="ml-1 h-4 w-4" />
+                </div>
+              </TableHead>
+            )}
             
             {visibleColumns.includes("finalTotalPrice") && (
               <TableHead
-                className="cursor-pointer whitespace-nowrap"
+                className="cursor-pointer whitespace-nowrap border-l border-indigo-100/50"
                 onClick={() => handleSort("finalTotalPrice")}
               >
                 <div className="flex items-center">
@@ -277,18 +285,20 @@ const PricingTable: React.FC<PricingTableProps> = ({
                   </TableCell>
                 )}
                 
-                {additionalColumns.map(column => (
-                  visibleColumns.includes(`${column}_premium`) && (
-                    <TableCell key={`${column}_premium`} className="text-right">
-                      {(unit.additionalCategoryPriceComponents && 
-                       unit.additionalCategoryPriceComponents[`${column}: ${unit[`${column}_value`]}`])?.toFixed(2) || 
-                       "0.00"}
-                    </TableCell>
-                  )
-                ))}
+                {visibleColumns.includes("additionalAdjustment") && (
+                  <TableCell className="text-right">
+                    {unit.additionalAdjustment?.toFixed(2) || "0.00"}
+                  </TableCell>
+                )}
+                
+                {visibleColumns.includes("psfAfterAllAdjustments") && (
+                  <TableCell className="text-right">
+                    {unit.psfAfterAllAdjustments.toFixed(2)}
+                  </TableCell>
+                )}
                 
                 {visibleColumns.includes("finalTotalPrice") && (
-                  <TableCell className="font-medium text-right">
+                  <TableCell className="font-medium text-right border-l border-indigo-100/50">
                     {formatNumberWithCommas(unit.finalTotalPrice)}
                   </TableCell>
                 )}

@@ -28,6 +28,11 @@ export interface UnitWithPricing extends Record<string, any> {
   finalAcPsf: number;
   isOptimized?: boolean;
   additionalCategoryPriceComponents?: Record<string, number>;
+  basePsf: number;
+  floorAdjustment: number;
+  viewPsfAdjustment: number;
+  additionalAdjustment: number;
+  psfAfterAllAdjustments: number;
 }
 
 interface PricingSimulatorProps {
@@ -60,6 +65,11 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     "view",
     "sellArea",
     "acArea",
+    "basePsf",
+    "floorAdjustment", 
+    "viewPsfAdjustment",
+    "additionalAdjustment",
+    "psfAfterAllAdjustments",
     "finalTotalPrice",
     "finalPsf",
     "finalAcPsf",
@@ -178,6 +188,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "basePsf", label: "Base PSF", required: false },
     { id: "floorAdjustment", label: "Floor Premium", required: false },
     { id: "viewPsfAdjustment", label: "View Premium", required: false },
+    { id: "additionalAdjustment", label: "Add-Cat Premium", required: false },
+    { id: "psfAfterAllAdjustments", label: "Base + All Premiums", required: false },
     { id: "finalTotalPrice", label: "Final Price", required: true },
     { id: "finalPsf", label: "SA PSF", required: true },
     { id: "finalAcPsf", label: "AC PSF", required: true },

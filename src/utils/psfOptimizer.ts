@@ -101,6 +101,7 @@ export const simulatePricing = (data: any[], config: any) => {
     
     // Calculate the total price and PSF values with balcony adjustments
     const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
+    const psfAfterAllAdjustments = basePsfWithAdjustments; // Store before balcony calculations
     
     const totalPrice = basePsfWithAdjustments * effectiveArea;
     const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
@@ -126,7 +127,8 @@ export const simulatePricing = (data: any[], config: any) => {
       basePsf,
       floorAdjustment,
       viewPsfAdjustment,
-      additionalCategoryAdjustment: additionalAdjustment,
+      additionalAdjustment,
+      psfAfterAllAdjustments,
       additionalCategoryPriceComponents,
       effectiveArea,
       isOptimized: false
