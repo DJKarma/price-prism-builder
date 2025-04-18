@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -111,17 +110,19 @@
 .hover-scale:hover {
   transform: scale(1.05);
 }
+
 /* ─── glowing rotating border for Price Configuration Panel ───────── */
 .glow-border {
-  position: relative;          /* anchor the pseudo-element */
+  position: relative;      /* anchor the pseudo-element */
+  overflow: hidden;        /* clip the rotating line to the panel */
 }
 
 .glow-border::before {
   content: "";
   position: absolute;
-  inset: 0;                    /* cover full card */
-  padding: 2px;                /* border thickness */
-  border-radius: 0.5rem;       /* match your Card rounding */
+  inset: 0;                /* cover full card */
+  padding: 2px;            /* border thickness */
+  border-radius: 0.5rem;   /* match your Card rounding */
   background: conic-gradient(
       from 0deg,
       #6366f1,
