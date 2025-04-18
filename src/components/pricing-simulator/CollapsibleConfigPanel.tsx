@@ -30,6 +30,7 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
   };
 
   return (
+    <div className="glow-border mb-6 border rounded-lg shadow-sm">
     <div className="mb-6 border rounded-lg shadow-sm">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="configuration" className="border-none">
