@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────  Tailwind CSS base colours  ───────────────────── */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -75,101 +76,35 @@
   }
 }
 
-/* Custom animations for Price Prism app */
+/* ───────────────────────  Custom utilities & animations  ─────────────────── */
+
+/* page hero gradient */
 .gradient-bg {
   @apply bg-gradient-to-r from-indigo-600 to-blue-600;
 }
 
-/* Fade-in animation for components */
+/* component fade‑in */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from   { opacity: 0; transform: translateY(10px); }
+  to     { opacity: 1; transform: translateY(0);     }
 }
+.animate-fade-in { animation: fadeIn 0.4s ease both; }
 
-.animate-fade-in {
-  animation: fadeIn 0.4s ease both;
-}
-
-/* Glow effect for configuration panel */
+/* subtle glow when accordion is closed */
 .glow-on-collapse[data-state="closed"] {
   box-shadow: 0 0 8px rgba(66, 153, 225, 0.4);
   transition: box-shadow 0.3s ease-in-out;
 }
 
-/* Hover scale animation */
-.hover-scale {
-  transition: transform 0.2s ease;
-}
+/* hover scale utility */
+.hover-scale            { transition: transform 0.2s ease; }
+.hover-scale:hover      { transform: scale(1.05);          }
 
-.hover-scale:hover {
-  transform: scale(1.05);
-}
-
-/* ─── glowing rotating border for Price Configuration Panel ───────── */
-.glow-border {
-  position: relative;      /* anchor the pseudo-element */
-  overflow: hidden;        /* clip the rotating line to the panel */
-}
-
-.glow-border::before {
-  content: "";
-  position: absolute;
-  inset: 0;                /* cover full card */
-  padding: 2px;            /* border thickness */
-  border-radius: 0.5rem;   /* match your Card rounding */
-  background: conic-gradient(
-      from 0deg,
-      #6366f1,
-      #8b5cf6,
-      #ec4899,
-      #6366f1
-  );
-  animation: spinBorder 4s linear infinite;
-
-  /* hollow‑out the middle so only the outer ring is visible */
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-}
-
-@keyframes spinBorder {
-  to { transform: rotate(1turn); }
-}
-/* ─── subtle breathing glow for expandable panel ─────────────── */
-@keyframes subtlePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.45); }
-  50%      { box-shadow: 0 0 8px 4px rgba(99,102,241,0.25); }
-}
-
-.pulse-glow {
-  animation: subtlePulse 3s ease-in-out infinite;
-  border-radius: 0.5rem;   /* match panel rounding */
-}
-/* ─── subtle, smooth breathing glow for expandable panel ─────────── */
-@keyframes softGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.35); }
-  50%      { box-shadow: 0 0 12px 3px rgba(99,102,241,0.22); }
-}
-
-.pulse-glow {
-  animation: softGlow 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  border-radius: 0.5rem;           /* keep same rounding */
-}
-
-/* ─ optional: keep glow-border rule in case you use it elsewhere ─ */
+/* ───────────────────  rotating conic border utility (optional) ───────────── */
 .glow-border {
   position: relative;
   overflow: hidden;
 }
-
 .glow-border::before {
   content: "";
   position: absolute;
@@ -187,7 +122,15 @@
   -webkit-mask-composite: xor;
           mask-composite: exclude;
 }
+@keyframes spinBorder { to { transform: rotate(1turn); } }
 
-@keyframes spinBorder {
-  to { transform: rotate(1turn); }
+/* ───────────────────  smooth breathing glow for expandable panel  ────────── */
+@keyframes softGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.35); }
+  50%      { box-shadow: 0 0 12px 3px rgba(99,102,241,0.22); }
+}
+
+.pulse-glow {
+  animation: softGlow 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  border-radius: 0.5rem;
 }
