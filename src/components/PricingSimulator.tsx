@@ -33,6 +33,9 @@ export interface UnitWithPricing extends Record<string, any> {
   viewPsfAdjustment: number;
   additionalAdjustment: number;
   psfAfterAllAdjustments: number;
+  balconyPrice: number;
+  acAreaPrice: number;
+  totalPriceRaw: number;
 }
 
 interface PricingSimulatorProps {
@@ -190,6 +193,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "viewPsfAdjustment", label: "View Premium", required: false },
     { id: "additionalAdjustment", label: "Add-Cat Premium", required: false },
     { id: "psfAfterAllAdjustments", label: "Base + All Premiums", required: false },
+    { id: "balconyPrice", label: "Balcony Price", required: false },
+    { id: "acAreaPrice", label: "AC-Area Price", required: false },
+    { id: "totalPriceRaw", label: "Total Price (unc.)", required: false },
     { id: "finalTotalPrice", label: "Final Price", required: true },
     { id: "finalPsf", label: "SA PSF", required: true },
     { id: "finalAcPsf", label: "AC PSF", required: true },

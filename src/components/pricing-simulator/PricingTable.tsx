@@ -182,6 +182,39 @@ const PricingTable: React.FC<PricingTableProps> = ({
               </TableHead>
             )}
             
+            {visibleColumns.includes("balconyPrice") && (
+              <TableHead
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
+                onClick={() => handleSort("balconyPrice")}
+              >
+                <div className="flex items-center justify-end">
+                  Balcony Price <ArrowUpDown className="ml-1 h-4 w-4" />
+                </div>
+              </TableHead>
+            )}
+            
+            {visibleColumns.includes("acAreaPrice") && (
+              <TableHead
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
+                onClick={() => handleSort("acAreaPrice")}
+              >
+                <div className="flex items-center justify-end">
+                  AC-Area Price <ArrowUpDown className="ml-1 h-4 w-4" />
+                </div>
+              </TableHead>
+            )}
+            
+            {visibleColumns.includes("totalPriceRaw") && (
+              <TableHead
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
+                onClick={() => handleSort("totalPriceRaw")}
+              >
+                <div className="flex items-center justify-end">
+                  Total Price (unc.) <ArrowUpDown className="ml-1 h-4 w-4" />
+                </div>
+              </TableHead>
+            )}
+            
             {visibleColumns.includes("finalTotalPrice") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap border-l border-indigo-100/50"
@@ -294,6 +327,24 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 {visibleColumns.includes("psfAfterAllAdjustments") && (
                   <TableCell className="text-right">
                     {unit.psfAfterAllAdjustments.toFixed(2)}
+                  </TableCell>
+                )}
+                
+                {visibleColumns.includes("balconyPrice") && (
+                  <TableCell className="text-right">
+                    {unit.balconyPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </TableCell>
+                )}
+                
+                {visibleColumns.includes("acAreaPrice") && (
+                  <TableCell className="text-right">
+                    {unit.acAreaPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </TableCell>
+                )}
+                
+                {visibleColumns.includes("totalPriceRaw") && (
+                  <TableCell className="text-right border-r border-indigo-100/50">
+                    {unit.totalPriceRaw.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </TableCell>
                 )}
                 
