@@ -9,31 +9,29 @@ import { Settings } from "lucide-react";
 import PricingConfiguration from "@/components/PricingConfiguration";
 import ConfigImporter from "@/components/ConfigImporter";
 
-interface CollapsibleConfigPanelProps {
+interface Props {
   data: any[];
   pricingConfig: any;
-  onConfigUpdate: (updatedConfig: any) => void;
+  onConfigUpdate: (u: any) => void;
   maxFloor?: number;
   additionalCategories?: Array<{ column: string; categories: string[] }>;
 }
 
-const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
+const CollapsibleConfigPanel: React.FC<Props> = ({
   data,
   pricingConfig,
   onConfigUpdate,
   maxFloor,
   additionalCategories,
 }) => {
-  const handleConfigImport = (importedConfig: any) => {
-    onConfigUpdate(importedConfig);
-  };
+  const handleConfigImport = (cfg: any) => onConfigUpdate(cfg);
 
   return (
-    // animated border class
-    <div className="glow-border mb-6 border rounded-lg shadow-sm">
+    <div className="mb-6 border rounded-lg shadow-sm">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="configuration" className="border-none">
-          <AccordionTrigger className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:no-underline relative overflow-hidden">
+          {/* glow-border moved here so glow stays on the strip only */}
+          <AccordionTrigger className="glow-border px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:no-underline relative overflow-hidden">
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center">
                 <Settings className="h-5 w-5 mr-2 text-indigo-600" />
@@ -42,7 +40,7 @@ const CollapsibleConfigPanel: React.FC<CollapsibleConfigPanelProps> = ({
                 </span>
               </div>
 
-              {/* stop toggle when clicking importer */}
+              {/* stop accordion toggle when clicking importer */}
               <div
                 className="flex items-center"
                 onClick={(e) => e.stopPropagation()}
