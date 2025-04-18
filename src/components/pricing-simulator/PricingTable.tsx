@@ -1,5 +1,4 @@
 // src/components/pricing-simulator/PricingTable.tsx
-
 import React from "react";
 import {
   Table,
@@ -35,11 +34,17 @@ const PricingTable: React.FC<PricingTableProps> = ({
   return (
     <FixedHeaderTable
       maxHeight="650px"
-      className="scrollbar-always-visible border-indigo-100/50 shadow-sm"
+      className="
+        overflow-y-scroll       /* always show vertical scrollbar */
+        scrollbar-thin          /* thinner scrollbar */
+        scrollbar-thumb-indigo-300 scrollbar-track-indigo-50 
+        border-indigo-100/50 shadow-sm
+      "
     >
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-gradient-to-r from-indigo-50/80 to-blue-50/80">
+      <Table className="min-w-full table-fixed">
+        {/* make the header sticky */}
+        <TableHeader className="sticky top-0 z-20 bg-gradient-to-r from-indigo-50/80 to-blue-50/80">
+          <TableRow>
             {visibleColumns.includes("name") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap"
@@ -50,7 +55,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("type") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap"
@@ -61,7 +65,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("floor") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap"
@@ -72,12 +75,10 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("view") && (
               <TableHead className="whitespace-nowrap">View</TableHead>
             )}
-
-            {/* raw additional‐category columns (e.g. “Pool”) */}
+            {/* raw additional categories */}
             {additionalColumns.map((col) =>
               visibleColumns.includes(col) ? (
                 <TableHead key={col} className="whitespace-nowrap">
@@ -85,8 +86,7 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </TableHead>
               ) : null
             )}
-
-            {/* additional‐category “Premium” columns */}
+            {/* additional‐category premiums */}
             {additionalColumns.map((col) =>
               visibleColumns.includes(`${col}_premium`) ? (
                 <TableHead
@@ -99,7 +99,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </TableHead>
               ) : null
             )}
-
             {visibleColumns.includes("sellArea") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap"
@@ -110,7 +109,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("acArea") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap"
@@ -121,7 +119,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("basePsf") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
@@ -132,7 +129,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("floorAdjustment") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
@@ -143,7 +139,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("viewPsfAdjustment") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
@@ -154,7 +149,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("additionalAdjustment") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
@@ -165,7 +159,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("psfAfterAllAdjustments") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
@@ -173,6 +166,38 @@ const PricingTable: React.FC<PricingTableProps> = ({
               >
                 <div className="flex items-center justify-end">
                   Base + All Premiums <ArrowUpDown className="ml-1 h-4 w-4" />
+                </div>
+              </TableHead>
+            )}
+
+            {/* now your three “missing” ones */}
+            {visibleColumns.includes("balconyPrice") && (
+              <TableHead
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
+                onClick={() => handleSort("balconyPrice")}
+              >
+                <div className="flex items-center justify-end">
+                  Balcony Price <ArrowUpDown className="ml-1 h-4 w-4" />
+                </div>
+              </TableHead>
+            )}
+            {visibleColumns.includes("acAreaPrice") && (
+              <TableHead
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
+                onClick={() => handleSort("acAreaPrice")}
+              >
+                <div className="flex items-center justify-end">
+                  AC‑Area Price <ArrowUpDown className="ml-1 h-4 w-4" />
+                </div>
+              </TableHead>
+            )}
+            {visibleColumns.includes("totalPriceRaw") && (
+              <TableHead
+                className="cursor-pointer whitespace-nowrap text-right text-xs text-muted-foreground"
+                onClick={() => handleSort("totalPriceRaw")}
+              >
+                <div className="flex items-center justify-end">
+                  Total Price (unc.) <ArrowUpDown className="ml-1 h-4 w-4" />
                 </div>
               </TableHead>
             )}
@@ -187,7 +212,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("finalPsf") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap"
@@ -198,7 +222,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("finalAcPsf") && (
               <TableHead
                 className="cursor-pointer whitespace-nowrap"
@@ -209,7 +232,6 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 </div>
               </TableHead>
             )}
-
             {visibleColumns.includes("isOptimized") && (
               <TableHead className="whitespace-nowrap">Optimized</TableHead>
             )}
@@ -222,27 +244,43 @@ const PricingTable: React.FC<PricingTableProps> = ({
               <TableRow
                 key={unit.name ?? idx}
                 className={`
-                  ${unit.isOptimized ? "bg-green-50/80" : "hover:bg-indigo-50/30"}
+                  ${
+                    unit.isOptimized
+                      ? "bg-green-50/80"
+                      : "hover:bg-indigo-50/30"
+                  }
                   transition-colors duration-150 ease-in-out
                 `}
               >
-                {visibleColumns.includes("name") && <TableCell>{unit.name}</TableCell>}
-                {visibleColumns.includes("type") && <TableCell>{unit.type}</TableCell>}
-                {visibleColumns.includes("floor") && <TableCell>{unit.floor}</TableCell>}
-                {visibleColumns.includes("view") && <TableCell>{unit.view}</TableCell>}
+                {visibleColumns.includes("name") && (
+                  <TableCell>{unit.name}</TableCell>
+                )}
+                {visibleColumns.includes("type") && (
+                  <TableCell>{unit.type}</TableCell>
+                )}
+                {visibleColumns.includes("floor") && (
+                  <TableCell>{unit.floor}</TableCell>
+                )}
+                {visibleColumns.includes("view") && (
+                  <TableCell>{unit.view}</TableCell>
+                )}
 
-                {/* raw additional‐categories */}
+                {/* raw additional categories */}
                 {additionalColumns.map((col) =>
                   visibleColumns.includes(col) ? (
-                    <TableCell key={col}>{unit[`${col}_value`] ?? "-"}</TableCell>
+                    <TableCell key={col}>
+                      {unit[`${col}_value`] ?? "-"}
+                    </TableCell>
                   ) : null
                 )}
 
-                {/* additional‐category premiums */}
+                {/* additional‑category premiums */}
                 {additionalColumns.map((col) =>
                   visibleColumns.includes(`${col}_premium`) ? (
                     <TableCell key={`${col}_premium`} className="text-right">
-                      {unit.additionalCategoryPriceComponents?.[`${col}: ${unit[`${col}_value`]}`] ?? 0}
+                      {unit.additionalCategoryPriceComponents?.[
+                        `${col}: ${unit[`${col}_value`]}`
+                      ] ?? 0}
                     </TableCell>
                   ) : null
                 )}
@@ -283,6 +321,29 @@ const PricingTable: React.FC<PricingTableProps> = ({
                   </TableCell>
                 )}
 
+                {/* the 3 extras */}
+                {visibleColumns.includes("balconyPrice") && (
+                  <TableCell className="text-right">
+                    {unit.balconyPrice.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
+                  </TableCell>
+                )}
+                {visibleColumns.includes("acAreaPrice") && (
+                  <TableCell className="text-right">
+                    {unit.acAreaPrice.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
+                  </TableCell>
+                )}
+                {visibleColumns.includes("totalPriceRaw") && (
+                  <TableCell className="text-right border-r border-indigo-100/50">
+                    {unit.totalPriceRaw.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
+                  </TableCell>
+                )}
+
                 {visibleColumns.includes("finalTotalPrice") && (
                   <TableCell className="font-medium text-right border-l border-indigo-100/50">
                     {formatNumberWithCommas(unit.finalTotalPrice)}
@@ -300,14 +361,19 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 )}
                 {visibleColumns.includes("isOptimized") && (
                   <TableCell className="text-center">
-                    {unit.isOptimized && <Check className="h-5 w-5 text-green-600 mx-auto" />}
+                    {unit.isOptimized && (
+                      <Check className="h-5 w-5 text-green-600 mx-auto" />
+                    )}
                   </TableCell>
                 )}
               </TableRow>
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={visibleColumns.length || 1} className="text-center py-6 text-gray-500 italic">
+              <TableCell
+                colSpan={visibleColumns.length || 1}
+                className="text‐center py‐6 text‐gray‐500 italic"
+              >
                 No units match your filter criteria
               </TableCell>
             </TableRow>
