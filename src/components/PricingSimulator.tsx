@@ -1,3 +1,5 @@
+// src/components/pricing-simulator/PricingSimulator.tsx
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -61,6 +63,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     Record<string, string[]>
   >({});
 
+  // Default visible columns; audit columns can be uncommented if you want them visible on load
   const defaultVisibleColumns = [
     "name",
     "type",
@@ -69,7 +72,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     "sellArea",
     "acArea",
     "basePsf",
-    "floorAdjustment", 
+    "floorAdjustment",
     "viewPsfAdjustment",
     "additionalAdjustment",
     "psfAfterAllAdjustments",
@@ -77,6 +80,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     "finalPsf",
     "finalAcPsf",
     "isOptimized",
+    // "balconyPrice",
+    // "acAreaPrice",
+    // "totalPriceRaw",
   ];
   const [visibleColumns, setVisibleColumns] = useState<string[]>(
     defaultVisibleColumns
@@ -97,24 +103,21 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     resetFilters,
   } = useUnitFilters(units);
 
+  // Auto-filter to optimized type if only one present
   useEffect(() => {
     if (pricingConfig?.optimizedTypes?.length && selectedTypes.length === 0) {
-      const optimizedTypes = pricingConfig.optimizedTypes;
-      if (optimizedTypes.length === 1) {
-        setSelectedTypes([optimizedTypes[0]]);
-        toast.info(
-          `Filtered to show optimized bedroom type: ${optimizedTypes[0]}`
-        );
-      }
+      const [only] = pricingConfig.optimizedTypes;
+      setSelectedTypes([only]);
+      toast.info(`Filtered to show optimized bedroom type: ${only}`);
     }
   }, [pricingConfig?.optimizedTypes, selectedTypes, setSelectedTypes]);
 
+  // When data or config change, rebuild additionalColumns and units
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
 
-    if (
-      pricingConfig.additionalCategoryPricing?.length
-    ) {
+    // Build additional category filters
+    if (pricingConfig.additionalCategoryPricing?.length) {
       const cols = new Set<string>();
       const mapVals: Record<string, Set<string>> = {};
 
@@ -140,6 +143,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       setSelectedAdditionalFilters(init);
     }
 
+    // Run pricing simulation
     setUnits(simulatePricing(data, pricingConfig));
   }, [data, pricingConfig, setSelectedAdditionalFilters]);
 
@@ -159,7 +163,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
   const getUniqueValues = (field: string) => {
     const vals = new Set<string>();
-    units.forEach((u) => u[field] && vals.add(u[field]));
+    units.forEach((u) => {
+      if (u[field]) vals.add(u[field]);
+    });
     return field === "floor"
       ? Array.from(vals).sort((a, b) => parseInt(a) - parseInt(b))
       : Array.from(vals).sort();
@@ -175,7 +181,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       const isVisible = prev.includes(columnId);
       const colDef = allColumns.find((c) => c.id === columnId);
       if (colDef?.required && isVisible) return prev;
-      return isVisible ? prev.filter((i) => i !== columnId) : [...prev, columnId];
+      return isVisible
+        ? prev.filter((i) => i !== columnId)
+        : [...prev, columnId];
     });
   };
 
@@ -191,10 +199,10 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "basePsf", label: "Base PSF", required: false },
     { id: "floorAdjustment", label: "Floor Premium", required: false },
     { id: "viewPsfAdjustment", label: "View Premium", required: false },
-    { id: "additionalAdjustment", label: "Add-Cat Premium", required: false },
+    { id: "additionalAdjustment", label: "Add‑Cat Premium", required: false },
     { id: "psfAfterAllAdjustments", label: "Base + All Premiums", required: false },
     { id: "balconyPrice", label: "Balcony Price", required: false },
-    { id: "acAreaPrice", label: "AC-Area Price", required: false },
+    { id: "acAreaPrice", label: "AC‑Area Price", required: false },
     { id: "totalPriceRaw", label: "Total Price (unc.)", required: false },
     { id: "finalTotalPrice", label: "Final Price", required: true },
     { id: "finalPsf", label: "SA PSF", required: true },
