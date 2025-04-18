@@ -27,11 +27,11 @@ const CollapsibleConfigPanel: React.FC<Props> = ({
   const handleConfigImport = (cfg: any) => onConfigUpdate(cfg);
 
   return (
-    <div className="mb-6 border rounded-lg shadow-sm">
+    /* pulse-glow gives a soft “breathing” indication */
+    <div className="pulse-glow mb-6 border rounded-lg shadow-sm">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="configuration" className="border-none">
-          {/* glow-border moved here so glow stays on the strip only */}
-          <AccordionTrigger className="glow-border px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:no-underline relative overflow-hidden">
+          <AccordionTrigger className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 hover:no-underline">
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center">
                 <Settings className="h-5 w-5 mr-2 text-indigo-600" />
@@ -39,8 +39,6 @@ const CollapsibleConfigPanel: React.FC<Props> = ({
                   Price Configuration Panel
                 </span>
               </div>
-
-              {/* stop accordion toggle when clicking importer */}
               <div
                 className="flex items-center"
                 onClick={(e) => e.stopPropagation()}
