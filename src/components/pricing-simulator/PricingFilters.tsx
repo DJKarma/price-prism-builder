@@ -1,3 +1,4 @@
+// src/components/pricing-simulator/PricingFilters.tsx
 import React from "react";
 import BedroomTypeSelector from "../mega-optimize/BedroomTypeSelector";
 import {
@@ -105,8 +106,8 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
                 </Button>
               </DropdownMenuTrigger>
 
-              {/* menu now scrolls after ~5 items */}
-              <DropdownMenuContent className="w-56 max-h-56 overflow-y-auto scrollbar-thin">
+              {/* limit height + scroll */}
+              <DropdownMenuContent className="w-56 max-h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-300">
                 <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
