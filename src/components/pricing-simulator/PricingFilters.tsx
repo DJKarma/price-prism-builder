@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React from "react";
 import BedroomTypeSelector from "../mega-optimize/BedroomTypeSelector";
 import {
   DropdownMenu,
@@ -55,6 +54,7 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
 }) => {
   return (
     <>
+      {/* primary filter row */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
         <div className="md:col-span-3">
           <BedroomTypeSelector
@@ -83,10 +83,12 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
             placeholder="Select floors..."
           />
         </div>
+
+        {/* reset + columns menu */}
         <div className="md:col-span-3 flex flex-col justify-end gap-2">
           <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={resetFilters}
               className="flex-shrink-0"
@@ -94,7 +96,7 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
               <RotateCcw className="h-4 w-4 mr-2" />
               Reset
             </Button>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="flex-shrink-0">
@@ -102,22 +104,27 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
                   Columns
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
+
+              {/* menu now scrolls after ~5 items */}
+              <DropdownMenuContent className="w-56 max-h-56 overflow-y-auto scrollbar-thin">
                 <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {allColumns.map(column => (
+
+                {allColumns.map((column) => (
                   <DropdownMenuCheckboxItem
                     key={column.id}
                     checked={visibleColumns.includes(column.id)}
                     onCheckedChange={() => toggleColumnVisibility(column.id)}
-                    disabled={column.required && visibleColumns.includes(column.id)}
+                    disabled={
+                      column.required && visibleColumns.includes(column.id)
+                    }
                   >
                     {column.label}
                   </DropdownMenuCheckboxItem>
                 ))}
-                
-                {/* Add additional pricing factor columns */}
-                {additionalColumns.map(column => (
+
+                {/* additional factor columns */}
+                {additionalColumns.map((column) => (
                   <DropdownMenuCheckboxItem
                     key={column}
                     checked={visibleColumns.includes(column)}
@@ -126,18 +133,20 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
                     {column}
                   </DropdownMenuCheckboxItem>
                 ))}
-                
-                {/* Add additional pricing factor premium columns */}
-                {additionalColumns.map(column => (
+
+                {/* premiums for additional factors */}
+                {additionalColumns.map((column) => (
                   <DropdownMenuCheckboxItem
                     key={`${column}_premium`}
                     checked={visibleColumns.includes(`${column}_premium`)}
-                    onCheckedChange={() => toggleColumnVisibility(`${column}_premium`)}
+                    onCheckedChange={() =>
+                      toggleColumnVisibility(`${column}_premium`)
+                    }
                   >
                     {column} Premium
                   </DropdownMenuCheckboxItem>
                 ))}
-                
+
                 <DropdownMenuSeparator />
                 <div className="px-2 py-1.5">
                   <Button
@@ -154,23 +163,21 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
           </div>
         </div>
       </div>
-      
-      {/* Additional category filters section */}
+
+      {/* additional category filters */}
       {additionalColumns.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
-          {additionalColumns.map(column => (
+          {additionalColumns.map((column) => (
             <div className="md:col-span-3" key={column}>
               <BedroomTypeSelector
                 bedroomTypes={getUniqueAdditionalValues(column)}
                 selectedTypes={selectedAdditionalFilters[column] || []}
-                setSelectedTypes={(selected) => {
-                  // Fixed: Create a new object with the updated values instead of using a function
-                  const updatedFilters = {
+                setSelectedTypes={(selected) =>
+                  setSelectedAdditionalFilters({
                     ...selectedAdditionalFilters,
-                    [column]: selected
-                  };
-                  setSelectedAdditionalFilters(updatedFilters);
-                }}
+                    [column]: selected,
+                  })
+                }
                 label={`Filter by ${column}`}
                 placeholder={`Select ${column}...`}
               />
