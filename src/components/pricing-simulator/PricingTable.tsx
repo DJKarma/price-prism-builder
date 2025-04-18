@@ -326,25 +326,31 @@ const PricingTable: React.FC<PricingTableProps> = ({
                 
                 {visibleColumns.includes("psfAfterAllAdjustments") && (
                   <TableCell className="text-right">
-                    {unit.psfAfterAllAdjustments.toFixed(2)}
+                    {unit.psfAfterAllAdjustments?.toFixed(2) || "0.00"}
                   </TableCell>
                 )}
                 
                 {visibleColumns.includes("balconyPrice") && (
                   <TableCell className="text-right">
-                    {unit.balconyPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {unit.balconyPrice !== undefined 
+                      ? unit.balconyPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                      : "0.00"}
                   </TableCell>
                 )}
                 
                 {visibleColumns.includes("acAreaPrice") && (
                   <TableCell className="text-right">
-                    {unit.acAreaPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {unit.acAreaPrice !== undefined 
+                      ? unit.acAreaPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                      : "0.00"}
                   </TableCell>
                 )}
                 
                 {visibleColumns.includes("totalPriceRaw") && (
                   <TableCell className="text-right border-r border-indigo-100/50">
-                    {unit.totalPriceRaw.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {unit.totalPriceRaw !== undefined 
+                      ? unit.totalPriceRaw.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                      : "0.00"}
                   </TableCell>
                 )}
                 

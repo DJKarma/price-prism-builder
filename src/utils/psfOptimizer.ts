@@ -1,3 +1,4 @@
+
 // Add the simulatePricing function to the existing file
 export const simulatePricing = (data: any[], config: any) => {
   return data.map((unit) => {
@@ -92,7 +93,7 @@ export const simulatePricing = (data: any[], config: any) => {
     
     // 3. Calculate effective priced area with balcony adjustments
     const effectiveArea = 
-      sellArea - balconyArea +  // Start with AC area (sellArea - balcony)
+      acArea +  // Start with AC area 
       balconyArea * fullPct +   // Add full-rate portion of balcony
       balconyArea * (1 - fullPct) * remRatePct; // Add discounted portion of balcony
     
@@ -103,7 +104,13 @@ export const simulatePricing = (data: any[], config: any) => {
     const basePsfWithAdjustments = basePsf + floorAdjustment + viewPsfAdjustment + additionalAdjustment;
     const psfAfterAllAdjustments = basePsfWithAdjustments; // Store before balcony calculations
     
+    // Calculate balcony and AC area prices separately
+    const balconyPricedArea = balconyArea * fullPct + balconyArea * (1 - fullPct) * remRatePct;
+    const balconyPrice = basePsfWithAdjustments * balconyPricedArea;
+    const acAreaPrice = basePsfWithAdjustments * acArea;
+    
     const totalPrice = basePsfWithAdjustments * effectiveArea;
+    const totalPriceRaw = totalPrice; // Raw price before rounding
     const finalTotalPrice = Math.ceil(totalPrice / 1000) * 1000;
     
     const finalPsf = sellArea > 0 ? finalTotalPrice / sellArea : 0;
@@ -131,7 +138,10 @@ export const simulatePricing = (data: any[], config: any) => {
       psfAfterAllAdjustments,
       additionalCategoryPriceComponents,
       effectiveArea,
-      isOptimized: false
+      isOptimized: false,
+      balconyPrice,
+      acAreaPrice,
+      totalPriceRaw
     };
   });
 };
