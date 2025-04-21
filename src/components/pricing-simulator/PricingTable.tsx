@@ -1,4 +1,3 @@
-// src/components/pricing-simulator/PricingTable.tsx
 import React from "react";
 import { ArrowUpDown, Check } from "lucide-react";
 import { formatNumberWithCommas } from "./pricingUtils";
@@ -17,6 +16,9 @@ export default function PricingTable({
   additionalColumns,
   handleSort,
 }: Props) {
+  // build the list for the Add‑Cat Premium header
+  const addCatList = additionalColumns.join(", ") || "none";
+
   return (
     <div
       className="
@@ -28,7 +30,7 @@ export default function PricingTable({
       <table className="min-w-full table-fixed border-separate border-spacing-0">
         <thead className="bg-indigo-50 sticky top-0 z-10">
           <tr>
-            {/* basic columns */}
+            {/* BASIC */}
             {["name", "type", "floor", "view"].map((col) =>
               visibleColumns.includes(col) ? (
                 <th
@@ -44,7 +46,7 @@ export default function PricingTable({
               ) : null
             )}
 
-            {/* raw additional categories */}
+            {/* RAW ADDITIONAL */}
             {additionalColumns.map((col) =>
               visibleColumns.includes(col) ? (
                 <th
@@ -56,7 +58,7 @@ export default function PricingTable({
               ) : null
             )}
 
-            {/* premiums for additional */}
+            {/* PREMIUMS FOR ADDITIONAL */}
             {additionalColumns.map((col) =>
               visibleColumns.includes(`${col}_premium`) ? (
                 <th
@@ -71,7 +73,7 @@ export default function PricingTable({
               ) : null
             )}
 
-            {/* area & balcony */}
+            {/* AREAS */}
             {[
               "sellArea",
               "acArea",
@@ -94,7 +96,7 @@ export default function PricingTable({
               ) : null
             )}
 
-            {/* pricing & PSF columns */}
+            {/* PRICING & PSF */}
             {[
               "basePsf",
               "floorAdjustment",
@@ -107,25 +109,39 @@ export default function PricingTable({
               "finalTotalPrice",
               "finalPsf",
               "finalAcPsf",
-            ].map((col) =>
-              visibleColumns.includes(col) ? (
+            ].map((col) => {
+              if (!visibleColumns.includes(col)) return null;
+              // prettify header
+              let label: React.ReactNode = col
+                .replace(/([A-Z])/g, " $1")
+                .replace("Raw", " (unc.)")
+                .trim();
+              if (col === "additionalAdjustment") {
+                label = <>Add‑Cat Premium ({addCatList})</>;
+              }
+              return (
                 <th
                   key={col}
                   onClick={() => handleSort(col)}
                   className="px-2 py-1 text-right text-xs text-muted-foreground border-b border-gray-200 cursor-pointer whitespace-nowrap"
                 >
                   <div className="flex justify-end items-center">
-                    {col
-                      .replace(/([A-Z])/g, " $1")    /* split CamelCase */
-                      .replace("Raw", " (unc.)")    /* prettify */
-                      .trim()}{" "}
+                    <strong
+                      className={
+                        col === "finalTotalPrice" || col === "finalPsf" || col === "finalAcPsf"
+                          ? "font-medium"
+                          : undefined
+                      }
+                    >
+                      {label}
+                    </strong>
                     {col !== "finalTotalPrice" && <ArrowUpDown className="ml-1 h-3 w-3" />}
                   </div>
                 </th>
-              ) : null
-            )}
+              );
+            })}
 
-            {/* Optimized */}
+            {/* OPTIMIZED */}
             {visibleColumns.includes("isOptimized") && (
               <th className="px-2 py-1 text-center text-sm border-b border-gray-200">
                 Optimized
@@ -156,7 +172,7 @@ export default function PricingTable({
                   <td className="px-2 py-1 border-b border-gray-100">{unit.view}</td>
                 )}
 
-                {/* raw additional */}
+                {/* RAW ADDITIONAL */}
                 {additionalColumns.map((col) =>
                   visibleColumns.includes(col) ? (
                     <td key={col} className="px-2 py-1 border-b border-gray-100">
@@ -165,11 +181,15 @@ export default function PricingTable({
                   ) : null
                 )}
 
-                {/* premiums additional */}
+                {/* PREMIUMS ADDITIONAL */}
                 {additionalColumns.map((col) =>
                   visibleColumns.includes(`${col}_premium`) ? (
-                    <td key={`${col}_premium`} className="px-2 py-1 border-b border-gray-100 text-right">
-                      {unit.additionalCategoryPriceComponents?.[`${col}: ${unit[`${col}_value`]}`] ?? 0}
+                    <td
+                      key={`${col}_premium`}
+                      className="px-2 py-1 border-b border-gray-100 text-right"
+                    >
+                      {unit.additionalCategoryPriceComponents?.[`${col}: ${unit[`${col}_value`]}`] ??
+                        0}
                     </td>
                   ) : null
                 )}
