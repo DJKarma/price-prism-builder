@@ -102,6 +102,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   maxFloor = 50,
   additionalCategories = [],
 }) => {
+  /* ───────────────────────── state ───────────────────────── */
   const [basePsf, setBasePsf] = useState<number>(1000);
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
     { startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
@@ -117,7 +118,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     remainderRate: 0,
   });
 
-  // detect balcony presence
+  /* ───────────────────── detect balcony ───────────────────── */
   useEffect(() => {
     if (!data.length) return;
     const hasExplicit = data.some((u) => u.balcony !== undefined);
@@ -127,7 +128,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     setHasBalcony(hasExplicit || hasImplicit);
   }, [data]);
 
-  // additionalCategoryPricing init
+  /* ─────────── init additionalCategoryPricing ─────────── */
   useEffect(() => {
     if (initialConfig?.additionalCategoryPricing?.length) {
       setAdditionalCategoryPricing(initialConfig.additionalCategoryPricing);
@@ -142,7 +143,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     }
   }, [initialConfig, additionalCategories]);
 
-  // hydrate from initialConfig for everything
+  /* ────────── hydrate from initialConfig ────────── */
   useEffect(() => {
     if (!initialConfig) return;
 
@@ -180,7 +181,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     }
   }, [initialConfig, maxFloor]);
 
-  // ensure last rule has an endFloor
+  /* ───────── ensure last rule endFloor ───────── */
   useEffect(() => {
     if (!floorRiseRules.length) return;
     const last = floorRiseRules[floorRiseRules.length - 1];
@@ -193,13 +194,13 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     }
   }, [floorRiseRules, maxFloor]);
 
-  // derive bedroomTypes / viewTypes from data if none in initialConfig
+  /* ──── derive bedroomTypes/viewTypes if none ──── */
   useEffect(() => {
     if (!data.length) return;
 
     if (!initialConfig?.bedroomTypePricing?.length) {
       const types = Array.from(new Set(data.map((u) => u.type))).filter(Boolean);
-      setBedroomTypes(types.map((t) => ({ type: t, basePsf: basePsf, targetAvgPsf: basePsf })));
+      setBedroomTypes(types.map((t) => ({ type: t, basePsf, targetAvgPsf: basePsf })));
     }
     if (!initialConfig?.viewPricing?.length) {
       const views = Array.from(new Set(data.map((u) => u.view))).filter(Boolean);
@@ -207,7 +208,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     }
   }, [data, basePsf, initialConfig]);
 
-  // handlers...
+  /* ─────────────────── handlers ─────────────────── */
   const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value) || 0;
     setBasePsf(v);
@@ -229,12 +230,15 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       { startFloor: nextStart, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
     ]);
   };
+
   const handleRemoveFloorRiseRule = (i: number) => {
     if (floorRiseRules.length <= 1) {
-      toast.error("At least one rule required"); return;
+      toast.error("At least one rule required");
+      return;
     }
     setFloorRiseRules((r) => r.filter((_, idx) => idx !== i));
   };
+
   const updateFloorRiseRule = (
     i: number,
     field: keyof FloorRiseRule,
@@ -246,6 +250,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       )
     );
   };
+
   const updateBedroomTypePrice = (
     i: number,
     field: keyof BedroomTypePricing,
@@ -255,11 +260,13 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       b.map((bt, idx) => (idx === i ? { ...bt, [field]: value } : bt))
     );
   };
+
   const updateViewPricing = (i: number, v: number) => {
     setViewTypes((vts) =>
       vts.map((vt, idx) => (idx === i ? { ...vt, psfAdjustment: v } : vt))
     );
   };
+
   const updateAdditionalCategoryPricing = (i: number, v: number) => {
     setAdditionalCategoryPricing((acp) =>
       acp.map((cat, idx) =>
@@ -270,9 +277,10 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
 
   const handleSubmit = () => {
     if (basePsf <= 0) {
-      toast.error("Base PSF > 0 required"); return;
+      toast.error("Base PSF > 0 required");
+      return;
     }
-    // validate ranges...
+    // validate overlaps omitted for brevity...
     const processed = floorRiseRules.map((rule) => ({
       ...rule,
       endFloor: rule.endFloor == null ? maxFloor : rule.endFloor,
@@ -300,6 +308,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     return acc;
   }, {} as Record<string, AdditionalCategoryPricing[]>);
 
+  /* ─────────────────────── render ─────────────────────── */
   return (
     <Card className="w-full border-2 border-indigo-100 shadow-md">
       <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50">
