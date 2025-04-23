@@ -1,3 +1,4 @@
+// src/components/PricingSimulator.tsx
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -8,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { TableIcon, Building, House } from "lucide-react";
 import { toast } from "sonner";
-import { simulatePricing } from "@/utils/psfOptimizer";
+import { simulatePricing, PricingMode } from "@/utils/psfOptimizer";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { usePricingStore } from "@/store/pricingStore";
@@ -24,13 +25,6 @@ export interface UnitWithPricing extends Record<string, any> {
   finalTotalPrice: number;
   balconyArea?: number;
   balconyPercentage?: number;
-  basePriceComponent?: number;
-  floorPriceComponent?: number;
-  viewPriceComponent?: number;
-  finalPsf: number;
-  finalAcPsf: number;
-  isOptimized?: boolean;
-  additionalCategoryPriceComponents?: Record<string, number>;
   basePsf: number;
   floorAdjustment: number;
   viewPsfAdjustment: number;
@@ -39,6 +33,11 @@ export interface UnitWithPricing extends Record<string, any> {
   balconyPrice: number;
   acAreaPrice: number;
   totalPriceRaw: number;
+  flatAddTotal: number;
+  finalPsf: number;
+  finalAcPsf: number;
+  isOptimized?: boolean;
+  additionalCategoryPriceComponents?: Record<string, number>;
 }
 
 interface PricingSimulatorProps {
@@ -59,86 +58,63 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   hideConfigPanel = false,
 }) => {
   const { pricingMode, setPricingMode } = usePricingStore();
-  
+
+  // 1) simulated units
   const [units, setUnits] = useState<UnitWithPricing[]>([]);
+
+  // 2) dynamic additional‐category columns
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
-  const [additionalColumnValues, setAdditionalColumnValues] = useState<
-    Record<string, string[]>
-  >({});
 
+  // 3) columns visibility (persisted across config changes)
   const defaultVisibleColumns = [
-    "name",
-    "type",
-    "floor",
-    "view",
-    "sellArea",
-    "acArea",
-    "basePsf",
-    "floorAdjustment",
-    "viewPsfAdjustment",
-    "additionalAdjustment",
-    "psfAfterAllAdjustments",
-    "finalTotalPrice",
-    "finalPsf",
-    "finalAcPsf",
-    "isOptimized",
+    "name","type","floor","view",
+    "sellArea","acArea",
+    "balconyArea","balconyPercentage",
+    "basePsf","viewPsfAdjustment","floorAdjustment",
+    "additionalAdjustment","psfAfterAllAdjustments",
+    "flatAddTotal","totalPriceRaw",
+    "finalTotalPrice","finalPsf","finalAcPsf","isOptimized",
   ];
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(
-    defaultVisibleColumns
-  );
+  const [visibleColumns, setVisibleColumns] =
+    useState<string[]>(defaultVisibleColumns);
 
+  // 4) filtering & sorting
   const {
     filteredUnits,
-    selectedTypes,
-    setSelectedTypes,
-    selectedViews,
-    setSelectedViews,
-    selectedFloors,
-    setSelectedFloors,
-    selectedAdditionalFilters,
-    setSelectedAdditionalFilters,
-    sortConfig,
-    setSortConfig,
+    selectedTypes, setSelectedTypes,
+    selectedViews, setSelectedViews,
+    selectedFloors, setSelectedFloors,
+    selectedAdditionalFilters, setSelectedAdditionalFilters,
+    sortConfig, setSortConfig,
     resetFilters,
   } = useUnitFilters(units);
 
+  // 5) whenever data, config or mode changes, recalc
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
 
-    if (pricingConfig.additionalCategoryPricing?.length) {
-      const cols = new Set<string>();
-      const mapVals: Record<string, Set<string>> = {};
+    // detect additional columns
+    const cols = new Set<string>();
+    (pricingConfig.additionalCategoryPricing || []).forEach((item: any) => {
+      cols.add(item.column);
+    });
+    setAdditionalColumns(Array.from(cols));
 
-      pricingConfig.additionalCategoryPricing.forEach((item: any) => {
-        if (typeof item.column === "string") {
-          cols.add(item.column);
-          mapVals[item.column] = mapVals[item.column] || new Set();
-          if (item.category) mapVals[item.column].add(item.category);
-        }
-      });
+    // run simulation
+    setUnits(
+      simulatePricing(
+        data,
+        pricingConfig,
+        pricingMode as PricingMode
+      )
+    );
+  }, [data, pricingConfig, pricingMode]);
 
-      const colArr = Array.from(cols);
-      setAdditionalColumns(colArr);
-
-      const valsMap: Record<string, string[]> = {};
-      colArr.forEach((col) => {
-        valsMap[col] = Array.from(mapVals[col]);
-      });
-      setAdditionalColumnValues(valsMap);
-
-      const init: Record<string, string[]> = {};
-      colArr.forEach((col) => (init[col] = []));
-      setSelectedAdditionalFilters(init);
-    }
-
-    setUnits(simulatePricing(data, pricingConfig, pricingMode));
-  }, [data, pricingConfig, pricingMode, setSelectedAdditionalFilters]);
-
+  // 6) handlers
   const handlePricingConfigChange = (newConfig: any) => {
     onConfigUpdate?.(newConfig);
   };
-
-  const handleSort = (key: string) => {
+  const handleSort = (key: string) =>
     setSortConfig((prev) => ({
       key,
       direction:
@@ -146,34 +122,28 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
           ? "descending"
           : "ascending",
     }));
+  const resetColumnVisibility = () => {
+    setVisibleColumns(defaultVisibleColumns);
+    toast.success("Column visibility reset to default");
+  };
+  const toggleColumnVisibility = (columnId: string) => {
+    setVisibleColumns((prev) =>
+      prev.includes(columnId)
+        ? prev.filter((c) => c !== columnId)
+        : [...prev, columnId]
+    );
   };
 
+  // 7) helpers for filters
   const getUniqueValues = (field: string) => {
     const vals = new Set<string>();
-    units.forEach((u) => {
-      if (u[field]) vals.add(u[field]);
-    });
+    units.forEach((u) => u[field] && vals.add(u[field]));
     return field === "floor"
       ? Array.from(vals).sort((a, b) => parseInt(a) - parseInt(b))
       : Array.from(vals).sort();
   };
 
-  const resetColumnVisibility = () => {
-    setVisibleColumns(defaultVisibleColumns);
-    toast.success("Column visibility reset to default");
-  };
-
-  const toggleColumnVisibility = (columnId: string) => {
-    setVisibleColumns((prev) => {
-      const isVisible = prev.includes(columnId);
-      const colDef = allColumns.find((c) => c.id === columnId);
-      if (colDef?.required && isVisible) return prev;
-      return isVisible
-        ? prev.filter((i) => i !== columnId)
-        : [...prev, columnId];
-    });
-  };
-
+  // 8) build dynamic allColumns (with bracketed list for Add-Cat Premium)
   const allColumns = [
     { id: "name", label: "Unit", required: true },
     { id: "type", label: "Type", required: true },
@@ -184,13 +154,16 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "balconyArea", label: "Balcony", required: false },
     { id: "balconyPercentage", label: "Balcony %", required: false },
     { id: "basePsf", label: "Base PSF", required: false },
-    { id: "floorAdjustment", label: "Floor Premium", required: false },
     { id: "viewPsfAdjustment", label: "View Premium", required: false },
-    { id: "additionalAdjustment", label: "Add‑Cat Premium", required: false },
-    { id: "psfAfterAllAdjustments", label: "Base + All Premiums", required: false },
-    { id: "balconyPrice", label: "Balcony Price", required: false },
-    { id: "acAreaPrice", label: "AC‑Area Price", required: false },
-    { id: "totalPriceRaw", label: "Total Price (unc.)", required: false },
+    { id: "floorAdjustment", label: "Floor Premium", required: false },
+    {
+      id: "additionalAdjustment",
+      label: `Add-Cat Premium (${additionalColumns.join(", ")})`,
+      required: false,
+    },
+    { id: "psfAfterAllAdjustments", label: "Base + Premiums", required: false },
+    { id: "flatAddTotal", label: "Flat Adders", required: false },
+    { id: "totalPriceRaw", label: "Total (unc.)", required: false },
     { id: "finalTotalPrice", label: "Final Price", required: true },
     { id: "finalPsf", label: "SA PSF", required: true },
     { id: "finalAcPsf", label: "AC PSF", required: true },
@@ -199,38 +172,41 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* ────── Mode toggle ────── */}
       <Card className="w-full shadow-lg border-indigo-100/50">
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 flex items-center gap-6">
+          <Label className="font-semibold">Mode:</Label>
           <RadioGroup
             value={pricingMode}
-            onValueChange={(value: 'apartment' | 'villa') => {
-              setPricingMode(value);
-              toast.success(`Switched to ${value === 'apartment' ? 'Apartment' : 'Villa/Townhouse'} pricing mode`);
+            onValueChange={(v: PricingMode) => {
+              setPricingMode(v);
+              toast.success(
+                `Switched to ${
+                  v === "apartment" ? "Apartment" : "Villa/Townhouse"
+                } mode`
+              );
             }}
             className="flex space-x-4"
           >
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="apartment" id="apartment" />
-              <Label htmlFor="apartment" className="flex items-center gap-2">
-                <Building className="h-4 w-4" />
-                Apartment
-                <span className="text-xs text-muted-foreground">(Sell Area pricing)</span>
+              <RadioGroupItem value="apartment" id="apt" />
+              <Label htmlFor="apt" className="flex items-center gap-1">
+                <Building className="h-4 w-4" /> Apartment
               </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="villa" id="villa" />
-              <Label htmlFor="villa" className="flex items-center gap-2">
-                <House className="h-4 w-4" />
-                Villa/Townhouse
-                <span className="text-xs text-muted-foreground">(AC Area pricing)</span>
+              <Label htmlFor="villa" className="flex items-center gap-1">
+                <House className="h-4 w-4" /> Villa/Townhouse
               </Label>
             </div>
           </RadioGroup>
         </CardContent>
       </Card>
 
+      {/* ─── Configuration Panel ─── */}
       {onConfigUpdate && !hideConfigPanel && (
-        <div className="hover:shadow-lg transition-all duration-300 rounded-lg hover:shadow-indigo-100/50">
+        <div className="hover:shadow-lg transition-all rounded-lg">
           <CollapsibleConfigPanel
             data={data}
             pricingConfig={pricingConfig}
@@ -241,14 +217,17 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
         </div>
       )}
 
+      {/* ─── Results ─── */}
       <Card className="w-full mb-6 shadow-lg border-indigo-100/50">
         <CardHeader className="bg-gradient-to-r from-indigo-50/50 to-blue-50/50">
           <CardTitle className="flex items-center gap-2">
             <TableIcon className="h-5 w-5 text-indigo-600" />
-            <span className="text-indigo-700">Unit Pricing Details</span>
+            Unit Pricing Details
           </CardTitle>
           <CardDescription className="text-indigo-600/80">
-            View and filter detailed pricing for all units
+            {pricingMode === "villa"
+              ? "Pricing on AC Area only"
+              : "Pricing with Sellable + Balcony"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -264,7 +243,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             setSelectedFloors={setSelectedFloors}
             additionalColumns={additionalColumns}
             getUniqueAdditionalValues={(col) =>
-              Array.from(new Set(units.map((u) => u[`${col}_value`]))).sort()
+              Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
             }
             selectedAdditionalFilters={selectedAdditionalFilters}
             setSelectedAdditionalFilters={setSelectedAdditionalFilters}
