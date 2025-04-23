@@ -1,3 +1,4 @@
+// src/components/pricing-simulator/ConfigImporter.tsx
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -22,166 +23,142 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const txt = ev.target?.result as string;
-        try {
-          const parsed = JSON.parse(txt);
-          const required = ["bedroomTypePricing", "viewPricing", "floorRiseRules"];
-          const missing = required.filter((r) => !parsed[r]);
-          if (missing.length) {
-            toast.error(`Missing sections: ${missing.join(", ")}`);
-            return;
-          }
-          setImportedConfig(parsed);
-          setShowMappingDialog(true);
-          fileInputRef.current!.value = "";
-        } catch {
-          toast.error("Failed to parse JSON");
-        }
-      };
-      reader.readAsText(file);
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        !parsed.floorRiseRules ||
+        !parsed.bedroomTypePricing ||
+        !parsed.viewPricing
+      ) {
+        toast.error("Invalid configuration file");
+        return;
+      }
+      setImportedConfig(parsed);
+      setShowMappingDialog(true);
     } catch {
-      toast.error("Failed to read file");
+      toast.error("Failed to parse configuration");
+    } finally {
+      e.target.value = "";
     }
   };
 
   const handleMappingComplete = (mappings: Record<string, any>) => {
     if (!importedConfig) return;
-    try {
-      const mapped = JSON.parse(JSON.stringify(currentConfig));
 
-      // bedroomTypes mapping…
-      if (mapped.bedroomTypePricing && importedConfig.bedroomTypePricing) {
-        mapped.bedroomTypePricing = mapped.bedroomTypePricing.map((item: any) => {
-          const m = mappings.bedroomTypes[item.type];
-          if (!m || m === "no-match") return item;
+    // 1) Deep copy your current config so we don't mutate it
+    const merged = JSON.parse(JSON.stringify(currentConfig));
+
+    // 2) Bedroom types
+    if (
+      merged.bedroomTypePricing &&
+      importedConfig.bedroomTypePricing &&
+      mappings.bedroomTypes
+    ) {
+      merged.bedroomTypePricing = merged.bedroomTypePricing.map((item: any) => {
+        const mappedKey = mappings.bedroomTypes[item.type];
+        if (mappedKey && mappedKey !== "no-match") {
           const imp = importedConfig.bedroomTypePricing.find(
-            (x: any) => x.type === m
+            (b: any) => b.type === mappedKey
           );
           if (imp) {
-            Object.keys(item).forEach((k) => {
-              if (k in imp && k !== "type") item[k] = imp[k];
-            });
+            return { ...item, ...Object.fromEntries(
+              Object.entries(imp).filter(([k]) => k !== "type")
+            ) };
           }
-          return item;
-        });
-      }
+        }
+        return item;
+      });
+    }
 
-      // viewPricing mapping…
-      if (mapped.viewPricing && importedConfig.viewPricing) {
-        mapped.viewPricing = mapped.viewPricing.map((item: any) => {
-          const m = mappings.views[item.view];
-          if (!m || m === "no-match") return item;
-          const imp = importedConfig.viewPricing.find((x: any) => x.view === m);
+    // 3) View pricing
+    if (
+      merged.viewPricing &&
+      importedConfig.viewPricing &&
+      mappings.views
+    ) {
+      merged.viewPricing = merged.viewPricing.map((item: any) => {
+        const mappedKey = mappings.views[item.view];
+        if (mappedKey && mappedKey !== "no-match") {
+          const imp = importedConfig.viewPricing.find(
+            (v: any) => v.view === mappedKey
+          );
           if (imp) {
-            Object.keys(item).forEach((k) => {
-              if (k in imp && k !== "view") item[k] = imp[k];
-            });
+            return { ...item, psfAdjustment: imp.psfAdjustment };
           }
-          return item;
-        });
-      }
+        }
+        return item;
+      });
+    }
 
-      // additionalCategoryPricing mapping…
-      if (
-        mapped.additionalCategoryPricing &&
-        importedConfig.additionalCategoryPricing &&
-        mappings.additionalCategories
-      ) {
-        mapped.additionalCategoryPricing = mapped.additionalCategoryPricing.map(
-          (item: any) => {
-            const key = `${item.column}: ${item.category}`;
-            const m = mappings.additionalCategories[key];
-            if (!m || m === "no-match") return item;
-            const [col, cat] = m.split(": ");
+    // 4) Additional categories
+    if (
+      Array.isArray(merged.additionalCategoryPricing) &&
+      Array.isArray(importedConfig.additionalCategoryPricing) &&
+      mappings.additionalCategories
+    ) {
+      merged.additionalCategoryPricing = merged.additionalCategoryPricing.map(
+        (item: any) => {
+          const key = `${item.column}: ${item.category}`;
+          const mapped = mappings.additionalCategories[key];
+          if (mapped && mapped !== "no-match") {
+            const [col, cat] = mapped.split(": ");
             const imp = importedConfig.additionalCategoryPricing.find(
-              (x: any) => x.column === col && x.category === cat
+              (c: any) =>
+                c.column === col.trim() && c.category === cat.trim()
             );
             if (imp) {
-              Object.keys(item).forEach((k) => {
-                if (k in imp && k !== "column" && k !== "category") {
-                  item[k] = imp[k];
-                }
-              });
-            }
-            return item;
-          }
-        );
-      }
-
-      // floorRiseRules mapping…
-      if (mapped.floorRiseRules && importedConfig.floorRiseRules) {
-        mapped.floorRiseRules = mapped.floorRiseRules.map((rule: any) => {
-          const key = `${rule.startFloor}-${rule.endFloor}`;
-          const m = mappings.floorRiseRules[key];
-          if (!m || m === "no-match") return rule;
-          const [s, e] = m.split("-").map(Number);
-          const imp = importedConfig.floorRiseRules.find(
-            (x: any) => x.startFloor === s && x.endFloor === e
-          );
-          if (imp) {
-            Object.keys(rule).forEach((k) => {
-              if (k in imp && k !== "startFloor" && k !== "endFloor") {
-                rule[k] = imp[k];
-              }
-            });
-          }
-          return rule;
-        });
-      }
-
-      // scalarFields mapping (including balconyPricing)
-      if (mappings.scalarFields) {
-        Object.entries(mappings.scalarFields).forEach(
-          ([dest, src]) => {
-            if (src && src !== "no-match" && src in importedConfig) {
-              mapped[dest] = importedConfig[src];
+              return { ...item, psfAdjustment: imp.psfAdjustment };
             }
           }
-        );
-      }
-
-      // **ensure balconyPricing** is carried over if present
-      if (importedConfig.balconyPricing) {
-        mapped.balconyPricing = {
-          fullAreaPct:
-            importedConfig.balconyPricing.fullAreaPct ??
-            mapped.balconyPricing?.fullAreaPct ??
-            100,
-          remainderRate:
-            importedConfig.balconyPricing.remainderRate ??
-            mapped.balconyPricing?.remainderRate ??
-            0,
-        };
-      }
-
-      onConfigImported(mapped);
-      toast.success("Configuration imported");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to apply mappings");
-    } finally {
-      setShowMappingDialog(false);
+          return item;
+        }
+      );
     }
+
+    // 5) Scalars (basePsf, maxFloor, targetOverallPsf)
+    if (mappings.scalarFields) {
+      for (const [cur, impField] of Object.entries(mappings.scalarFields)) {
+        if (impField && impField !== "no-match" && impField in importedConfig) {
+          merged[cur] = importedConfig[impField];
+        }
+      }
+    }
+
+    // 6) FLOOR -- if user ticked any, replace *all* current rules with those imported
+    const toApply: string[] = mappings.floorRiseRulesApply || [];
+    if (Array.isArray(toApply) && toApply.length > 0) {
+      merged.floorRiseRules = importedConfig.floorRiseRules.filter((rule: any) => {
+        const key = `${rule.startFloor}-${rule.endFloor == null
+          ? merged.maxFloor || rule.endFloor
+          : rule.endFloor
+        }`;
+        return toApply.includes(key);
+      });
+    }
+
+    // done!
+    onConfigImported(merged);
+    toast.success("Configuration imported successfully");
+    setShowMappingDialog(false);
   };
 
   return (
-    <div>
+    <>
       <input
         type="file"
+        accept=".json"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept=".json"
         style={{ display: "none" }}
         onClick={(e) => e.stopPropagation()}
       />
+
       <Button
         variant="outline"
         size="sm"
@@ -191,14 +168,17 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
         <FileJson className="mr-2 h-4 w-4" />
         Import Config
       </Button>
-      <ConfigMappingDialog
-        isOpen={showMappingDialog}
-        onClose={() => setShowMappingDialog(false)}
-        currentConfig={currentConfig}
-        importedConfig={importedConfig}
-        onMappingComplete={handleMappingComplete}
-      />
-    </div>
+
+      {showMappingDialog && (
+        <ConfigMappingDialog
+          isOpen={showMappingDialog}
+          onClose={() => setShowMappingDialog(false)}
+          currentConfig={currentConfig}
+          importedConfig={importedConfig}
+          onMappingComplete={handleMappingComplete}
+        />
+      )}
+    </>
   );
 };
 
