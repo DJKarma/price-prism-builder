@@ -1,32 +1,37 @@
-
-import React, { useState, useEffect } from 'react';
+// src/components/pricing-simulator/ConfigMappingDialog.tsx
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
-  SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { ArrowRight, AlertCircle, ImportIcon } from 'lucide-react';
+import { ArrowRight, AlertCircle, ImportIcon } from "lucide-react";
+
+interface FieldOption {
+  key: string;
+  displayValue: string;
+}
 
 interface MappingSection {
   title: string;
-  currentFields: any[];
-  importedFields: any[];
-  mappings: Record<string, string>;
   description: string;
+  currentFields: FieldOption[];
+  importedFields: FieldOption[];
+  mappings: Record<string, string>;
 }
 
 interface ConfigMappingDialogProps {
@@ -34,7 +39,9 @@ interface ConfigMappingDialogProps {
   onClose: () => void;
   currentConfig: any;
   importedConfig: any;
-  onMappingComplete: (mappings: Record<string, Record<string, string>>) => void;
+  onMappingComplete: (
+    mappings: Record<string, Record<string, string> | string[]>
+  ) => void;
 }
 
 const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
@@ -44,314 +51,331 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
   importedConfig,
   onMappingComplete,
 }) => {
-  const [mappingSections, setMappingSections] = useState<Record<string, MappingSection>>({
+  const [sections, setSections] = useState<Record<string, MappingSection>>({
     bedroomTypes: {
       title: "Bedroom Types",
+      description: "Match imported bedroom types to your current configuration",
       currentFields: [],
       importedFields: [],
       mappings: {},
-      description: "Match imported bedroom types to your current configuration"
     },
     views: {
       title: "Views",
+      description: "Match imported views to your current configuration",
       currentFields: [],
       importedFields: [],
       mappings: {},
-      description: "Match imported views to your current configuration"
     },
     additionalCategories: {
       title: "Additional Categories",
+      description: "Match imported additional categories to your current categories",
       currentFields: [],
       importedFields: [],
       mappings: {},
-      description: "Match imported additional categories to your current categories"
-    },
-    floorRiseRules: {
-      title: "Floor Rise Rules",
-      currentFields: [],
-      importedFields: [],
-      mappings: {},
-      description: "Match imported floor rise rules to your current configuration"
     },
     scalarFields: {
       title: "Basic Parameters",
+      description: "Match imported basic parameters to your current configuration",
       currentFields: [],
       importedFields: [],
       mappings: {},
-      description: "Match imported basic parameters to your current configuration"
-    }
+    },
   });
-  
-  const [hasFieldsToMap, setHasFieldsToMap] = useState(false);
 
-  // Initialize mapping data when dialog opens or configs change
+  // For floor-rise rules we'll keep a separate set of selected keys:
+  const [floorOptions, setFloorOptions] = useState<FieldOption[]>([]);
+  const [selectedFloorKeys, setSelectedFloorKeys] = useState<Set<string>>(new Set());
+
+  // build the sections plus floor options
   useEffect(() => {
-    if (isOpen && currentConfig && importedConfig) {
-      console.log("Current config:", currentConfig);
-      console.log("Imported config:", importedConfig);
-      
-      // Extract bedroom types with their actual field values
-      const currentBedroomTypes = (currentConfig?.bedroomTypePricing || []).map((item: any) => ({
-        key: item.type,
-        value: item.basePsf || 0,
-        displayValue: `${item.basePsf || 0}`
+    if (!isOpen) return;
+
+    // helper to format
+    const makeOpts = (arr: any[], keyField: string, valField: string) =>
+      arr.map((item) => ({
+        key: item[keyField].toString(),
+        displayValue: `${item[valField] ?? ""}`,
       }));
 
-      const importedBedroomTypes = (importedConfig?.bedroomTypePricing || []).map((item: any) => ({
-        key: item.type,
-        value: item.basePsf || 0,
-        displayValue: `${item.basePsf || 0}`
-      }));
+    // bedrooms
+    const currBeds = makeOpts(
+      currentConfig.bedroomTypePricing || [],
+      "type",
+      "basePsf"
+    );
+    const impBeds = makeOpts(
+      importedConfig.bedroomTypePricing || [],
+      "type",
+      "basePsf"
+    );
 
-      // Extract views with their premium values
-      const currentViews = (currentConfig?.viewPricing || []).map((item: any) => ({
-        key: item.view,
-        value: item.psfAdjustment || 0,
-        displayValue: `${item.psfAdjustment || 0}`
-      }));
+    // views
+    const currViews = makeOpts(
+      currentConfig.viewPricing || [],
+      "view",
+      "psfAdjustment"
+    );
+    const impViews = makeOpts(
+      importedConfig.viewPricing || [],
+      "view",
+      "psfAdjustment"
+    );
 
-      const importedViews = (importedConfig?.viewPricing || []).map((item: any) => ({
-        key: item.view,
-        value: item.psfAdjustment || 0,
-        displayValue: `${item.psfAdjustment || 0}`
-      }));
+    // additional categories
+    const currAdd = (currentConfig.additionalCategoryPricing || []).map(
+      (c: any) => ({
+        key: `${c.column}: ${c.category}`,
+        displayValue: `${c.psfAdjustment ?? ""}`,
+      })
+    );
+    const impAdd = (importedConfig.additionalCategoryPricing || []).map(
+      (c: any) => ({
+        key: `${c.column}: ${c.category}`,
+        displayValue: `${c.psfAdjustment ?? ""}`,
+      })
+    );
 
-      // Ensure we're correctly extracting additional categories from both configs
-      const currentAdditionalCategories = (currentConfig?.additionalCategoryPricing || []).map((item: any) => ({
-        key: `${item.column}: ${item.category}`,
-        value: item.psfAdjustment || 0,
-        displayValue: `${item.psfAdjustment || 0}`
-      }));
+    // scalar fields
+    const scalarKeys = ["basePsf", "maxFloor", "targetOverallPsf"].filter(
+      (k) => k in importedConfig
+    );
+    const currScalar = scalarKeys.map((k) => ({
+      key: k,
+      displayValue: `${currentConfig[k] ?? ""}`,
+    }));
+    const impScalar = scalarKeys.map((k) => ({
+      key: k,
+      displayValue: `${importedConfig[k] ?? ""}`,
+    }));
 
-      const importedAdditionalCategories = (importedConfig?.additionalCategoryPricing || []).map((item: any) => ({
-        key: `${item.column}: ${item.category}`,
-        value: item.psfAdjustment || 0,
-        displayValue: `${item.psfAdjustment || 0}`
-      }));
-      
-      console.log("Current additional categories:", currentAdditionalCategories);
-      console.log("Imported additional categories:", importedAdditionalCategories);
+    // auto-match helper
+    const initMapping = (curr: FieldOption[], imp: FieldOption[]) =>
+      curr.reduce((m, f) => {
+        const match = imp.find(
+          (i) => i.key.toLowerCase() === f.key.toLowerCase()
+        );
+        m[f.key] = match ? match.key : "no-match";
+        return m;
+      }, {} as Record<string, string>);
 
-      // Extract floor rise rules
-      const currentFloorRiseRules = (currentConfig?.floorRiseRules || []).map((rule: any) => ({
-        key: `${rule.startFloor}-${rule.endFloor}`,
-        value: rule.psfIncrement || 0,
-        displayValue: `${rule.psfIncrement || 0}`
-      }));
+    // set the bedroom/view/add/scalar sections
+    setSections({
+      bedroomTypes: {
+        title: "Bedroom Types",
+        description: "Match imported bedroom types to your current configuration",
+        currentFields: currBeds,
+        importedFields: impBeds,
+        mappings: initMapping(currBeds, impBeds),
+      },
+      views: {
+        title: "Views",
+        description: "Match imported views to your current configuration",
+        currentFields: currViews,
+        importedFields: impViews,
+        mappings: initMapping(currViews, impViews),
+      },
+      additionalCategories: {
+        title: "Additional Categories",
+        description: "Match imported additional categories to your current categories",
+        currentFields: currAdd,
+        importedFields: impAdd,
+        mappings: initMapping(currAdd, impAdd),
+      },
+      scalarFields: {
+        title: "Basic Parameters",
+        description: "Match imported basic parameters to your current configuration",
+        currentFields: currScalar,
+        importedFields: impScalar,
+        mappings: initMapping(currScalar, impScalar),
+      },
+    });
 
-      const importedFloorRiseRules = (importedConfig?.floorRiseRules || []).map((rule: any) => ({
-        key: `${rule.startFloor}-${rule.endFloor}`,
-        value: rule.psfIncrement || 0,
-        displayValue: `${rule.psfIncrement || 0}`
-      }));
-
-      // Extract scalar fields
-      const scalarFields = ['basePsf', 'maxFloor', 'targetOverallPsf'];
-      const currentScalarFields = scalarFields
-        .filter(field => field in currentConfig)
-        .map(field => ({
-          key: field,
-          value: currentConfig[field],
-          displayValue: `${currentConfig[field]}`
-        }));
-
-      const importedScalarFields = scalarFields
-        .filter(field => field in importedConfig)
-        .map(field => ({
-          key: field,
-          value: importedConfig[field],
-          displayValue: `${importedConfig[field]}`
-        }));
-
-      // Set up mapping sections with values
-      const updatedSections = {
-        bedroomTypes: {
-          title: "Bedroom Types",
-          currentFields: currentBedroomTypes,
-          importedFields: importedBedroomTypes,
-          mappings: {},
-          description: "Match imported bedroom types to your current configuration"
-        },
-        views: {
-          title: "Views",
-          currentFields: currentViews,
-          importedFields: importedViews,
-          mappings: {},
-          description: "Match imported views to your current configuration"
-        },
-        additionalCategories: {
-          title: "Additional Categories",
-          currentFields: currentAdditionalCategories,
-          importedFields: importedAdditionalCategories,
-          mappings: {},
-          description: "Match imported additional categories to your current configuration"
-        },
-        floorRiseRules: {
-          title: "Floor Rise Rules",
-          currentFields: currentFloorRiseRules,
-          importedFields: importedFloorRiseRules,
-          mappings: {},
-          description: "Match imported floor rise rules to your current configuration"
-        },
-        scalarFields: {
-          title: "Basic Parameters",
-          currentFields: currentScalarFields,
-          importedFields: importedScalarFields,
-          mappings: {},
-          description: "Match imported basic parameters to your current configuration"
-        }
-      };
-      
-      // Try auto-matching based on case-insensitive comparison
-      Object.keys(updatedSections).forEach(sectionKey => {
-        const section = updatedSections[sectionKey];
-        
-        section.currentFields.forEach(currentField => {
-          const exactMatch = section.importedFields.find(
-            importedField => importedField.key.toLowerCase() === currentField.key.toLowerCase()
-          );
-          
-          if (exactMatch) {
-            section.mappings[currentField.key] = exactMatch.key;
-          }
-        });
-      });
-      
-      setMappingSections(updatedSections);
-      
-      const hasFields = Object.values(updatedSections).some(
-        section => section.currentFields.length > 0 && section.importedFields.length > 0
-      );
-      
-      setHasFieldsToMap(hasFields);
-    }
+    // build floor-rise checkboxes
+    const maxF = currentConfig.maxFloor ?? 999;
+    const impFloors = (importedConfig.floorRiseRules || []).map((r: any) => ({
+      key: `${r.startFloor}-${r.endFloor == null ? maxF : r.endFloor}`,
+      displayValue: `+${r.psfIncrement} psf${r.jumpEveryFloor ? `, jump ${r.jumpIncrement} every ${r.jumpEveryFloor}` : ""
+        }`,
+    }));
+    setFloorOptions(impFloors);
+    // reset selections
+    setSelectedFloorKeys(new Set());
   }, [isOpen, currentConfig, importedConfig]);
 
-  const handleMapping = (section: string, currentField: string, importedField: string) => {
-    setMappingSections(prev => ({
+  const anyToMap =
+    Object.values(sections).some(
+      (sec) => sec.currentFields.length && sec.importedFields.length
+    ) || floorOptions.length > 0;
+
+  const mappedCount =
+    Object.values(sections).reduce(
+      (sum, sec) =>
+        sum +
+        Object.values(sec.mappings).filter(
+          (v) => v && v !== "no-match"
+        ).length,
+      0
+    ) + selectedFloorKeys.size;
+
+  const handleValueChange = (
+    sectionKey: string,
+    currKey: string,
+    impKey: string
+  ) => {
+    setSections((prev) => ({
       ...prev,
-      [section]: {
-        ...prev[section],
+      [sectionKey]: {
+        ...prev[sectionKey],
         mappings: {
-          ...prev[section].mappings,
-          [currentField]: importedField,
+          ...prev[sectionKey].mappings,
+          [currKey]: impKey,
         },
       },
     }));
   };
 
-  const handleComplete = () => {
-    const finalMappings: Record<string, Record<string, string>> = {};
-    Object.entries(mappingSections).forEach(([key, section]) => {
-      finalMappings[key] = section.mappings;
+  const toggleFloorRule = (key: string) => {
+    setSelectedFloorKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
     });
-    onMappingComplete(finalMappings);
+  };
+
+  const handleFinish = () => {
+    const out: Record<string, Record<string, string> | string[]> = {};
+    for (const k of Object.keys(sections)) {
+      out[k] = sections[k].mappings;
+    }
+    // include the chosen floor-rise rules
+    out.floorRiseRulesApply = Array.from(selectedFloorKeys);
+    onMappingComplete(out);
     onClose();
   };
 
-  const countMappedFields = () => {
-    let count = 0;
-    Object.values(mappingSections).forEach(section => {
-      count += Object.values(section.mappings).filter(val => val && val !== "no-match").length;
-    });
-    return count;
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-indigo-700 flex items-center gap-2">
-            <ImportIcon className="h-5 w-5" />
-            Map Configuration Fields
-          </DialogTitle>
+          <div className="flex items-center gap-2">
+            <ImportIcon className="h-5 w-5 text-indigo-600" />
+            <DialogTitle>Map Configuration Fields</DialogTitle>
+          </div>
           <DialogDescription>
-            Match imported configuration fields to your current configuration structure
+            Match or import the fields you need.
           </DialogDescription>
         </DialogHeader>
-        
-        <ScrollArea className="flex-1 px-1 overflow-y-auto">
-          {!hasFieldsToMap ? (
-            <Alert variant="destructive" className="my-4">
+
+        <ScrollArea className="flex-1 px-4 py-2 space-y-6 overflow-y-auto">
+          {!anyToMap ? (
+            <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>No compatible fields found</AlertTitle>
+              <AlertTitle>No fields to map</AlertTitle>
               <AlertDescription>
-                The imported configuration doesn't contain any fields that match your current configuration structure.
-                Make sure you're importing a compatible configuration file.
+                Imported config didn’t match any of your current settings.
               </AlertDescription>
             </Alert>
-          ) : countMappedFields() === 0 ? (
-            <Alert className="my-4">
+          ) : mappedCount === 0 ? (
+            <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>No automatic matches found</AlertTitle>
+              <AlertTitle>No automatic matches</AlertTitle>
               <AlertDescription>
-                No fields were automatically matched. Please manually select which imported fields 
-                should map to your current configuration fields.
+                Please manually select your mappings below.
               </AlertDescription>
             </Alert>
           ) : null}
-          
-          <div className="space-y-6 py-4">
-            {Object.entries(mappingSections).map(([key, section]) => (
-              section.currentFields.length > 0 && section.importedFields.length > 0 ? (
-                <div key={key} className="space-y-4 border-b pb-4 last:border-b-0">
-                  <div>
-                    <h3 className="font-medium text-lg text-indigo-600">{section.title}</h3>
-                    <p className="text-sm text-gray-500">{section.description}</p>
-                  </div>
-                  <div className="space-y-3 pr-4">
-                    {section.currentFields.map((currentField: any) => (
-                      <div key={currentField.key} className="flex items-center gap-4">
-                        <div className="w-1/3">
-                          <Label className="text-sm font-medium">
-                            {currentField.key}
-                            <span className="block text-xs text-gray-500">
-                              Current value: {currentField.displayValue}
-                            </span>
-                          </Label>
-                        </div>
-                        <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        <div className="flex-1">
-                          <Select
-                            value={section.mappings[currentField.key] || ""}
-                            onValueChange={(value) => handleMapping(key, currentField.key, value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select matching field..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="no-match">No match</SelectItem>
-                              {section.importedFields.map((importedField: any) => (
-                                <SelectItem key={importedField.key} value={importedField.key}>
-                                  <div>
-                                    {importedField.key}
-                                    <span className="block text-xs text-gray-500">
-                                      Value: {importedField.displayValue}
-                                    </span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+
+          {Object.entries(sections).map(([key, sec]) =>
+            sec.currentFields.length && sec.importedFields.length ? (
+              <div key={key} className="space-y-3">
+                <h3 className="text-lg font-medium text-indigo-700">
+                  {sec.title}
+                </h3>
+                <p className="text-sm text-gray-500">{sec.description}</p>
+                <div className="space-y-2">
+                  {sec.currentFields.map((cf) => (
+                    <div
+                      key={cf.key}
+                      className="flex items-center gap-3"
+                    >
+                      <div className="w-1/3">
+                        <Label className="font-medium">
+                          {cf.key}
+                          <span className="block text-xs text-gray-500">
+                            Current: {cf.displayValue}
+                          </span>
+                        </Label>
                       </div>
-                    ))}
-                  </div>
+                      <ArrowRight className="h-5 w-5 text-gray-400" />
+                      <div className="flex-1">
+                        <Select
+                          value={sec.mappings[cf.key] || ""}
+                          onValueChange={(val) =>
+                            handleValueChange(key, cf.key, val)
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="No match" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="no-match">No match</SelectItem>
+                            {sec.importedFields.map((imp) => (
+                              <SelectItem key={imp.key} value={imp.key}>
+                                <div>
+                                  {imp.key}
+                                  <span className="block text-xs text-gray-500">
+                                    {imp.displayValue}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ) : null
-            ))}
-          </div>
+              </div>
+            ) : null
+          )}
+
+          {/* Floor-rise rule import */}
+          {floorOptions.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-lg font-medium text-indigo-700">
+                Floor Rise Rules
+              </h3>
+              <p className="text-sm text-gray-500">
+                Check any imported rules you’d like to apply wholesale:
+              </p>
+              <div className="space-y-1">
+                {floorOptions.map((opt) => (
+                  <label
+                    key={opt.key}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFloorKeys.has(opt.key)}
+                      onChange={() => toggleFloorRule(opt.key)}
+                    />
+                    <span>
+                      {opt.key} → {opt.displayValue}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </ScrollArea>
 
-        <DialogFooter className="pt-4">
+        <DialogFooter className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleComplete}
-            disabled={!hasFieldsToMap}
-          >
-            Apply Mappings
+          <Button onClick={handleFinish} disabled={!anyToMap}>
+            Apply Mappings ({mappedCount})
           </Button>
         </DialogFooter>
       </DialogContent>
