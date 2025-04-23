@@ -3,23 +3,29 @@
 export type PricingMode = "villa" | "apartment";
 
 export interface FlatPriceAdder {
-  units?: string[];                
-  columns?: Record<string, string[]>;
-  amount: number;                  
+  units?: string[];                  // exact unit names to match
+  columns?: Record<string, string[]>;// { columnName: [value1, value2, …] }
+  amount: number;                    // flat AED to add
 }
 
 export const simulatePricing = (
   data: any[],
   config: {
     bedroomTypePricing: Array<{ type: string; basePsf: number }>;
-    viewPricing: Array<{ view: string; psfAdjustment: number }>;
-    floorRiseRules?: any[];
+    viewPricing:       Array<{ view: string;  psfAdjustment: number }>;
+    floorRiseRules?:   Array<{
+      startFloor: number;
+      endFloor:   number | null;
+      psfIncrement: number;
+      jumpEveryFloor?: number;
+      jumpIncrement?:  number;
+    }>;
     additionalCategoryPricing?: Array<{
       column: string;
       category: string;
       psfAdjustment: number;
     }>;
-    balconyPricing?: { fullAreaPct: number; remainderRate: number };
+    balconyPricing?:       { fullAreaPct: number; remainderRate: number };
     flatPriceAdders?: FlatPriceAdder[];
   },
   mode: PricingMode = "apartment"
@@ -28,55 +34,50 @@ export const simulatePricing = (
     const sellArea = parseFloat(unit.sellArea) || 0;
     const acArea   = parseFloat(unit.acArea)   || 0;
 
-    // 1) base PSF + view
+    // 1) base PSF + view adjustment
     const bt = config.bedroomTypePricing.find(b => b.type === unit.type);
     const vp = config.viewPricing.find(v => v.view === unit.view);
-    const basePsf           = bt?.basePsf ?? 0;
-    const viewPsfAdjustment = vp?.psfAdjustment ?? 0;
+    const basePsf           = bt?.basePsf          ?? 0;
+    const viewPsfAdjustment = vp?.psfAdjustment    ?? 0;
 
-    // 2) floor premium only in apartment mode
+    // 2) floor premium (apartments only)
     const floorAdjustment = mode === "apartment"
-      ? calculateFloorPremium(parseInt(unit.floor) || 1, config.floorRiseRules ?? [])
+      ? calculateFloorPremium(parseInt(unit.floor) || 1, config.floorRiseRules || [])
       : 0;
 
     // 3) additional-category premiums
     let additionalAdjustment = 0;
-    const additionalCategoryPriceComponents: Record<string, number> = {};
     (config.additionalCategoryPricing || []).forEach(cat => {
-      const key = `${cat.column}: ${cat.category}`;
       if (unit[`${cat.column}_value`] === cat.category) {
         additionalAdjustment += cat.psfAdjustment;
-        additionalCategoryPriceComponents[key] = cat.psfAdjustment;
-      } else {
-        additionalCategoryPriceComponents[key] = 0;
       }
     });
 
-    // 4) balcony logic
+    // 4) balcony logic (apartments only)
     let balconyArea = parseFloat(unit.balcony) || 0;
     if (mode === "apartment" && sellArea > acArea && !balconyArea) {
       balconyArea = sellArea - acArea;
     }
     const { fullAreaPct = 0, remainderRate = 0 } = config.balconyPricing || {};
-    const fullPct    = fullAreaPct   / 100;
-    const remPct     = remainderRate / 100;
+    const fullPct = fullAreaPct   / 100;
+    const remPct  = remainderRate / 100;
     const balconyPricedArea = mode === "apartment"
       ? balconyArea * fullPct + balconyArea * (1 - fullPct) * remPct
       : 0;
 
-    // 5) combine PSF adjustments
-    const basePsfWithAdjustments =
+    // 5) combine all PSF adjustments
+    const psfAfterAllAdjustments = 
       basePsf + viewPsfAdjustment + floorAdjustment + additionalAdjustment;
 
-    // 6) compute effective area
+    // 6) effective area
     const effectiveArea = mode === "villa"
       ? acArea
       : acArea + balconyPricedArea;
 
     // 7) raw price
-    const totalPriceRaw = basePsfWithAdjustments * effectiveArea;
+    const totalPriceRaw = psfAfterAllAdjustments * effectiveArea;
 
-    // 8) flat price adders
+    // 8) flat‐price adders
     let flatAddTotal = 0;
     (config.flatPriceAdders || []).forEach(adder => {
       const matchUnit = adder.units?.includes(unit.name);
@@ -89,66 +90,63 @@ export const simulatePricing = (
         flatAddTotal += adder.amount;
       }
     });
-
     const priceWithFlat = totalPriceRaw + flatAddTotal;
 
-    // 9) ceiling
+    // 9) round up to nearest 1000
     const finalTotalPrice = Math.ceil(priceWithFlat / 1000) * 1000;
 
-    // 10) PSFs
+    // 10) PSF outputs
     const finalPsf   = mode === "villa"
       ? acArea ? finalTotalPrice / acArea : 0
       : sellArea ? finalTotalPrice / sellArea : 0;
-    const finalAcPsf = acArea   ? finalTotalPrice / acArea : 0;
-
-    // 11) expose balcony & AC price
-    const balconyPrice = basePsfWithAdjustments * balconyPricedArea;
-    const acAreaPrice  = basePsfWithAdjustments * acArea;
+    const finalAcPsf = acArea ? finalTotalPrice / acArea : 0;
 
     return {
       ...unit,
 
-      // breakdown
+      // components
       basePsf,
       viewPsfAdjustment,
       floorAdjustment,
       additionalAdjustment,
-      psfAfterAllAdjustments: basePsfWithAdjustments,
+      psfAfterAllAdjustments,
 
-      // balcony details
+      // balcony
       balconyArea,
       balconyPercentage: sellArea ? (balconyArea / sellArea) * 100 : 0,
       balconyPricedArea,
-      balconyPrice,
-      acAreaPrice,
 
       // pricing
       totalPriceRaw,
       flatAddTotal,
       finalTotalPrice,
 
-      // PSFs
+      // PSF
       finalPsf,
       finalAcPsf,
-
-      // detailed map used by table’s “premium” columns
-      additionalCategoryPriceComponents,
-
-      isOptimized: false,
     };
   });
 };
 
-export const calculateFloorPremium = (floor: number, rules: any[]) => {
+export const calculateFloorPremium = (
+  floor: number,
+  rules: Array<{
+    startFloor: number;
+    endFloor?: number | null;
+    psfIncrement: number;
+    jumpEveryFloor?: number;
+    jumpIncrement?: number;
+  }>
+) => {
   let premium = 0;
   const sorted = [...rules].sort((a,b) => a.startFloor - b.startFloor);
   for (const rule of sorted) {
     const end = rule.endFloor ?? Infinity;
     if (floor < rule.startFloor) continue;
-    const count = Math.min(floor, end) - rule.startFloor + 1;
-    premium += count * (rule.psfIncrement || 0);
+    const floorsInRange = Math.min(floor, end) - rule.startFloor + 1;
+    premium += floorsInRange * (rule.psfIncrement || 0);
     if (rule.jumpEveryFloor && rule.jumpIncrement) {
-      const jumps = Math.floor(count / rule.jumpEveryFloor);
+      const jumps = Math.floor(floorsInRange / rule.jumpEveryFloor);
       premium += jumps * rule.jumpIncrement;
     }
     if (floor <= end) break;
@@ -156,4 +154,76 @@ export const calculateFloorPremium = (floor: number, rules: any[]) => {
   return premium;
 };
 
-// … your mega/full optimization and summary functions unchanged …
+export const megaOptimizePsf = (
+  data: any[],
+  config: any,
+  targetPsf: number,
+  types: string[] = [],
+  mode: PricingMode = "apartment"
+) => {
+  const bedroomAdjustments: Record<string, number> = {};
+  types.forEach((type) => {
+    const bt = config.bedroomTypePricing.find((b:any) => b.type === type);
+    if (!bt) return;
+    const factor = targetPsf / Math.max(bt.basePsf, 1);
+    bedroomAdjustments[type] = bt.basePsf * factor;
+  });
+  return {
+    success: true,
+    optimizedParams: { bedroomAdjustments },
+    message: "Mega optimization applied"
+  };
+};
+
+export const fullOptimizePsf = (
+  data: any[],
+  config: any,
+  targetPsf: number,
+  types: string[] = [],
+  mode: PricingMode = "apartment"
+) => {
+  const base = megaOptimizePsf(data, config, targetPsf, types, mode);
+  const viewAdjustments: Record<string,number> = {};
+  (config.viewPricing||[]).forEach((v:any) => viewAdjustments[v.view] = v.psfAdjustment);
+  const additionalCategoryAdjustments: Record<string,Record<string,number>> = {};
+  (config.additionalCategoryPricing||[]).forEach((c:any) => {
+    additionalCategoryAdjustments[c.column] = additionalCategoryAdjustments[c.column]||{};
+    additionalCategoryAdjustments[c.column][c.category] = c.psfAdjustment;
+  });
+  return {
+    ...base,
+    optimizedParams: {
+      ...base.optimizedParams,
+      viewAdjustments,
+      additionalCategoryAdjustments
+    }
+  };
+};
+
+export const calculateOverallAveragePsf = (
+  data: any[],
+  config: any,
+  mode: PricingMode = "apartment"
+) => {
+  const priced = simulatePricing(data, config, mode);
+  const valid = priced.filter(u => parseFloat(u.sellArea) > 0 && u.finalTotalPrice > 0);
+  if (!valid.length) return 0;
+  const totalValue = valid.reduce((s,u) => s + u.finalTotalPrice, 0);
+  const totalArea = mode === "villa"
+    ? valid.reduce((s,u) => s + parseFloat(u.acArea), 0)
+    : valid.reduce((s,u) => s + parseFloat(u.sellArea), 0);
+  return totalValue / totalArea;
+};
+
+export const calculateOverallAverageAcPsf = (
+  data: any[],
+  config: any,
+  mode: PricingMode = "apartment"
+) => {
+  const priced = simulatePricing(data, config, mode);
+  const valid = priced.filter(u => parseFloat(u.acArea) > 0 && u.finalTotalPrice > 0);
+  if (!valid.length) return 0;
+  const totalValue = valid.reduce((s,u) => s + u.finalTotalPrice, 0);
+  const totalAc = valid.reduce((s,u) => s + parseFloat(u.acArea), 0);
+  return totalValue / totalAc;
+};
