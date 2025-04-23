@@ -1,6 +1,7 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+
+export type PricingMode = 'apartment' | 'villa';
 
 export interface PricingState {
   csvData: any[];
@@ -8,11 +9,13 @@ export interface PricingState {
   mappedData: any[];
   pricingConfig: any | null;
   additionalCategories: any[];
+  pricingMode: PricingMode;
   
   // Actions
   setCsvData: (data: any[], headers: string[]) => void;
   setMappedData: (data: any[], categories: any[]) => void;
   setPricingConfig: (config: any) => void;
+  setPricingMode: (mode: PricingMode) => void;
   clearState: () => void;
 }
 
@@ -24,18 +27,18 @@ export const usePricingStore = create<PricingState>()(
       mappedData: [],
       pricingConfig: null,
       additionalCategories: [],
+      pricingMode: 'apartment', // default mode
       
       setCsvData: (data, headers) => set({ 
         csvData: data, 
         csvHeaders: headers,
-        // Clear other state when new CSV is uploaded
         mappedData: [],
         pricingConfig: null,
-        additionalCategories: []
+        additionalCategories: [],
+        pricingMode: 'apartment'
       }),
       
       setMappedData: (data, categories) => set((state) => {
-        // Check if data has balcony or if sellArea - acArea > 0
         const hasExplicitBalcony = data.some(item => item.balcony !== undefined);
         
         const hasImplicitBalcony = data.some(item => {
@@ -44,7 +47,6 @@ export const usePricingStore = create<PricingState>()(
           return sellArea > acArea;
         });
         
-        // If there's a balcony, make sure balconyPricing is initialized in config
         let updatedConfig = state.pricingConfig;
         if ((hasExplicitBalcony || hasImplicitBalcony) && updatedConfig) {
           if (!updatedConfig.balconyPricing) {
@@ -67,12 +69,15 @@ export const usePricingStore = create<PricingState>()(
       
       setPricingConfig: (config) => set({ pricingConfig: config }),
       
+      setPricingMode: (mode) => set({ pricingMode: mode }),
+      
       clearState: () => set({ 
         csvData: [],
         csvHeaders: [],
         mappedData: [],
         pricingConfig: null,
-        additionalCategories: []
+        additionalCategories: [],
+        pricingMode: 'apartment'
       }),
     }),
     {

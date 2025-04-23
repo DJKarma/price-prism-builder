@@ -1,5 +1,3 @@
-// src/components/pricing-simulator/PricingSimulator.tsx
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -8,9 +6,12 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { TableIcon } from "lucide-react";
+import { TableIcon, Building, House } from "lucide-react";
 import { toast } from "sonner";
 import { simulatePricing } from "@/utils/psfOptimizer";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { usePricingStore } from "@/store/pricingStore";
 import PricingFilters from "./pricing-simulator/PricingFilters";
 import PricingTable from "./pricing-simulator/PricingTable";
 import PricingExportControls from "./pricing-simulator/PricingExportControls";
@@ -57,13 +58,14 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   maxFloor = 50,
   hideConfigPanel = false,
 }) => {
+  const { pricingMode, setPricingMode } = usePricingStore();
+  
   const [units, setUnits] = useState<UnitWithPricing[]>([]);
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
   const [additionalColumnValues, setAdditionalColumnValues] = useState<
     Record<string, string[]>
   >({});
 
-  // Default visible columns; audit columns can be uncommented if you want them visible on load
   const defaultVisibleColumns = [
     "name",
     "type",
@@ -80,9 +82,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     "finalPsf",
     "finalAcPsf",
     "isOptimized",
-    // "balconyPrice",
-    // "acAreaPrice",
-    // "totalPriceRaw",
   ];
   const [visibleColumns, setVisibleColumns] = useState<string[]>(
     defaultVisibleColumns
@@ -103,20 +102,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     resetFilters,
   } = useUnitFilters(units);
 
-  // Auto-filter to optimized type if only one present
-  useEffect(() => {
-    if (pricingConfig?.optimizedTypes?.length && selectedTypes.length === 0) {
-      const [only] = pricingConfig.optimizedTypes;
-      setSelectedTypes([only]);
-      toast.info(`Filtered to show optimized bedroom type: ${only}`);
-    }
-  }, [pricingConfig?.optimizedTypes, selectedTypes, setSelectedTypes]);
-
-  // When data or config change, rebuild additionalColumns and units
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
 
-    // Build additional category filters
     if (pricingConfig.additionalCategoryPricing?.length) {
       const cols = new Set<string>();
       const mapVals: Record<string, Set<string>> = {};
@@ -143,9 +131,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       setSelectedAdditionalFilters(init);
     }
 
-    // Run pricing simulation
-    setUnits(simulatePricing(data, pricingConfig));
-  }, [data, pricingConfig, setSelectedAdditionalFilters]);
+    setUnits(simulatePricing(data, pricingConfig, pricingMode));
+  }, [data, pricingConfig, pricingMode, setSelectedAdditionalFilters]);
 
   const handlePricingConfigChange = (newConfig: any) => {
     onConfigUpdate?.(newConfig);
@@ -212,6 +199,36 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 
   return (
     <div className="space-y-6">
+      <Card className="w-full shadow-lg border-indigo-100/50">
+        <CardContent className="pt-6">
+          <RadioGroup
+            value={pricingMode}
+            onValueChange={(value: 'apartment' | 'villa') => {
+              setPricingMode(value);
+              toast.success(`Switched to ${value === 'apartment' ? 'Apartment' : 'Villa/Townhouse'} pricing mode`);
+            }}
+            className="flex space-x-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="apartment" id="apartment" />
+              <Label htmlFor="apartment" className="flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Apartment
+                <span className="text-xs text-muted-foreground">(Sell Area pricing)</span>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="villa" id="villa" />
+              <Label htmlFor="villa" className="flex items-center gap-2">
+                <House className="h-4 w-4" />
+                Villa/Townhouse
+                <span className="text-xs text-muted-foreground">(AC Area pricing)</span>
+              </Label>
+            </div>
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
       {onConfigUpdate && !hideConfigPanel && (
         <div className="hover:shadow-lg transition-all duration-300 rounded-lg hover:shadow-indigo-100/50">
           <CollapsibleConfigPanel

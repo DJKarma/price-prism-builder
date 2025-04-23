@@ -10,7 +10,7 @@
  *  ‑ calculateOverallAverageAcPsf(): weighted AC PSF.           *
  *****************************************************************/
 
-export const simulatePricing = (data: any[], config: any) => {
+export const simulatePricing = (data: any[], config: any, mode: 'apartment' | 'villa' = 'apartment') => {
   return data.map((unit) => {
     /* ───────── 1. base PSF + view premium ───────── */
     const bedroomType       = config.bedroomTypePricing.find((b: any) => b.type === unit.type);
@@ -39,20 +39,23 @@ export const simulatePricing = (data: any[], config: any) => {
       }
     }
 
-    /* ───────── 4. balcony maths ───────── */
+    /* ───────── 4. area calculations based on mode ───────── */
     const sellArea = parseFloat(unit.sellArea) || 0;
     const acArea   = parseFloat(unit.acArea)   || 0;
     let balconyArea = parseFloat(unit.balcony) || 0;
 
-    if (!balconyArea && sellArea && acArea) {
+    if (!balconyArea && sellArea && acArea && mode === 'apartment') {
       balconyArea = Math.max(0, sellArea - acArea);
     }
 
     const { fullAreaPct = 0, remainderRate = 0 } = config.balconyPricing ?? {};
-    const fullPct    = fullAreaPct   / 100;
-    const remPct     = remainderRate / 100;
-    const balconyPricedArea =
-      balconyArea * fullPct + balconyArea * (1 - fullPct) * remPct;
+    const fullPct = fullAreaPct / 100;
+    const remPct  = remainderRate / 100;
+    
+    // For villas/townhouses, we only use AC area
+    const balconyPricedArea = mode === 'apartment' 
+      ? (balconyArea * fullPct + balconyArea * (1 - fullPct) * remPct)
+      : 0;
 
     /* ───────── 5. combine premiums ───────── */
     const basePsfWithAdjustments =
@@ -60,15 +63,20 @@ export const simulatePricing = (data: any[], config: any) => {
 
     const psfAfterAllAdjustments = basePsfWithAdjustments;
 
-    const effectiveArea = acArea + balconyPricedArea;
+    // Use appropriate area based on mode
+    const effectiveArea = mode === 'apartment' 
+      ? (acArea + balconyPricedArea)
+      : acArea;
+
     const balconyPrice  = basePsfWithAdjustments * balconyPricedArea;
     const acAreaPrice   = basePsfWithAdjustments * acArea;
 
     const totalPriceRaw   = basePsfWithAdjustments * effectiveArea;
     const finalTotalPrice = Math.ceil(totalPriceRaw / 1000) * 1000;
 
-    const finalPsf   = sellArea ? finalTotalPrice / sellArea : 0;
-    const finalAcPsf = acArea   ? finalTotalPrice / acArea   : 0;
+    // Calculate PSF based on mode
+    const finalPsf   = mode === 'apartment' && sellArea ? finalTotalPrice / sellArea : finalTotalPrice / acArea;
+    const finalAcPsf = acArea ? finalTotalPrice / acArea : 0;
 
     /* ───────── return enriched unit ───────── */
     return {
@@ -99,6 +107,8 @@ export const simulatePricing = (data: any[], config: any) => {
 
       effectiveArea,
       isOptimized: false,
+
+      pricingMode: mode,
     };
   });
 };
