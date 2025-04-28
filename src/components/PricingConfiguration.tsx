@@ -178,10 +178,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     initialConfig?.balconyPricing ?? { fullAreaPct: 100, remainderRate: 0 }
   );
 
-  // New flat-adders state
-  const [flatAdders, setFlatAdders] = useState<FlatPriceAdder[]>(
-    initialConfig?.flatPriceAdders?.map((a: any) => ({ ...a })) || []
-  );
 
   /* ───────────────────── detect balcony ───────────────────── */
   useEffect(() => {
