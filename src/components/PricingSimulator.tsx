@@ -1,4 +1,5 @@
 // src/components/PricingSimulator.tsx
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -62,7 +63,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   // 1) simulated units
   const [units, setUnits] = useState<UnitWithPricing[]>([]);
 
-  // 2) dynamic additional‐category columns
+  // 2) dynamic additional-category columns
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
 
   // 3) columns visibility (persisted across config changes)
@@ -158,7 +159,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "floorAdjustment", label: "Floor Premium", required: false },
     {
       id: "additionalAdjustment",
-      label: `Add-Cat Premium (${additionalColumns.join(", ")})`,
+      label: `Add-Cat Premium (${additionalColumns.join(", ") || "none"})`,
       required: false,
     },
     { id: "psfAfterAllAdjustments", label: "Base + Premiums", required: false },
@@ -264,7 +265,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
             filteredUnits={filteredUnits}
             visibleColumns={visibleColumns}
             additionalColumns={additionalColumns}
-            sortConfig={sortConfig}
             handleSort={handleSort}
           />
         </CardContent>
