@@ -2,7 +2,7 @@
 
 export type PricingMode = "villa" | "apartment";
 
-/** Flat‐price adder rule */
+/** Flat-price adder rule */
 export interface FlatPriceAdder {
   units?: string[];                   // exact unit names
   columns?: Record<string, string[]>; // category filters
@@ -11,7 +11,7 @@ export interface FlatPriceAdder {
 
 /**
  * Simulate pricing for each unit, applying PSF adjustments,
- * balcony logic, flat‐price adders, and rounding.
+ * balcony logic, flat-price adders (scoped by activeFilters), and rounding.
  */
 export const simulatePricing = (
   data: any[],
@@ -33,7 +33,13 @@ export const simulatePricing = (
     balconyPricing?:       { fullAreaPct: number; remainderRate: number };
     flatPriceAdders?: FlatPriceAdder[];
   },
-  mode: PricingMode = "apartment"
+  mode: PricingMode = "apartment",
+  activeFilters?: {
+    types?: string[];
+    views?: string[];
+    floors?: string[];
+    additional?: Record<string, string[]>;
+  }
 ): any[] => {
   return data.map((unit) => {
     const sellArea = parseFloat(unit.sellArea) || 0;
@@ -89,40 +95,52 @@ export const simulatePricing = (
     // 7) Raw price
     const totalPriceRaw = psfAfterAllAdjustments * effectiveArea;
 
-    // 8) Flat‐price adders
+    // 8) Flat-price adders, scoped by activeFilters
     let flatAddTotal = 0;
     (config.flatPriceAdders || []).forEach((adder) => {
-      const hasUnitFilter = Array.isArray(adder.units) && adder.units.length > 0;
-      const hasColFilter =
-        adder.columns &&
-        Object.keys(adder.columns).some(
-          (col) => Array.isArray(adder.columns![col]) && adder.columns![col].length > 0
-        );
+      const hasUnitFilters = Array.isArray(adder.units) && adder.units.length > 0;
+      const hasColFilters  = adder.columns && Object.keys(adder.columns).length > 0;
 
-      // ignore adders with no filters
-      if (!hasUnitFilter && !hasColFilter) return;
+      //  → skip any adder that has _no_ filters at all
+      if (!hasUnitFilters && !hasColFilters) return;
 
-      const matchUnit = hasUnitFilter && adder.units!.includes(unit.name);
-      const matchCols =
-        hasColFilter &&
-        Object.entries(adder.columns!).every(
-          ([col, vals]) => vals.includes(unit[`${col}_value`])
-        );
+      // check unit-name match (if any)
+      const matchUnit = hasUnitFilters && adder.units!.includes(unit.name);
 
-      let adderMatches = false;
-      if (hasUnitFilter && hasColFilter) {
-        adderMatches = matchUnit && matchCols;
-      } else if (hasUnitFilter) {
-        adderMatches = matchUnit;
-      } else if (hasColFilter) {
-        adderMatches = matchCols;
+      // check column-filters match (if any)
+      const matchCols = hasColFilters && Object.entries(adder.columns!).every(
+        ([col, vals]) => vals.includes(unit[`${col}_value`])
+      );
+
+      // combine:
+      // • if both filters present → require _both_ to be true
+      // • else if only one kind → require that one
+      let matchAll = false;
+      if (hasUnitFilters && hasColFilters) {
+        matchAll = matchUnit && matchCols;
+      } else if (hasUnitFilters) {
+        matchAll = matchUnit;
+      } else /* hasColFilters */ {
+        matchAll = matchCols;
       }
 
-      if (adderMatches) {
+      // respect the activeFilters panel as well
+      const passesFilters =
+        !activeFilters ||
+        (
+          (!activeFilters.types      || activeFilters.types.includes(unit.type))  &&
+          (!activeFilters.views      || activeFilters.views.includes(unit.view))  &&
+          (!activeFilters.floors     || activeFilters.floors.includes(unit.floor)) &&
+          (!activeFilters.additional ||
+            Object.entries(activeFilters.additional).every(
+              ([col, vals]) => vals.includes(unit[`${col}_value`])
+            ))
+        );
+
+      if (passesFilters && matchAll) {
         flatAddTotal += adder.amount;
       }
     });
-
     const priceWithFlat = totalPriceRaw + flatAddTotal;
 
     // 9) Round up to nearest 1,000 AED
@@ -150,13 +168,13 @@ export const simulatePricing = (
       finalTotalPrice,
       finalPsf,
       finalAcPsf,
-      additionalCategoryPriceComponents,
+      additionalCategoryPriceComponents, // breakdown map
     };
   });
 };
 
 /**
- * Calculate floor‐based PSF premium using defined rules.
+ * Calculate floor-based PSF premium using defined rules.
  */
 export const calculateFloorPremium = (
   floor: number,
@@ -184,7 +202,7 @@ export const calculateFloorPremium = (
   return premium;
 };
 
-/** Simple bedroom‐only optimizer (unchanged) */
+/** Simple bedroom-only optimizer (unchanged) */
 export const megaOptimizePsf = (
   data: any[],
   config: any,
