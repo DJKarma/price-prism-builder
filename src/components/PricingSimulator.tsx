@@ -90,7 +90,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     resetFilters,
   } = useUnitFilters(units);
 
-  // 5) whenever data, config or mode changes, recalc
+  // 5) whenever data, config, mode or filters change, recalc
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
 
@@ -101,15 +101,29 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     });
     setAdditionalColumns(Array.from(cols));
 
-    // run simulation
+    // run simulation with active filters scoped to flat-price adders
     setUnits(
       simulatePricing(
         data,
         pricingConfig,
-        pricingMode as PricingMode
+        pricingMode as PricingMode,
+        {
+          types: selectedTypes,
+          views: selectedViews,
+          floors: selectedFloors,
+          additional: selectedAdditionalFilters,
+        }
       )
     );
-  }, [data, pricingConfig, pricingMode]);
+  }, [
+    data,
+    pricingConfig,
+    pricingMode,
+    selectedTypes,
+    selectedViews,
+    selectedFloors,
+    selectedAdditionalFilters,
+  ]);
 
   // 6) handlers
   const handlePricingConfigChange = (newConfig: any) => {
