@@ -1,3 +1,5 @@
+// src/components/pricing-simulator/PricingConfiguration.tsx
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -27,6 +29,7 @@ import {
   Eye,
   Tag,
   DollarSign,
+  Hash,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -68,6 +71,13 @@ export interface BalconyPricing {
   remainderRate: number;
 }
 
+// New interface for flat-adders
+export interface FlatPriceAdder {
+  units?: string[];
+  columns?: Record<string, string[]>;
+  amount: number;
+}
+
 export interface PricingConfig {
   basePsf: number;
   bedroomTypePricing: Array<{
@@ -90,9 +100,11 @@ export interface PricingConfig {
   }>;
   additionalCategoryPricing?: AdditionalCategoryPricing[];
   balconyPricing?: BalconyPricing;
+  flatPriceAdders?: FlatPriceAdder[];   // <-- added
   targetOverallPsf?: number;
   isOptimized?: boolean;
   maxFloor?: number;
+  optimizedTypes?: string[];
 }
 
 const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
@@ -103,20 +115,35 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   additionalCategories = [],
 }) => {
   /* ───────────────────────── state ───────────────────────── */
-  const [basePsf, setBasePsf] = useState<number>(1000);
-  const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>([
-    { startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
-  ]);
-  const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>([]);
-  const [viewTypes, setViewTypes] = useState<ViewPricing[]>([]);
+  const [basePsf, setBasePsf] = useState<number>(initialConfig?.basePsf ?? 1000);
+  const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>(
+    initialConfig?.floorRiseRules?.map((r: any) => ({ ...r })) || [
+      { startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
+    ]
+  );
+  const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>(
+    initialConfig?.bedroomTypePricing || []
+  );
+  const [viewTypes, setViewTypes] = useState<ViewPricing[]>(initialConfig?.viewPricing || []);
   const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<
     AdditionalCategoryPricing[]
-  >([]);
+  >(
+    initialConfig?.additionalCategoryPricing ||
+      (additionalCategories.length
+        ? additionalCategories.flatMap((cat) =>
+            cat.categories.map((c) => ({ column: cat.column, category: c, psfAdjustment: 0 }))
+          )
+        : [])
+  );
   const [hasBalcony, setHasBalcony] = useState<boolean>(false);
-  const [balconyPricing, setBalconyPricing] = useState<BalconyPricing>({
-    fullAreaPct: 100,
-    remainderRate: 0,
-  });
+  const [balconyPricing, setBalconyPricing] = useState<BalconyPricing>(
+    initialConfig?.balconyPricing ?? { fullAreaPct: 100, remainderRate: 0 }
+  );
+
+  // New flat-adders state
+  const [flatAdders, setFlatAdders] = useState<FlatPriceAdder[]>(
+    initialConfig?.flatPriceAdders?.map((a: any) => ({ ...a })) || []
+  );
 
   /* ───────────────────── detect balcony ───────────────────── */
   useEffect(() => {
@@ -146,12 +173,8 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   /* ────────── hydrate from initialConfig ────────── */
   useEffect(() => {
     if (!initialConfig) return;
-
-    if (initialConfig.basePsf) {
-      setBasePsf(initialConfig.basePsf);
-    }
-
-    if (initialConfig.floorRiseRules?.length) {
+    if (initialConfig.basePsf) setBasePsf(initialConfig.basePsf);
+    if (initialConfig.floorRiseRules?.length)
       setFloorRiseRules(
         initialConfig.floorRiseRules.map((rule: any) => ({
           startFloor: rule.startFloor,
@@ -161,24 +184,16 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           jumpIncrement: rule.jumpIncrement ?? 0,
         }))
       );
-    }
-
-    if (initialConfig.bedroomTypePricing?.length) {
-      setBedroomTypes(initialConfig.bedroomTypePricing);
-    }
-
-    if (initialConfig.viewPricing?.length) {
-      setViewTypes(initialConfig.viewPricing);
-    }
-
-    if (initialConfig.balconyPricing) {
+    if (initialConfig.bedroomTypePricing?.length) setBedroomTypes(initialConfig.bedroomTypePricing);
+    if (initialConfig.viewPricing?.length) setViewTypes(initialConfig.viewPricing);
+    if (initialConfig.balconyPricing)
       setBalconyPricing({
         fullAreaPct: initialConfig.balconyPricing.fullAreaPct,
         remainderRate: initialConfig.balconyPricing.remainderRate,
       });
-    } else {
-      setBalconyPricing({ fullAreaPct: 100, remainderRate: 0 });
-    }
+    else setBalconyPricing({ fullAreaPct: 100, remainderRate: 0 });
+
+    if (initialConfig.flatPriceAdders?.length) setFlatAdders(initialConfig.flatPriceAdders);
   }, [initialConfig, maxFloor]);
 
   /* ───────── ensure last rule endFloor ───────── */
@@ -187,9 +202,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     const last = floorRiseRules[floorRiseRules.length - 1];
     if (last.endFloor == null) {
       setFloorRiseRules((r) =>
-        r.map((rule, i) =>
-          i === r.length - 1 ? { ...rule, endFloor: maxFloor } : rule
-        )
+        r.map((rule, i) => (i === r.length - 1 ? { ...rule, endFloor: maxFloor } : rule))
       );
     }
   }, [floorRiseRules, maxFloor]);
@@ -197,7 +210,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   /* ──── derive bedroomTypes/viewTypes if none ──── */
   useEffect(() => {
     if (!data.length) return;
-
     if (!initialConfig?.bedroomTypePricing?.length) {
       const types = Array.from(new Set(data.map((u) => u.type))).filter(Boolean);
       setBedroomTypes(types.map((t) => ({ type: t, basePsf, targetAvgPsf: basePsf })));
@@ -245,9 +257,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     value: number | null
   ) => {
     setFloorRiseRules((r) =>
-      r.map((rule, idx) =>
-        idx === i ? { ...rule, [field]: value } : rule
-      )
+      r.map((rule, idx) => (idx === i ? { ...rule, [field]: value } : rule))
     );
   };
 
@@ -269,18 +279,26 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
 
   const updateAdditionalCategoryPricing = (i: number, v: number) => {
     setAdditionalCategoryPricing((acp) =>
-      acp.map((cat, idx) =>
-        idx === i ? { ...cat, psfAdjustment: v } : cat
-      )
+      acp.map((cat, idx) => (idx === i ? { ...cat, psfAdjustment: v } : cat))
     );
   };
 
+  /* ───────── Handlers for flat-adders ───────── */
+  const addFlatAdder = () => setFlatAdders((a) => [...a, { units: [], columns: {}, amount: 0 }]);
+  const removeFlatAdder = (i: number) => setFlatAdders((a) => a.filter((_, idx) => idx !== i));
+  const updateFlatAdder = (i: number, key: keyof FlatPriceAdder, val: any) => {
+    setFlatAdders((a) =>
+      a.map((adder, idx) => (idx === i ? { ...adder, [key]: val } : adder))
+    );
+  };
+
+  /* ───────────────────── submit ───────────────────── */
   const handleSubmit = () => {
     if (basePsf <= 0) {
       toast.error("Base PSF > 0 required");
       return;
     }
-    // validate overlaps omitted for brevity...
+    // validate overlaps...
     const processed = floorRiseRules.map((rule) => ({
       ...rule,
       endFloor: rule.endFloor == null ? maxFloor : rule.endFloor,
@@ -292,6 +310,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       viewPricing: viewTypes,
       additionalCategoryPricing,
       ...(hasBalcony && { balconyPricing }),
+      flatPriceAdders: flatAdders,
       maxFloor,
       ...(initialConfig && {
         targetOverallPsf: initialConfig.targetOverallPsf,
@@ -317,7 +336,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           Pricing Configuration
         </CardTitle>
         <CardDescription className="text-indigo-600">
-          Set up base pricing and adjustment factors
+          Set up base pricing, premiums, balcony & flat-price rules
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8 p-6">
@@ -342,9 +361,13 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
             <Table>
               <TableHeader className="bg-indigo-50">
                 <TableRow>
-                  <TableHead className="text-indigo-700">Start Floor</TableHead>
+                  <TableHead className="text-indigo-700">
+                    Start Floor
+                  </TableHead>
                   <TableHead className="text-indigo-700">End Floor</TableHead>
-                  <TableHead className="text-indigo-700">PSF Increment</TableHead>
+                  <TableHead className="text-indigo-700">
+                    PSF Increment
+                  </TableHead>
                   <TableHead className="text-indigo-700">Jump Every</TableHead>
                   <TableHead className="text-indigo-700">Jump PSF</TableHead>
                   <TableHead className="w-24 text-indigo-700">Actions</TableHead>
@@ -359,10 +382,14 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                     <TableCell>
                       <Input
                         type="number"
-                        min={1}
+                        min="1"
                         value={rule.startFloor}
                         onChange={(e) =>
-                          updateFloorRiseRule(i, "startFloor", parseInt(e.target.value) || 1)
+                          updateFloorRiseRule(
+                            i,
+                            "startFloor",
+                            parseInt(e.target.value) || 1
+                          )
                         }
                         className="border-indigo-200"
                       />
@@ -377,7 +404,9 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                           updateFloorRiseRule(
                             i,
                             "endFloor",
-                            e.target.value.trim() === "" ? null : parseInt(e.target.value)
+                            e.target.value.trim() === ""
+                              ? null
+                              : parseInt(e.target.value)
                           )
                         }
                         className="border-indigo-200"
@@ -388,7 +417,10 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                         type="number"
                         value={rule.psfIncrement}
                         onChange={(e) =>
-                          updateFloorRiseRule(i, "psfIncrement", parseFloat(e.target.value) || 0)
+                          updateFloorRiseRule(
+                            i,
+                            "psfIncrement",parseFloat(e.target.value)||0
+                          )
                         }
                         className="border-indigo-200"
                       />
@@ -396,10 +428,14 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                     <TableCell>
                       <Input
                         type="number"
-                        min={1}
-                        value={rule.jumpEveryFloor || 0}
+                        min="1"
+                        value={rule.jumpEveryFloor||0}
                         onChange={(e) =>
-                          updateFloorRiseRule(i, "jumpEveryFloor", parseInt(e.target.value) || 0)
+                          updateFloorRiseRule(
+                            i,
+                            "jumpEveryFloor",
+                            parseInt(e.target.value)||0
+                          )
                         }
                         placeholder="e.g., 10"
                         className="border-indigo-200"
@@ -408,9 +444,13 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                     <TableCell>
                       <Input
                         type="number"
-                        value={rule.jumpIncrement || 0}
+                        value={rule.jumpIncrement||0}
                         onChange={(e) =>
-                          updateFloorRiseRule(i, "jumpIncrement", parseFloat(e.target.value) || 0)
+                          updateFloorRiseRule(
+                            i,
+                            "jumpIncrement",
+                            parseFloat(e.target.value)||0
+                          )
                         }
                         placeholder="e.g., 20"
                         className="border-indigo-200"
@@ -448,8 +488,8 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                 <Input
                   id="fullAreaPct"
                   type="number"
-                  min={0}
-                  max={100}
+                  min="0"
+                  max="100"
                   value={balconyPricing.fullAreaPct}
                   onChange={(e) =>
                     handleBalconyChange(
@@ -470,11 +510,11 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                 <Input
                   id="remainderRate"
                   type="number"
-                  min={0}
-                  max={100}
+                  min="0"
+                  max="100"
                   value={balconyPricing.remainderRate}
                   onChange={(e) =>
-                    handleBalconyChange(
+                   	handleBalconyChange(
                       "remainderRate",
                       Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
                     )
@@ -500,7 +540,9 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
               <Table>
                 <TableHeader className="bg-indigo-50">
                   <TableRow>
-                    <TableHead className="text-indigo-700">Bedroom Type</TableHead>
+                    <TableHead className="text-indigo-700">
+                      Bedroom Type
+                    </TableHead>
                     <TableHead className="text-indigo-700">Base PSF</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -514,7 +556,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                       <TableCell>
                         <Input
                           type="number"
-                          min={0}
+                          min="0"
                           value={type.basePsf}
                           onChange={(e) =>
                             updateBedroomTypePrice(
@@ -546,7 +588,9 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                 <TableHeader className="bg-indigo-50">
                   <TableRow>
                     <TableHead className="text-indigo-700">View Type</TableHead>
-                    <TableHead className="text-indigo-700">PSF Adjustment</TableHead>
+                    <TableHead className="text-indigo-700">
+                      PSF Adjustment
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -591,54 +635,22 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                     <TableHeader className="bg-indigo-50">
                       <TableRow>
                         <TableHead className="text-indigo-700">Category</TableHead>
-                        <TableHead className="text-indigo-700">PSF Adjustment</TableHead>
+                        <TableHead className="text-indigo-700">
+                          PSF Adjustment
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {cats.map((item, idx) => {
                         const index = additionalCategoryPricing.findIndex(
-                          (c) => c.column === item.column && c.category === item.category
+                          (c) =>
+                            c.column === item.column && c.category === item.category
                         );
                         return (
                           <TableRow
                             key={idx}
                             className={idx % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}
                           >
-                            <TableCell className="font-medium">{item.category}</TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                value={item.psfAdjustment}
-                                onChange={(e) =>
-                                  updateAdditionalCategoryPricing(
-                                    index,
-                                    parseFloat(e.target.value)
-                                  )
-                                }
-                                className="border-indigo-200"
-                              />
+                            <TableCell className="font-medium">
+                              {item.category}
                             </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex justify-end p-6 bg-gradient-to-r from-indigo-50/70 to-blue-50/70">
-        <Button
-          onClick={handleSubmit}
-          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
-        >
-          Apply Configuration
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-};
-
-export default PricingConfiguration;
