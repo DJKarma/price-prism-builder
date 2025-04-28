@@ -16,7 +16,7 @@ export default function PricingTable({
   additionalColumns,
   handleSort,
 }: Props) {
-  // build the list for the Add‑Cat Premium header
+  // build the list for the Add-Cat Premium header
   const addCatList = additionalColumns.join(", ") || "none";
 
   return (
@@ -88,7 +88,7 @@ export default function PricingTable({
                 >
                   <div className="flex justify-end items-center">
                     {col === "balconyPercentage"
-                      ? "Balcony %"
+                      ? "Balcony %"
                       : col.charAt(0).toUpperCase() + col.slice(1)}{" "}
                     <ArrowUpDown className="ml-1 h-4 w-4" />
                   </div>
@@ -99,12 +99,11 @@ export default function PricingTable({
             {/* PRICING & PSF */}
             {[
               "basePsf",
-              "floorAdjustment",
               "viewPsfAdjustment",
+              "floorAdjustment",
               "additionalAdjustment",
               "psfAfterAllAdjustments",
-              "balconyPrice",
-              "acAreaPrice",
+              "flatAddTotal",
               "totalPriceRaw",
               "finalTotalPrice",
               "finalPsf",
@@ -117,7 +116,10 @@ export default function PricingTable({
                 .replace("Raw", " (unc.)")
                 .trim();
               if (col === "additionalAdjustment") {
-                label = <>Add‑Cat Premium ({addCatList})</>;
+                label = <>Add-Cat Premium ({addCatList})</>;
+              }
+              if (col === "flatAddTotal") {
+                label = "Flat Adders";
               }
               return (
                 <th
@@ -128,7 +130,9 @@ export default function PricingTable({
                   <div className="flex justify-end items-center">
                     <strong
                       className={
-                        col === "finalTotalPrice" || col === "finalPsf" || col === "finalAcPsf"
+                        col === "finalTotalPrice" ||
+                        col === "finalPsf" ||
+                        col === "finalAcPsf"
                           ? "font-medium"
                           : undefined
                       }
@@ -219,14 +223,14 @@ export default function PricingTable({
                     {unit.basePsf.toFixed(2)}
                   </td>
                 )}
-                {visibleColumns.includes("floorAdjustment") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.floorAdjustment.toFixed(2)}
-                  </td>
-                )}
                 {visibleColumns.includes("viewPsfAdjustment") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
                     {unit.viewPsfAdjustment.toFixed(2)}
+                  </td>
+                )}
+                {visibleColumns.includes("floorAdjustment") && (
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                    {unit.floorAdjustment.toFixed(2)}
                   </td>
                 )}
                 {visibleColumns.includes("additionalAdjustment") && (
@@ -239,14 +243,9 @@ export default function PricingTable({
                     {unit.psfAfterAllAdjustments.toFixed(2)}
                   </td>
                 )}
-                {visibleColumns.includes("balconyPrice") && (
+                {visibleColumns.includes("flatAddTotal") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.balconyPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  </td>
-                )}
-                {visibleColumns.includes("acAreaPrice") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.acAreaPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {unit.flatAddTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </td>
                 )}
                 {visibleColumns.includes("totalPriceRaw") && (
