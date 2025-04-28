@@ -1,3 +1,4 @@
+
 // src/components/pricing-simulator/ConfigImporter.tsx
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -123,9 +124,13 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
 
     // 5) Scalars (basePsf, maxFloor, targetOverallPsf)
     if (mappings.scalarFields) {
-      for (const [cur, impField] of Object.entries(mappings.scalarFields)) {
+      // Fix TypeScript error by using proper type guard
+      const scalarMappings = mappings.scalarFields as Record<string, string>;
+      for (const [cur, impField] of Object.entries(scalarMappings)) {
         if (impField && impField !== "no-match" && impField in importedConfig) {
-          merged[cur] = importedConfig[impField];
+          // Adding type safety by ensuring impField is a valid key
+          const key = impField as keyof typeof importedConfig;
+          merged[cur] = importedConfig[key];
         }
       }
     }

@@ -1,8 +1,15 @@
+
 // src/utils/configIO.ts
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import { toast } from "sonner";
+
+// Define types for balcony pricing to avoid property access errors
+interface BalconyPricing {
+  fullAreaPct: number;
+  remainderRate: number;
+}
 
 /**
  * Export configuration to JSON
@@ -132,9 +139,12 @@ export async function importConfig(
         imp.floorRiseRules = Array.isArray(imp.floorRiseRules)
           ? imp.floorRiseRules
           : [];
+        
+        // Ensure balconyPricing has the correct shape with proper type casting
+        const balconyPricing = imp.balconyPricing as BalconyPricing | undefined;
         imp.balconyPricing = {
-          fullAreaPct: imp.balconyPricing?.fullAreaPct ?? 0,
-          remainderRate: imp.balconyPricing?.remainderRate ?? 0,
+          fullAreaPct: balconyPricing?.fullAreaPct ?? 0,
+          remainderRate: balconyPricing?.remainderRate ?? 0,
         };
 
         // Known keys (case‑insensitive)
@@ -192,10 +202,11 @@ export function mergeConfigSelectively(
     }
 
     // Special: balconyPricing
-    if (k === "balconyPricing" && typeof v === "object") {
+    if (k === "balconyPricing" && typeof v === "object" && v !== null) {
+      const balconyPricing = v as BalconyPricing;
       merged.balconyPricing = {
-        fullAreaPct: v.fullAreaPct ?? current.balconyPricing.fullAreaPct ?? 0,
-        remainderRate: v.remainderRate ?? current.balconyPricing.remainderRate ?? 0,
+        fullAreaPct: balconyPricing.fullAreaPct ?? current.balconyPricing?.fullAreaPct ?? 0,
+        remainderRate: balconyPricing.remainderRate ?? current.balconyPricing?.remainderRate ?? 0,
       };
       return;
     }
