@@ -1,3 +1,4 @@
+
 import React from "react";
 import { ArrowUpDown, Check } from "lucide-react";
 import { formatNumberWithCommas } from "./pricingUtils";
@@ -210,62 +211,62 @@ export default function PricingTable({
                 )}
                 {visibleColumns.includes("balconyArea") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.balconyArea.toFixed(2)}
+                    {(unit.balconyArea || 0).toFixed(2)}
                   </td>
                 )}
                 {visibleColumns.includes("balconyPercentage") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.balconyPercentage.toFixed(2)}%
+                    {(unit.balconyPercentage || 0).toFixed(2)}%
                   </td>
                 )}
                 {visibleColumns.includes("basePsf") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.basePsf.toFixed(2)}
+                    {(unit.basePsf || 0).toFixed(2)}
                   </td>
                 )}
                 {visibleColumns.includes("viewPsfAdjustment") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.viewPsfAdjustment.toFixed(2)}
+                    {(unit.viewPsfAdjustment || 0).toFixed(2)}
                   </td>
                 )}
                 {visibleColumns.includes("floorAdjustment") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.floorAdjustment.toFixed(2)}
+                    {(unit.floorAdjustment || 0).toFixed(2)}
                   </td>
                 )}
                 {visibleColumns.includes("additionalAdjustment") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.additionalAdjustment.toFixed(2)}
+                    {(unit.additionalAdjustment || 0).toFixed(2)}
                   </td>
                 )}
                 {visibleColumns.includes("psfAfterAllAdjustments") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.psfAfterAllAdjustments.toFixed(2)}
+                    {(unit.psfAfterAllAdjustments || 0).toFixed(2)}
                   </td>
                 )}
                 {visibleColumns.includes("flatAddTotal") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.flatAddTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {(unit.flatAddTotal || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </td>
                 )}
                 {visibleColumns.includes("totalPriceRaw") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.totalPriceRaw.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {(unit.totalPriceRaw || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </td>
                 )}
                 {visibleColumns.includes("finalTotalPrice") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
-                    {formatNumberWithCommas(unit.finalTotalPrice)}
+                    {formatNumberWithCommas(unit.finalTotalPrice || 0)}
                   </td>
                 )}
                 {visibleColumns.includes("finalPsf") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
-                    {unit.finalPsf.toFixed(2)}
+                    {(unit.finalPsf || 0).toFixed(2)}
                   </td>
                 )}
                 {visibleColumns.includes("finalAcPsf") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
-                    {unit.finalAcPsf.toFixed(2)}
+                    {(unit.finalAcPsf || 0).toFixed(2)}
                   </td>
                 )}
                 {visibleColumns.includes("isOptimized") && (
