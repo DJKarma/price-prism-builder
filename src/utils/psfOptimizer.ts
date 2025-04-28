@@ -57,11 +57,16 @@ export const simulatePricing = (
         ? calculateFloorPremium(parseInt(unit.floor) || 1, config.floorRiseRules || [])
         : 0;
 
-    // 3) Additional-category PSF premiums
+    // 3) Additional-category PSF premiums (sum)
     let additionalAdjustment = 0;
+    // also build a breakdown map for each "col: value" → premium
+    const additionalCategoryPriceComponents: Record<string, number> = {};
     (config.additionalCategoryPricing || []).forEach((cat) => {
-      if (unit[`${cat.column}_value`] === cat.category) {
+      const val = unit[`${cat.column}_value`];
+      const key = `${cat.column}: ${val}`;
+      if (val === cat.category) {
         additionalAdjustment += cat.psfAdjustment;
+        additionalCategoryPriceComponents[key] = cat.psfAdjustment;
       }
     });
 
@@ -99,7 +104,7 @@ export const simulatePricing = (
         ? Object.entries(adder.columns).every(
             ([col, vals]) => vals.includes(unit[`${col}_value`])
           )
-        : false;
+        : true;   // ← now defaults to true
 
       const passesFilters =
         !activeFilters ||
@@ -144,6 +149,8 @@ export const simulatePricing = (
       finalTotalPrice,
       finalPsf,
       finalAcPsf,
+      // hand the breakdown map through for each `${col}: value` → premium
+      additionalCategoryPriceComponents,
     };
   });
 };
