@@ -766,8 +766,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
         )}
 
         {/* ─── Flat-Price Adders ─── */}
-      <CardContent className="space-y-6 p-6">
-  {/* ─── Flat-Price Adders ─── */}
+{/* ─── Flat-Price Adders ─── */}
 <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
   <div className="flex items-center justify-between mb-4">
     <h3 className="text-lg font-medium text-indigo-700 flex items-center">
@@ -779,6 +778,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       Add Rule
     </Button>
   </div>
+
   <Table>
     <TableHeader className="bg-indigo-50">
       <TableRow>
@@ -794,7 +794,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           key={i}
           className={i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}
         >
-          {/* ── Unit Autocomplete ── */}
+          {/* Unit Autocomplete */}
           <TableCell>
             <AsyncSelect
               cacheOptions
@@ -803,17 +803,13 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
               value={adder.units?.map(u => ({ label: u, value: u })) || []}
               isMulti
               onChange={opts =>
-                updateFlatAdder(
-                  i,
-                  "units",
-                  opts.map(o => o.value)
-                )
+                updateFlatAdder(i, "units", opts.map(o => o.value))
               }
               placeholder="Start typing unit…"
             />
           </TableCell>
 
-          {/* ── Category Multi-Selects ── */}
+          {/* Category Multi-Selects */}
           <TableCell className="space-y-2">
             {Object.entries(valueMap).map(([col, vals]) => (
               <div key={col}>
@@ -830,12 +826,10 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                         .map(v => ({ label: v, value: v }))
                     )
                   }
-                  value={
-                    (adder.columns?.[col] || []).map(v => ({
-                      label: v,
-                      value: v,
-                    }))
-                  }
+                  value={(adder.columns?.[col] || []).map(v => ({
+                    label: v,
+                    value: v,
+                  }))}
                   onChange={opts =>
                     updateFlatAdder(i, "columns", {
                       ...(adder.columns || {}),
@@ -848,22 +842,18 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
             ))}
           </TableCell>
 
-          {/* ── Flat AED amount ── */}
+          {/* Flat AED amount */}
           <TableCell>
             <Input
               type="number"
               value={adder.amount}
               onChange={e =>
-                updateFlatAdder(
-                  i,
-                  "amount",
-                  parseFloat(e.target.value) || 0
-                )
+                updateFlatAdder(i, "amount", parseFloat(e.target.value) || 0)
               }
             />
           </TableCell>
 
-          {/* ── Remove button ── */}
+          {/* Remove button */}
           <TableCell>
             <Button
               variant="ghost"
