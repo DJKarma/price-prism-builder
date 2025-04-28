@@ -52,7 +52,7 @@ interface PricingSimulatorProps {
 
 const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   data,
-  pricingConfig,
+  pricingConfig: externalConfig,
   onConfigUpdate,
   additionalCategories = [],
   maxFloor = 50,
@@ -60,13 +60,30 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
 }) => {
   const { pricingMode, setPricingMode } = usePricingStore();
 
+  //
+  //  ——— Local pricingConfig state —————————————————————————————————————————————————————————————————————————————————
+  //
+  // initialize from prop
+  const [pricingConfig, setPricingConfig] = useState<any>(externalConfig);
+
+  // sync if parent prop changes
+  useEffect(() => {
+    setPricingConfig(externalConfig);
+  }, [externalConfig]);
+
+  //
   // 1) simulated units
+  //
   const [units, setUnits] = useState<UnitWithPricing[]>([]);
 
+  //
   // 2) dynamic additional-category columns
+  //
   const [additionalColumns, setAdditionalColumns] = useState<string[]>([]);
 
+  //
   // 3) columns visibility (persisted across config changes)
+  //
   const defaultVisibleColumns = [
     "name","type","floor","view",
     "sellArea","acArea",
@@ -79,7 +96,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   const [visibleColumns, setVisibleColumns] =
     useState<string[]>(defaultVisibleColumns);
 
+  //
   // 4) filtering & sorting
+  //
   const {
     filteredUnits,
     selectedTypes, setSelectedTypes,
@@ -90,7 +109,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     resetFilters,
   } = useUnitFilters(units);
 
+  //
   // 5) whenever data, config, mode or filters change, recalc
+  //
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
 
@@ -125,8 +146,13 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     selectedAdditionalFilters,
   ]);
 
+  //
   // 6) handlers
+  //
   const handlePricingConfigChange = (newConfig: any) => {
+    // update local
+    setPricingConfig(newConfig);
+    // propagate up
     onConfigUpdate?.(newConfig);
   };
   const handleSort = (key: string) =>
@@ -149,7 +175,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     );
   };
 
+  //
   // 7) helpers for filters
+  //
   const getUniqueValues = (field: string) => {
     const vals = new Set<string>();
     units.forEach((u) => u[field] && vals.add(u[field]));
@@ -158,7 +186,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
       : Array.from(vals).sort();
   };
 
+  //
   // 8) build dynamic allColumns (with bracketed list for Add-Cat Premium)
+  //
   const allColumns = [
     { id: "name", label: "Unit", required: true },
     { id: "type", label: "Type", required: true },
