@@ -1,11 +1,10 @@
-/*  --------  SHARED HELPER UTILITIES  --------
-    - Build a map of column → unique values (for fast
-      dropdown population without repeated scans)
-    - Debounced async loader for unit-name type-ahead      */
+/* ──────────────────────────────────────────────
+   Shared utilities for dropdown data & type-ahead
+───────────────────────────────────────────────── */
 
 import { debounce } from "lodash";
 
-/** Construct { column: [sortedUniqueValues] } */
+/** column → sorted unique values */
 export const buildValueMap = (data: any[]) => {
   const map: Record<string, string[]> = {};
   data.forEach((u) => {
@@ -19,15 +18,15 @@ export const buildValueMap = (data: any[]) => {
   return map;
 };
 
-/** Return a debounced async loader compatible with react-select’s AsyncSelect */
+/** debounced loader for react-select AsyncSelect */
 export const asyncUnitOptions = (units: string[]) =>
   debounce(
-    (input: string, callback: (options: { label: string; value: string }[]) => void) => {
+    (input: string, cb: (opts: { label: string; value: string }[]) => void) => {
       const q = (input || "").toLowerCase();
-      callback(
+      cb(
         units
           .filter((u) => u.toLowerCase().includes(q))
-          .slice(0, 20) // cap results
+          .slice(0, 20)
           .map((u) => ({ label: u, value: u }))
       );
     },
