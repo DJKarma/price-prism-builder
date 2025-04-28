@@ -556,7 +556,8 @@ return (
                 className="border-indigo-200"
               />
               <p className="text-xs text-gray-500">
-                This percentage of the balcony area will be priced at 100% of the Base PSF
+                This percentage of the balcony area will be priced at 100% of
+                the Base PSF
               </p>
             </div>
             <div className="space-y-3">
@@ -578,7 +579,8 @@ return (
                 className="border-indigo-200"
               />
               <p className="text-xs text-gray-500">
-                The remaining balcony area will be priced at this percentage of the Base PSF
+                The remaining balcony area will be priced at this percentage of
+                the Base PSF
               </p>
             </div>
           </div>
@@ -613,7 +615,11 @@ return (
                         min={0}
                         value={type.basePsf}
                         onChange={e =>
-                          updateBedroomTypePrice(i, "basePsf", parseFloat(e.target.value))
+                          updateBedroomTypePrice(
+                            i,
+                            "basePsf",
+                            parseFloat(e.target.value)
+                          )
                         }
                         className="border-indigo-200"
                       />
@@ -721,7 +727,7 @@ return (
         </div>
       )}
 
- {/* ─── Flat-Price Adders ─── */}
+      {/* ─── Flat-Price Adders ─── */}
       <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-medium text-indigo-700 flex items-center">
@@ -840,5 +846,7 @@ return (
     </CardFooter>
   </Card>
 );
+};
 
 export default PricingConfiguration;
+
