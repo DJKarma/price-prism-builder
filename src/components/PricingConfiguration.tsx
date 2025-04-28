@@ -1,6 +1,6 @@
 // src/components/pricing-simulator/PricingConfiguration.tsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -32,6 +32,11 @@ import {
   Hash,
 } from "lucide-react";
 import { toast } from "sonner";
+
+/* ――― NEW: react-select + helpers ――― */
+import Select, { MultiValue } from "react-select";
+import AsyncSelect from "react-select/async";
+import { buildValueMap, asyncUnitOptions } from "./helpers";
 
 interface PricingConfigurationProps {
   data: any[];
@@ -158,6 +163,15 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   const [flatAdders, setFlatAdders] = useState<FlatPriceAdder[]>(
     initialConfig?.flatPriceAdders?.map((a: any) => ({ ...a })) || []
   );
+
+  /* ――― NEW: derive lists for react-select ――― */
+  const valueMap = useMemo(() => buildValueMap(data), [data]);
+  const allCategoryColumns = useMemo(
+    () => ["type", "view", "floor", ...additionalCategories.map((c) => c.column)],
+    [additionalCategories]
+  );
+  const allUnits = useMemo(() => data.map((u) => u.name).sort(), [data]);
+  const loadUnits = useMemo(() => asyncUnitOptions(allUnits), [allUnits]);
 
   /* ───────────────────── detect balcony ───────────────────── */
   useEffect(() => {
@@ -745,7 +759,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </div>
         )}
 
-        {/* ─── Flat-Price Adders ─── */}
+          {/* ─── Flat-Price Adders ─── */}
         <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-indigo-700 flex items-center">
@@ -760,9 +774,9 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           <Table>
             <TableHeader className="bg-indigo-50">
               <TableRow>
-                <TableHead>Units (names)</TableHead>
+                <TableHead className="min-w-[180px]">Units (names)</TableHead>
                 <TableHead>Category Filters</TableHead>
-                <TableHead>Flat AED</TableHead>
+                <TableHead className="w-36">Flat AED</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -772,49 +786,56 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                   key={i}
                   className={i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}
                 >
-                  <TableCell>
-                    <Input
-                      value={adder.units?.join(", ")}
-                      onChange={(e) =>
+                  <TableCell className="min-w-[180px]">
+                    <AsyncSelect
+                      cacheOptions
+                      defaultOptions
+                      loadOptions={loadUnits}
+                      placeholder="Start typing…"
+                      value={(adder.units || []).map((u) => ({ label: u, value: u }))}
+                      onChange={(val: MultiValue<any>) =>
                         updateFlatAdder(
                           i,
                           "units",
-                          e.target.value.split(/\s*,\s*/)
+                          val.map((v) => v.value)
                         )
                       }
-                      placeholder="e.g. A101, A102"
+                      isMulti
+                      classNamePrefix="rs"
+                      styles={{ menu: (s) => ({ ...s, zIndex: 50 }) }}
                     />
                   </TableCell>
                   <TableCell>
-                    {additionalCategories.map((cat) => (
-                      <div key={cat.column} className="flex gap-2 mb-1">
-                        <Label className="whitespace-nowrap">
-                          {cat.column}:
-                        </Label>
-                        <select
-                          multiple
-                          value={adder.columns?.[cat.column] || []}
-                          onChange={(e) => {
-                            const vals = Array.from(
-                              e.target.selectedOptions
-                            ).map((o) => o.value);
-                            updateFlatAdder(i, "columns", {
-                              ...(adder.columns || {}),
-                              [cat.column]: vals,
-                            });
-                          }}
-                          className="border rounded p-1 flex-1"
-                        >
-                          {cat.categories.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
+                    {allCategoryColumns.map((col) => (
+                      <div key={col} className="flex items-center gap-2 mb-2">
+                        <Label className="w-20 capitalize">{col}:</Label>
+                        <Select
+                          isMulti
+                          className="flex-1"
+                          classNamePrefix="rs"
+                          options={(valueMap[col] || []).map((v) => ({ label: v, value: v }))}
+                          value={(adder.columns?.[col] || []).map((v) => ({ label: v, value: v }))}
+                          onChange={(val: MultiValue<any>) =>
+                            updateFlatAdder(
+                              i,
+                              "columns",
+                              val.reduce(
+                                (accObj, cv) => ({
+                                  ...accObj,
+                                  [col]: accObj[col]
+                                    ? [...accObj[col], cv.value]
+                                    : [cv.value],
+                                }),
+                                { ...adder.columns }
+                              )
+                            )
+                          }
+                          styles={{ menu: (s) => ({ ...s, zIndex: 50 }) }}
+                        />
                       </div>
                     ))}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="w-36">
                     <Input
                       type="number"
                       value={adder.amount}
