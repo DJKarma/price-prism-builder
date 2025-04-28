@@ -11,7 +11,7 @@ export interface FlatPriceAdder {
 
 /**
  * Simulate pricing for each unit, applying PSF adjustments,
- * balcony logic, flat‐price adders (scoped by activeFilters), and rounding.
+ * balcony logic, flat‐price adders, and rounding.
  */
 export const simulatePricing = (
   data: any[],
@@ -33,13 +33,7 @@ export const simulatePricing = (
     balconyPricing?:       { fullAreaPct: number; remainderRate: number };
     flatPriceAdders?: FlatPriceAdder[];
   },
-  mode: PricingMode = "apartment",
-  activeFilters?: {
-    types?: string[];
-    views?: string[];
-    floors?: string[];
-    additional?: Record<string, string[]>;
-  }
+  mode: PricingMode = "apartment"
 ): any[] => {
   return data.map((unit) => {
     const sellArea = parseFloat(unit.sellArea) || 0;
@@ -57,9 +51,8 @@ export const simulatePricing = (
         ? calculateFloorPremium(parseInt(unit.floor) || 1, config.floorRiseRules || [])
         : 0;
 
-    // 3) Additional-category PSF premiums (sum)
+    // 3) Additional-category PSF premiums (sum + breakdown)
     let additionalAdjustment = 0;
-    // also build a breakdown map for each "col: value" → premium
     const additionalCategoryPriceComponents: Record<string, number> = {};
     (config.additionalCategoryPricing || []).forEach((cat) => {
       const val = unit[`${cat.column}_value`];
@@ -96,32 +89,40 @@ export const simulatePricing = (
     // 7) Raw price
     const totalPriceRaw = psfAfterAllAdjustments * effectiveArea;
 
-    // 8) Flat‐price adders, scoped by activeFilters
+    // 8) Flat‐price adders
     let flatAddTotal = 0;
     (config.flatPriceAdders || []).forEach((adder) => {
-      const matchUnit = adder.units?.includes(unit.name) ?? false;
-      const matchCols = adder.columns
-        ? Object.entries(adder.columns).every(
-            ([col, vals]) => vals.includes(unit[`${col}_value`])
-          )
-        : true;   // ← now defaults to true
-
-      const passesFilters =
-        !activeFilters ||
-        (
-          (!activeFilters.types      || activeFilters.types.includes(unit.type))  &&
-          (!activeFilters.views      || activeFilters.views.includes(unit.view))  &&
-          (!activeFilters.floors     || activeFilters.floors.includes(unit.floor)) &&
-          (!activeFilters.additional ||
-            Object.entries(activeFilters.additional).every(
-              ([col, vals]) => vals.includes(unit[`${col}_value`])
-            ))
+      const hasUnitFilter = Array.isArray(adder.units) && adder.units.length > 0;
+      const hasColFilter =
+        adder.columns &&
+        Object.keys(adder.columns).some(
+          (col) => Array.isArray(adder.columns![col]) && adder.columns![col].length > 0
         );
 
-      if (passesFilters && (matchUnit || matchCols)) {
+      // ignore adders with no filters
+      if (!hasUnitFilter && !hasColFilter) return;
+
+      const matchUnit = hasUnitFilter && adder.units!.includes(unit.name);
+      const matchCols =
+        hasColFilter &&
+        Object.entries(adder.columns!).every(
+          ([col, vals]) => vals.includes(unit[`${col}_value`])
+        );
+
+      let adderMatches = false;
+      if (hasUnitFilter && hasColFilter) {
+        adderMatches = matchUnit && matchCols;
+      } else if (hasUnitFilter) {
+        adderMatches = matchUnit;
+      } else if (hasColFilter) {
+        adderMatches = matchCols;
+      }
+
+      if (adderMatches) {
         flatAddTotal += adder.amount;
       }
     });
+
     const priceWithFlat = totalPriceRaw + flatAddTotal;
 
     // 9) Round up to nearest 1,000 AED
@@ -149,7 +150,6 @@ export const simulatePricing = (
       finalTotalPrice,
       finalPsf,
       finalAcPsf,
-      // hand the breakdown map through for each `${col}: value` → premium
       additionalCategoryPriceComponents,
     };
   });
