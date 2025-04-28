@@ -5,7 +5,7 @@ export type PricingMode = "villa" | "apartment";
 /** Flat‐price adder rule */
 export interface FlatPriceAdder {
   units?: string[];                   // exact unit names
-  columns?: Record<string, string[]>; // category filters: e.g. { view: ['Sea View'], floor: ['4'] }
+  columns?: Record<string, string[]>; // category filters
   amount: number;                     // AED to add
 }
 
@@ -34,7 +34,7 @@ export const simulatePricing = (
     flatPriceAdders?: FlatPriceAdder[];
   },
   mode: PricingMode = "apartment",
-  /** UI filters no longer matter for flat adders */
+  /** UI filters no longer gate flat adders */
   _activeFilters?: {
     types?: string[];
     views?: string[];
@@ -96,21 +96,22 @@ export const simulatePricing = (
     // 7) Raw price
     const totalPriceRaw = psfAfterAllAdjustments * effectiveArea;
 
-    // 8) Flat‐price adders (AND logic: units & columns both must match if provided)
+    // 8) Flat‐price adders (AND: must match ALL specified criteria)
     let flatAddTotal = 0;
     (config.flatPriceAdders || []).forEach((adder) => {
+      // 8a) unit‐name match?
       const unitsMatch = !adder.units || adder.units.length === 0
         ? true
         : adder.units.includes(unit.name);
 
+      // 8b) column‐filters match?  ▼ **NEW**: first try unit["col_value"], then unit[col]
       const colsMatch = !adder.columns
         ? true
-        : Object.entries(adder.columns).every(
-            ([col, vals]) => {
-              const val = unit[`${col}_value`];
-              return vals.includes(val);
-            }
-          );
+        : Object.entries(adder.columns).every(([col, vals]) => {
+            const rawVal = unit[`${col}_value`];
+            const val = rawVal != null ? rawVal : unit[col];
+            return vals.includes(val?.toString() ?? "");
+          });
 
       if (unitsMatch && colsMatch) {
         flatAddTotal += adder.amount;
@@ -234,7 +235,7 @@ export const calculateOverallAveragePsf = (
   mode: PricingMode = "apartment"
 ): number => {
   const priced = simulatePricing(data, config, mode);
-  const valid = priced.filter(u => parseFloat(u.sellArea) > 0 && u.finalTotalPrice > 0);
+  const valid  = priced.filter(u => parseFloat(u.sellArea) > 0 && u.finalTotalPrice > 0);
   if (!valid.length) return 0;
   const totalValue = valid.reduce((s, u) => s + u.finalTotalPrice, 0);
   const totalArea  =
@@ -250,7 +251,7 @@ export const calculateOverallAverageAcPsf = (
   mode: PricingMode = "apartment"
 ): number => {
   const priced = simulatePricing(data, config, mode);
-  const valid = priced.filter(u => parseFloat(u.acArea) > 0 && u.finalTotalPrice > 0);
+  const valid  = priced.filter(u => parseFloat(u.acArea) > 0 && u.finalTotalPrice > 0);
   if (!valid.length) return 0;
   const totalValue = valid.reduce((s, u) => s + u.finalTotalPrice, 0);
   const totalAc    = valid.reduce((s, u) => s + parseFloat(u.acArea), 0);
