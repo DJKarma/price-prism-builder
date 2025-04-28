@@ -2,16 +2,16 @@
 
 export type PricingMode = "villa" | "apartment";
 
-/** Flat-price adder rule */
+/** Flat‐price adder rule */
 export interface FlatPriceAdder {
   units?: string[];                   // exact unit names
-  columns?: Record<string, string[]>; // category filters
+  columns?: Record<string, string[]>; // category filters: e.g. { view: ['Sea View'], floor: ['4'] }
   amount: number;                     // AED to add
 }
 
 /**
  * Simulate pricing for each unit, applying PSF adjustments,
- * balcony logic, flat-price adders (scoped by activeFilters), and rounding.
+ * balcony logic, flat‐price adders, and rounding.
  */
 export const simulatePricing = (
   data: any[],
@@ -34,7 +34,8 @@ export const simulatePricing = (
     flatPriceAdders?: FlatPriceAdder[];
   },
   mode: PricingMode = "apartment",
-  activeFilters?: {
+  /** UI filters no longer matter for flat adders */
+  _activeFilters?: {
     types?: string[];
     views?: string[];
     floors?: string[];
@@ -57,7 +58,7 @@ export const simulatePricing = (
         ? calculateFloorPremium(parseInt(unit.floor) || 1, config.floorRiseRules || [])
         : 0;
 
-    // 3) Additional-category PSF premiums (sum + breakdown)
+    // 3) Additional‐category PSF premiums
     let additionalAdjustment = 0;
     const additionalCategoryPriceComponents: Record<string, number> = {};
     (config.additionalCategoryPricing || []).forEach((cat) => {
@@ -95,49 +96,23 @@ export const simulatePricing = (
     // 7) Raw price
     const totalPriceRaw = psfAfterAllAdjustments * effectiveArea;
 
-    // 8) Flat-price adders, scoped by activeFilters
+    // 8) Flat‐price adders (AND logic: units & columns both must match if provided)
     let flatAddTotal = 0;
     (config.flatPriceAdders || []).forEach((adder) => {
-      const hasUnitFilters = Array.isArray(adder.units) && adder.units.length > 0;
-      const hasColFilters  = adder.columns && Object.keys(adder.columns).length > 0;
+      const unitsMatch = !adder.units || adder.units.length === 0
+        ? true
+        : adder.units.includes(unit.name);
 
-      //  → skip any adder that has _no_ filters at all
-      if (!hasUnitFilters && !hasColFilters) return;
+      const colsMatch = !adder.columns
+        ? true
+        : Object.entries(adder.columns).every(
+            ([col, vals]) => {
+              const val = unit[`${col}_value`];
+              return vals.includes(val);
+            }
+          );
 
-      // check unit-name match (if any)
-      const matchUnit = hasUnitFilters && adder.units!.includes(unit.name);
-
-      // check column-filters match (if any)
-      const matchCols = hasColFilters && Object.entries(adder.columns!).every(
-        ([col, vals]) => vals.includes(unit[`${col}_value`])
-      );
-
-      // combine:
-      // • if both filters present → require _both_ to be true
-      // • else if only one kind → require that one
-      let matchAll = false;
-      if (hasUnitFilters && hasColFilters) {
-        matchAll = matchUnit && matchCols;
-      } else if (hasUnitFilters) {
-        matchAll = matchUnit;
-      } else /* hasColFilters */ {
-        matchAll = matchCols;
-      }
-
-      // respect the activeFilters panel as well
-      const passesFilters =
-        !activeFilters ||
-        (
-          (!activeFilters.types      || activeFilters.types.includes(unit.type))  &&
-          (!activeFilters.views      || activeFilters.views.includes(unit.view))  &&
-          (!activeFilters.floors     || activeFilters.floors.includes(unit.floor)) &&
-          (!activeFilters.additional ||
-            Object.entries(activeFilters.additional).every(
-              ([col, vals]) => vals.includes(unit[`${col}_value`])
-            ))
-        );
-
-      if (passesFilters && matchAll) {
+      if (unitsMatch && colsMatch) {
         flatAddTotal += adder.amount;
       }
     });
@@ -168,13 +143,13 @@ export const simulatePricing = (
       finalTotalPrice,
       finalPsf,
       finalAcPsf,
-      additionalCategoryPriceComponents, // breakdown map
+      additionalCategoryPriceComponents,
     };
   });
 };
 
 /**
- * Calculate floor-based PSF premium using defined rules.
+ * Calculate floor‐based PSF premium using defined rules.
  */
 export const calculateFloorPremium = (
   floor: number,
@@ -202,7 +177,7 @@ export const calculateFloorPremium = (
   return premium;
 };
 
-/** Simple bedroom-only optimizer (unchanged) */
+/** Simple bedroom‐only optimizer (unchanged) */
 export const megaOptimizePsf = (
   data: any[],
   config: any,
@@ -237,13 +212,9 @@ export const fullOptimizePsf = (
   (config.viewPricing || []).forEach(
     (v: any) => (viewAdjustments[v.view] = v.psfAdjustment)
   );
-  const additionalCategoryAdjustments: Record<
-    string,
-    Record<string, number>
-  > = {};
+  const additionalCategoryAdjustments: Record<string, Record<string, number>> = {};
   (config.additionalCategoryPricing || []).forEach((c: any) => {
-    additionalCategoryAdjustments[c.column] =
-      additionalCategoryAdjustments[c.column] || {};
+    additionalCategoryAdjustments[c.column] ??= {};
     additionalCategoryAdjustments[c.column][c.category] = c.psfAdjustment;
   });
   return {
@@ -263,12 +234,10 @@ export const calculateOverallAveragePsf = (
   mode: PricingMode = "apartment"
 ): number => {
   const priced = simulatePricing(data, config, mode);
-  const valid = priced.filter(
-    (u) => parseFloat(u.sellArea) > 0 && u.finalTotalPrice > 0
-  );
+  const valid = priced.filter(u => parseFloat(u.sellArea) > 0 && u.finalTotalPrice > 0);
   if (!valid.length) return 0;
   const totalValue = valid.reduce((s, u) => s + u.finalTotalPrice, 0);
-  const totalArea =
+  const totalArea  =
     mode === "villa"
       ? valid.reduce((s, u) => s + parseFloat(u.acArea), 0)
       : valid.reduce((s, u) => s + parseFloat(u.sellArea), 0);
@@ -281,11 +250,9 @@ export const calculateOverallAverageAcPsf = (
   mode: PricingMode = "apartment"
 ): number => {
   const priced = simulatePricing(data, config, mode);
-  const valid = priced.filter(
-    (u) => parseFloat(u.acArea) > 0 && u.finalTotalPrice > 0
-  );
+  const valid = priced.filter(u => parseFloat(u.acArea) > 0 && u.finalTotalPrice > 0);
   if (!valid.length) return 0;
   const totalValue = valid.reduce((s, u) => s + u.finalTotalPrice, 0);
-  const totalAc = valid.reduce((s, u) => s + parseFloat(u.acArea), 0);
+  const totalAc    = valid.reduce((s, u) => s + parseFloat(u.acArea), 0);
   return totalValue / totalAc;
 };
