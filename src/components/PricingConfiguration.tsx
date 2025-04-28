@@ -32,7 +32,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import AsyncSelect from "react-select/async";
-import { buildValueMap, asyncUnitOptions } from "./helpers";
+import { buildValueMap, asyncUnitOptions } from "@/components/pricing-simulator/helpers";
+
 
 interface PricingConfigurationProps {
   data: any[];
