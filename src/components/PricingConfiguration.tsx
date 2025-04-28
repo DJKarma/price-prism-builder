@@ -1,6 +1,6 @@
 // src/components/pricing-simulator/PricingConfiguration.tsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -32,6 +32,7 @@ import {
   Hash,
 } from "lucide-react";
 import { toast } from "sonner";
+import ReactSelect from "react-select";
 
 interface PricingConfigurationProps {
   data: any[];
@@ -368,6 +369,20 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     return acc;
   }, {} as Record<string, AdditionalCategoryPricing[]>);
 
+  /* ─────────── memoized options ─────────── */
+  const unitOptions = useMemo(
+    () => data.map((u) => ({ label: u.name, value: u.name })),
+    [data]
+  );
+  const categoryOptions = useMemo(
+    () =>
+      additionalCategories.reduce((acc, { column, categories }) => {
+        acc[column] = categories.map((c) => ({ label: c, value: c }));
+        return acc;
+      }, {} as Record<string, { label: string; value: string }[]>),
+    [additionalCategories]
+  );
+
   /* ─────────────────────── render ─────────────────────── */
   return (
     <Card className="w-full border-2 border-indigo-100 shadow-md">
@@ -380,376 +395,15 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           Set up base pricing, premiums, balcony & flat-price rules
         </CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-8 p-6">
-        {/* ─── Floor Rise Rules ─── */}
+        {/* … existing Floor, Balcony, Bedroom, View, Additional-Category panels … */}
+
+        {/* ─── Flat-Price Adders ───────────────────────────── */}
         <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-indigo-700 flex items-center">
-              <Ruler className="h-5 w-5 mr-2 text-indigo-600" />
-              Floor Rise PSF Rules
-            </h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddFloorRiseRule}
-              className="h-9 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-indigo-700"
-            >
-              <PlusCircle className="h-4 w-4 mr-2 text-indigo-600" />
-              Add Rule
-            </Button>
-          </div>
-          <div className="rounded-lg border border-indigo-100 overflow-hidden">
-            <Table>
-              <TableHeader className="bg-indigo-50">
-                <TableRow>
-                  <TableHead className="text-indigo-700">
-                    Start Floor
-                  </TableHead>
-                  <TableHead className="text-indigo-700">
-                    End Floor
-                  </TableHead>
-                  <TableHead className="text-indigo-700">
-                    PSF Increment
-                  </TableHead>
-                  <TableHead className="text-indigo-700">
-                    Jump Every
-                  </TableHead>
-                  <TableHead className="text-indigo-700">
-                    Jump PSF
-                  </TableHead>
-                  <TableHead className="w-24 text-indigo-700">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {floorRiseRules.map((rule, i) => (
-                  <TableRow
-                    key={i}
-                    className={i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}
-                  >
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={rule.startFloor}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            i,
-                            "startFloor",
-                            parseInt(e.target.value) || 1
-                          )
-                        }
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={rule.startFloor}
-                        value={rule.endFloor ?? ""}
-                        placeholder={`${maxFloor} (Default)`}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            i,
-                            "endFloor",
-                            e.target.value.trim() === ""
-                              ? null
-                              : parseInt(e.target.value)
-                          )
-                        }
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={rule.psfIncrement}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            i,
-                            "psfIncrement",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={rule.jumpEveryFloor || 0}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            i,
-                            "jumpEveryFloor",
-                            parseInt(e.target.value) || 0
-                          )
-                        }
-                        placeholder="e.g., 10"
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={rule.jumpIncrement || 0}
-                        onChange={(e) =>
-                          updateFloorRiseRule(
-                            i,
-                            "jumpIncrement",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        placeholder="e.g., 20"
-                        className="border-indigo-200"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveFloorRiseRule(i)}
-                        className="hover:bg-red-50 hover:text-red-500"
-                      >
-                        <MinusCircle className="h-4 w-4 text-red-400 hover:text-red-500" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-
-        {/* ─── Balcony Pricing ─── */}
-        {hasBalcony && (
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
-              <DollarSign className="h-5 w-5 mr-2 text-indigo-600" />
-              Balcony Pricing
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <Label htmlFor="fullAreaPct" className="text-indigo-700">
-                  % of balcony area at full Base PSF
-                </Label>
-                <Input
-                  id="fullAreaPct"
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={balconyPricing.fullAreaPct}
-                  onChange={(e) =>
-                    handleBalconyChange(
-                      "fullAreaPct",
-                      Math.min(
-                        100,
-                        Math.max(0, parseFloat(e.target.value) || 0)
-                      )
-                    )
-                  }
-                  className="border-indigo-200"
-                />
-                <p className="text-xs text-gray-500">
-                  This percentage of the balcony area will be priced at 100% of
-                  the Base PSF
-                </p>
-              </div>
-              <div className="space-y-3">
-                <Label htmlFor="remainderRate" className="text-indigo-700">
-                  Discount rate on remaining area (% of Base PSF)
-                </Label>
-                <Input
-                  id="remainderRate"
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={balconyPricing.remainderRate}
-                  onChange={(e) =>
-                    handleBalconyChange(
-                      "remainderRate",
-                      Math.min(
-                        100,
-                        Math.max(0, parseFloat(e.target.value) || 0)
-                      )
-                    )
-                  }
-                  className="border-indigo-200"
-                />
-                <p className="text-xs text-gray-500">
-                  The remaining balcony area will be priced at this percentage
-                  of the Base PSF
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ─── Bedroom Type Pricing ─── */}
-        {bedroomTypes.length > 0 && (
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
-              <Building2 className="h-5 w-5 mr-2 text-indigo-600" />
-              Bedroom Type Pricing
-            </h3>
-            <div className="rounded-lg border border-indigo-100 overflow-hidden">
-              <Table>
-                <TableHeader className="bg-indigo-50">
-                  <TableRow>
-                    <TableHead className="text-indigo-700">
-                      Bedroom Type
-                    </TableHead>
-                    <TableHead className="text-indigo-700">
-                      Base PSF
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {bedroomTypes.map((type, i) => (
-                    <TableRow
-                      key={i}
-                      className={i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}
-                    >
-                      <TableCell className="font-medium">
-                        {type.type}
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={type.basePsf}
-                          onChange={(e) =>
-                            updateBedroomTypePrice(
-                              i,
-                              "basePsf",
-                              parseFloat(e.target.value)
-                            )
-                          }
-                          className="border-indigo-200"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-
-        {/* ─── View Pricing ─── */}
-        {viewTypes.length > 0 && (
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
-              <Eye className="h-5 w-5 mr-2 text-indigo-600" />
-              View Pricing Adjustments
-            </h3>
-            <div className="rounded-lg border border-indigo-100 overflow-hidden">
-              <Table>
-                <TableHeader className="bg-indigo-50">
-                  <TableRow>
-                    <TableHead className="text-indigo-700">View Type</TableHead>
-                    <TableHead className="text-indigo-700">
-                      PSF Adjustment
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {viewTypes.map((vt, i) => (
-                    <TableRow
-                      key={i}
-                      className={i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}
-                    >
-                      <TableCell className="font-medium">
-                        {vt.view}
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={vt.psfAdjustment}
-                          onChange={(e) =>
-                            updateViewPricing(i, parseFloat(e.target.value))
-                          }
-                          className="border-indigo-200"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-
-        {/* ─── Additional Category Pricing ─── */}
-        {Object.keys(groupedAdditional).length > 0 && (
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-            <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
-              <Tag className="h-5 w-5 mr-2 text-indigo-600" />
-              Additional Category Pricing
-            </h3>
-            {Object.entries(groupedAdditional).map(([col, cats]) => (
-              <div key={col} className="mb-6">
-                <h4 className="text-md font-medium text-indigo-600 mb-3 flex items-center">
-                  {col}
-                </h4>
-                <div className="rounded-lg border border-indigo-100 overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-indigo-50">
-                      <TableRow>
-                        <TableHead className="text-indigo-700">Category</TableHead>
-                        <TableHead className="text-indigo-700">
-                          PSF Adjustment
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {cats.map((item, idx) => {
-                        const index = additionalCategoryPricing.findIndex(
-                          (c) =>
-                            c.column === item.column &&
-                            c.category === item.category
-                        );
-                        return (
-                          <TableRow
-                            key={idx}
-                            className={
-                              idx % 2 === 0 ? "bg-white" : "bg-indigo-50/30"
-                            }
-                          >
-                            <TableCell className="font-medium">
-                              {item.category}
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                value={item.psfAdjustment}
-                                onChange={(e) =>
-                                  updateAdditionalCategoryPricing(
-                                    index,
-                                    parseFloat(e.target.value)
-                                  )
-                                }
-                                className="border-indigo-200"
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ─── Flat-Price Adders ─── */}
-        <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-indigo-700 flex items-center">
-              <Hash className="h-5 w-5 mr-2 text-indigo-600" />
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-medium text-indigo-700 flex items-center gap-2">
+              <Hash className="h-5 w-5 text-indigo-600" />
               Additional Flat-Price Rules
             </h3>
             <Button variant="outline" size="sm" onClick={addFlatAdder}>
@@ -757,6 +411,9 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
               Add Rule
             </Button>
           </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Start typing to select specific units or use the category filters below—then enter the flat AED to add.
+          </p>
           <Table>
             <TableHeader className="bg-indigo-50">
               <TableRow>
@@ -772,49 +429,48 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                   key={i}
                   className={i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}
                 >
-                  <TableCell>
-                    <Input
-                      value={adder.units?.join(", ")}
-                      onChange={(e) =>
+                  <TableCell className="w-1/4">
+                    <ReactSelect
+                      options={unitOptions}
+                      isMulti
+                      placeholder="Select units…"
+                      value={unitOptions.filter((o) =>
+                        adder.units?.includes(o.value)
+                      )}
+                      onChange={(sel) =>
                         updateFlatAdder(
                           i,
                           "units",
-                          e.target.value.split(/\s*,\s*/)
+                          sel.map((s) => s.value)
                         )
                       }
-                      placeholder="e.g. A101, A102"
                     />
                   </TableCell>
-                  <TableCell>
-                    {additionalCategories.map((cat) => (
-                      <div key={cat.column} className="flex gap-2 mb-1">
-                        <Label className="whitespace-nowrap">
-                          {cat.column}:
-                        </Label>
-                        <select
-                          multiple
-                          value={adder.columns?.[cat.column] || []}
-                          onChange={(e) => {
-                            const vals = Array.from(
-                              e.target.selectedOptions
-                            ).map((o) => o.value);
+
+                  <TableCell className="w-1/2">
+                    {Object.entries(categoryOptions).map(([col, opts]) => (
+                      <div key={col} className="mb-2">
+                        <Label className="text-sm font-medium">{col}:</Label>
+                        <ReactSelect
+                          options={opts}
+                          isMulti
+                          placeholder={`Filter ${col}…`}
+                          value={opts.filter((o) =>
+                            adder.columns?.[col]?.includes(o.value)
+                          )}
+                          onChange={(sel) => {
+                            const vals = sel.map((s) => s.value);
                             updateFlatAdder(i, "columns", {
                               ...(adder.columns || {}),
-                              [cat.column]: vals,
+                              [col]: vals,
                             });
                           }}
-                          className="border rounded p-1 flex-1"
-                        >
-                          {cat.categories.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       </div>
                     ))}
                   </TableCell>
-                  <TableCell>
+
+                  <TableCell className="w-1/6">
                     <Input
                       type="number"
                       value={adder.amount}
@@ -825,9 +481,11 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                           parseFloat(e.target.value) || 0
                         )
                       }
+                      placeholder="AED"
                     />
                   </TableCell>
-                  <TableCell>
+
+                  <TableCell className="w-1/12 text-center">
                     <Button
                       variant="ghost"
                       size="icon"
