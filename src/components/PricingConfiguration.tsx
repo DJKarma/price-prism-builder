@@ -767,117 +767,119 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
 
         {/* ─── Flat-Price Adders ─── */}
       <CardContent className="space-y-6 p-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium flex items-center">
-            <Hash className="h-5 w-5 mr-2 text-indigo-600" />
-            Additional Flat-Price Rules
-          </h3>
-          <Button variant="outline" size="sm" onClick={addFlatAdder}>
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Add Rule
-          </Button>
-        </div>
-        <Table>
-          <TableHeader className="bg-indigo-50">
-            <TableRow>
-              <TableHead>Units (names)</TableHead>
-              <TableHead>Category Filters</TableHead>
-              <TableHead>Flat AED</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {flatAdders.map((adder, i) => (
-              <TableRow
-                key={i}
-                className={i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}
-              >
-                {/* ── Unit Autocomplete ── */}
-                <TableCell>
-                  <AsyncSelect
-                    cacheOptions
-                    defaultOptions
-                    loadOptions={asyncUnitOptions(data)}
-                    value={
-                      adder.units?.map(u => ({ label: u, value: u })) || []
-                    }
-                    isMulti
-                    onChange={(opts) =>
-                      updateFlatAdder(
-                        i,
-                        "units",
-                        opts.map(o => o.value)
-                      )
-                    }
-                    placeholder="Start typing unit…"
-                  />
-                </TableCell>
+  {/* ─── Flat-Price Adders ─── */}
+<div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
+  <div className="flex items-center justify-between mb-4">
+    <h3 className="text-lg font-medium text-indigo-700 flex items-center">
+      <Hash className="h-5 w-5 mr-2 text-indigo-600" />
+      Additional Flat-Price Rules
+    </h3>
+    <Button variant="outline" size="sm" onClick={addFlatAdder}>
+      <PlusCircle className="h-4 w-4 mr-2" />
+      Add Rule
+    </Button>
+  </div>
+  <Table>
+    <TableHeader className="bg-indigo-50">
+      <TableRow>
+        <TableHead>Units (names)</TableHead>
+        <TableHead>Category Filters</TableHead>
+        <TableHead>Flat AED</TableHead>
+        <TableHead className="w-24">Actions</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {flatAdders.map((adder, i) => (
+        <TableRow
+          key={i}
+          className={i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}
+        >
+          {/* ── Unit Autocomplete ── */}
+          <TableCell>
+            <AsyncSelect
+              cacheOptions
+              defaultOptions
+              loadOptions={asyncUnitOptions(data)}
+              value={adder.units?.map(u => ({ label: u, value: u })) || []}
+              isMulti
+              onChange={opts =>
+                updateFlatAdder(
+                  i,
+                  "units",
+                  opts.map(o => o.value)
+                )
+              }
+              placeholder="Start typing unit…"
+            />
+          </TableCell>
 
-                {/* ── Category Multi-Selects ── */}
-                <TableCell className="space-y-2">
-                  {Object.entries(valueMap).map(([col, vals]) => (
-                    <div key={col}>
-                      <Label className="text-sm font-medium">{col}:</Label>
-                      <AsyncSelect
-                        isMulti
-                        defaultOptions={vals.map(v => ({ label: v, value: v }))}
-                        loadOptions={(input, cb) =>
-                          cb(
-                            vals
-                              .filter(v =>
-                                v.toLowerCase().includes(input.toLowerCase())
-                              )
-                              .map(v => ({ label: v, value: v }))
-                          )
-                        }
-                        value={
-                          (adder.columns?.[col] || []).map(v => ({
-                            label: v,
-                            value: v,
-                          }))
-                        }
-                        onChange={(opts) =>
-                          updateFlatAdder(i, "columns", {
-                            ...(adder.columns || {}),
-                            [col]: opts.map(o => o.value),
-                          })
-                        }
-                        placeholder={`Select ${col}`}
-                      />
-                    </div>
-                  ))}
-                </TableCell>
-
-                {/* ── Flat AED amount ── */}
-                <TableCell>
-                  <Input
-                    type="number"
-                    value={adder.amount}
-                    onChange={(e) =>
-                      updateFlatAdder(
-                        i,
-                        "amount",
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                  />
-                </TableCell>
-
-                {/* ── Remove button ── */}
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeFlatAdder(i)}
-                    className="hover:text-red-500"
-                  >
-                    <MinusCircle className="h-5 w-5" />
-                  </Button>
-                </TableCell>
-              </TableRow>
+          {/* ── Category Multi-Selects ── */}
+          <TableCell className="space-y-2">
+            {Object.entries(valueMap).map(([col, vals]) => (
+              <div key={col}>
+                <Label className="text-sm font-medium">{col}:</Label>
+                <AsyncSelect
+                  isMulti
+                  defaultOptions={vals.map(v => ({ label: v, value: v }))}
+                  loadOptions={(input, cb) =>
+                    cb(
+                      vals
+                        .filter(v =>
+                          v.toLowerCase().includes(input.toLowerCase())
+                        )
+                        .map(v => ({ label: v, value: v }))
+                    )
+                  }
+                  value={
+                    (adder.columns?.[col] || []).map(v => ({
+                      label: v,
+                      value: v,
+                    }))
+                  }
+                  onChange={opts =>
+                    updateFlatAdder(i, "columns", {
+                      ...(adder.columns || {}),
+                      [col]: opts.map(o => o.value),
+                    })
+                  }
+                  placeholder={`Select ${col}`}
+                />
+              </div>
             ))}
-          </TableBody>
-        </Table>
+          </TableCell>
+
+          {/* ── Flat AED amount ── */}
+          <TableCell>
+            <Input
+              type="number"
+              value={adder.amount}
+              onChange={e =>
+                updateFlatAdder(
+                  i,
+                  "amount",
+                  parseFloat(e.target.value) || 0
+                )
+              }
+            />
+          </TableCell>
+
+          {/* ── Remove button ── */}
+          <TableCell>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => removeFlatAdder(i)}
+              className="hover:text-red-500"
+            >
+              <MinusCircle className="h-5 w-5" />
+            </Button>
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
+</div>
+
       </CardContent>
 
 export default PricingConfiguration;
