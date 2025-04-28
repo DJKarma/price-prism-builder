@@ -72,11 +72,10 @@ export interface BalconyPricing {
   remainderRate: number;
 }
 
-// New interface for flat-price adders
 export interface FlatPriceAdder {
-  units?: string[];                     // exact unit names
-  columns?: Record<string, string[]>;   // e.g. { bedroom: ['2 BR'], view: ['Sea View'] }
-  amount: number;                       // flat AED to add
+  units?: string[];
+  columns?: Record<string, string[]>;
+  amount: number;
 }
 
 export interface PricingConfig {
@@ -101,7 +100,7 @@ export interface PricingConfig {
   }>;
   additionalCategoryPricing?: AdditionalCategoryPricing[];
   balconyPricing?: BalconyPricing;
-  flatPriceAdders?: FlatPriceAdder[];   // ← added
+  flatPriceAdders?: FlatPriceAdder[];
   targetOverallPsf?: number;
   isOptimized?: boolean;
   maxFloor?: number;
@@ -116,41 +115,12 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   additionalCategories = [],
 }) => {
   // ───────────────────────── state ─────────────────────────
-  const [flatAdders, setFlatAdders] = useState<FlatPriceAdder[]>(
-    initialConfig?.flatPriceAdders?.map((a: any) => ({ ...a })) || []
-  );
-
-  // build a map of every category → values for our multi-selects
-  const valueMap = buildValueMap(data);
-
-  // ───────── handlers for flat-adders ─────────
-  const addFlatAdder = () =>
-    setFlatAdders((a) => [...a, { units: [], columns: {}, amount: 0 }]);
-  const removeFlatAdder = (i: number) =>
-    setFlatAdders((a) => a.filter((_, idx) => idx !== i));
-  const updateFlatAdder = (
-    i: number,
-    key: keyof FlatPriceAdder,
-    val: any
-  ) =>
-    setFlatAdders((a) =>
-      a.map((adder, idx) =>
-        idx === i ? { ...adder, [key]: val } : adder
-      )
-    );
-  /* ───────────────────────── state ───────────────────────── */
   const [basePsf, setBasePsf] = useState<number>(
     initialConfig?.basePsf ?? 1000
   );
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>(
-    initialConfig?.floorRiseRules?.map((r: any) => ({ ...r })) || [
-      {
-        startFloor: 1,
-        endFloor: maxFloor,
-        psfIncrement: 0,
-        jumpEveryFloor: 0,
-        jumpIncrement: 0,
-      },
+    initialConfig?.floorRiseRules?.map(r => ({ ...r })) || [
+      { startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
     ]
   );
   const [bedroomTypes, setBedroomTypes] = useState<BedroomTypePricing[]>(
@@ -159,13 +129,11 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   const [viewTypes, setViewTypes] = useState<ViewPricing[]>(
     initialConfig?.viewPricing || []
   );
-  const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<
-    AdditionalCategoryPricing[]
-  >(
+  const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>(
     initialConfig?.additionalCategoryPricing ||
       (additionalCategories.length
-        ? additionalCategories.flatMap((cat) =>
-            cat.categories.map((c) => ({
+        ? additionalCategories.flatMap(cat =>
+            cat.categories.map(c => ({
               column: cat.column,
               category: c,
               psfAdjustment: 0,
@@ -178,120 +146,32 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     initialConfig?.balconyPricing ?? { fullAreaPct: 100, remainderRate: 0 }
   );
 
+  // flat‐adder state
+  const [flatAdders, setFlatAdders] = useState<FlatPriceAdder[]>(
+    initialConfig?.flatPriceAdders?.map(a => ({ ...a })) || []
+  );
 
-  /* ───────────────────── detect balcony ───────────────────── */
-  useEffect(() => {
-    if (!data.length) return;
-    const hasExplicit = data.some((u) => u.balcony !== undefined);
-    const hasImplicit = data.some(
-      (u) => (parseFloat(u.sellArea) || 0) > (parseFloat(u.acArea) || 0)
-    );
-    setHasBalcony(hasExplicit || hasImplicit);
-  }, [data]);
+  // build a map of every category → values for our multi‐selects
+  const valueMap = buildValueMap(data);
 
-  /* ─────────── init additionalCategoryPricing ─────────── */
-  useEffect(() => {
-    if (initialConfig?.additionalCategoryPricing?.length) {
-      setAdditionalCategoryPricing(initialConfig.additionalCategoryPricing);
-    } else if (additionalCategories.length) {
-      setAdditionalCategoryPricing(
-        additionalCategories.flatMap((cat) =>
-          cat.categories.map((c) => ({
-            column: cat.column,
-            category: c,
-            psfAdjustment: 0,
-          }))
-        )
-      );
-    } else {
-      setAdditionalCategoryPricing([]);
-    }
-  }, [initialConfig, additionalCategories]);
-
-  /* ────────── hydrate from initialConfig ────────── */
-  useEffect(() => {
-    if (!initialConfig) return;
-    if (initialConfig.basePsf) setBasePsf(initialConfig.basePsf);
-    if (initialConfig.floorRiseRules?.length)
-      setFloorRiseRules(
-        initialConfig.floorRiseRules.map((rule: any) => ({
-          startFloor: rule.startFloor,
-          endFloor: rule.endFloor == null ? maxFloor : rule.endFloor,
-          psfIncrement: rule.psfIncrement,
-          jumpEveryFloor: rule.jumpEveryFloor ?? 0,
-          jumpIncrement: rule.jumpIncrement ?? 0,
-        }))
-      );
-    if (initialConfig.bedroomTypePricing?.length)
-      setBedroomTypes(initialConfig.bedroomTypePricing);
-    if (initialConfig.viewPricing?.length)
-      setViewTypes(initialConfig.viewPricing);
-    if (initialConfig.balconyPricing)
-      setBalconyPricing({
-        fullAreaPct: initialConfig.balconyPricing.fullAreaPct,
-        remainderRate: initialConfig.balconyPricing.remainderRate,
-      });
-    else setBalconyPricing({ fullAreaPct: 100, remainderRate: 0 });
-
-    if (initialConfig.flatPriceAdders?.length)
-      setFlatAdders(initialConfig.flatPriceAdders);
-  }, [initialConfig, maxFloor]);
-
-  /* ───────── ensure last rule endFloor ───────── */
-  useEffect(() => {
-    if (!floorRiseRules.length) return;
-    const last = floorRiseRules[floorRiseRules.length - 1];
-    if (last.endFloor == null) {
-      setFloorRiseRules((r) =>
-        r.map((rule, i) =>
-          i === r.length - 1 ? { ...rule, endFloor: maxFloor } : rule
-        )
-      );
-    }
-  }, [floorRiseRules, maxFloor]);
-
-  /* ──── derive bedroomTypes/viewTypes if none ──── */
-  useEffect(() => {
-    if (!data.length) return;
-    if (!initialConfig?.bedroomTypePricing?.length) {
-      const types = Array.from(new Set(data.map((u) => u.type))).filter(
-        Boolean
-      );
-      setBedroomTypes(
-        types.map((t) => ({ type: t, basePsf, targetAvgPsf: basePsf }))
-      );
-    }
-    if (!initialConfig?.viewPricing?.length) {
-      const views = Array.from(new Set(data.map((u) => u.view))).filter(
-        Boolean
-      );
-      setViewTypes(views.map((v) => ({ view: v, psfAdjustment: 0 })));
-    }
-  }, [data, basePsf, initialConfig]);
-
-  /* ─────────────────── handlers ─────────────────── */
+  // ─────────────────── handlers ───────────────────
   const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value) || 0;
     setBasePsf(v);
     if (!initialConfig) {
-      setBedroomTypes((prev) =>
-        prev.map((b) => ({ ...b, basePsf: v, targetAvgPsf: v }))
-      );
+      setBedroomTypes(bs => bs.map(b => ({ ...b, basePsf: v, targetAvgPsf: v })));
     }
   };
 
-  const handleBalconyChange = (
-    f: keyof BalconyPricing,
-    v: number
-  ) => setBalconyPricing((p) => ({ ...p, [f]: v }));
+  const handleBalconyChange = (f: keyof BalconyPricing, v: number) =>
+    setBalconyPricing(p => ({ ...p, [f]: v }));
 
   const handleAddFloorRiseRule = () => {
     const last = floorRiseRules[floorRiseRules.length - 1];
-    const nextStart = (last.endFloor ?? maxFloor) + 1;
-    setFloorRiseRules((r) => [
+    setFloorRiseRules(r => [
       ...r,
       {
-        startFloor: nextStart,
+        startFloor: (last.endFloor ?? maxFloor) + 1,
         endFloor: maxFloor,
         psfIncrement: 0,
         jumpEveryFloor: 0,
@@ -304,63 +184,59 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       toast.error("At least one rule required");
       return;
     }
-    setFloorRiseRules((r) => r.filter((_, idx) => idx !== i));
+    setFloorRiseRules(r => r.filter((_, idx) => idx !== i));
   };
   const updateFloorRiseRule = (
     i: number,
     field: keyof FloorRiseRule,
     value: number | null
-  ) => {
-    setFloorRiseRules((r) =>
-      r.map((rule, idx) =>
-        idx === i ? { ...rule, [field]: value } : rule
-      )
+  ) =>
+    setFloorRiseRules(r =>
+      r.map((rule, idx) => (idx === i ? { ...rule, [field]: value } : rule))
     );
-  };
+
   const updateBedroomTypePrice = (
     i: number,
     field: keyof BedroomTypePricing,
     value: number
-  ) => {
-    setBedroomTypes((b) =>
-      b.map((bt, idx) => (idx === i ? { ...bt, [field]: value } : bt))
+  ) =>
+    setBedroomTypes(bs =>
+      bs.map((b, idx) => (idx === i ? { ...b, [field]: value } : b))
     );
-  };
-  const updateViewPricing = (i: number, v: number) => {
-    setViewTypes((vts) =>
-      vts.map((vt, idx) => (idx === i ? { ...vt, psfAdjustment: v } : vt))
-    );
-  };
-  const updateAdditionalCategoryPricing = (i: number, v: number) => {
-    setAdditionalCategoryPricing((acp) =>
-      acp.map((cat, idx) => (idx === i ? { ...cat, psfAdjustment: v } : cat))
-    );
-  };
 
-  /* ───────── handlers for flat-adders ───────── */
+  const updateViewPricing = (i: number, v: number) =>
+    setViewTypes(vs =>
+      vs.map((vt, idx) => (idx === i ? { ...vt, psfAdjustment: v } : vt))
+    );
+
+  const updateAdditionalCategoryPricing = (i: number, v: number) =>
+    setAdditionalCategoryPricing(acps =>
+      acps.map((cat, idx) => (idx === i ? { ...cat, psfAdjustment: v } : cat))
+    );
+
+  // ───────── handlers for flat-adders ─────────
   const addFlatAdder = () =>
-    setFlatAdders((a) => [...a, { units: [], columns: {}, amount: 0 }]);
+    setFlatAdders(a => [...a, { units: [], columns: {}, amount: 0 }]);
   const removeFlatAdder = (i: number) =>
-    setFlatAdders((a) => a.filter((_, idx) => idx !== i));
+    setFlatAdders(a => a.filter((_, idx) => idx !== i));
   const updateFlatAdder = (
     i: number,
     key: keyof FlatPriceAdder,
     val: any
   ) =>
-    setFlatAdders((a) =>
+    setFlatAdders(a =>
       a.map((adder, idx) =>
         idx === i ? { ...adder, [key]: val } : adder
       )
     );
 
-  /* ───────────────────── submit ───────────────────── */
+  // ───────────────────── submit ─────────────────────
   const handleSubmit = () => {
     if (basePsf <= 0) {
       toast.error("Base PSF > 0 required");
       return;
     }
-    // validate overlaps omitted for brevity...
-    const processed = floorRiseRules.map((rule) => ({
+    const processed = floorRiseRules.map(rule => ({
       ...rule,
       endFloor: rule.endFloor == null ? maxFloor : rule.endFloor,
     }));
@@ -371,7 +247,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       viewPricing: viewTypes,
       additionalCategoryPricing,
       ...(hasBalcony && { balconyPricing }),
-      flatPriceAdders: flatAdders,   // ← included
+      flatPriceAdders: flatAdders,
       maxFloor,
       ...(initialConfig && {
         targetOverallPsf: initialConfig.targetOverallPsf,
@@ -382,11 +258,17 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
     onConfigurationComplete(finalConfig);
   };
 
-  const groupedAdditional = additionalCategoryPricing.reduce((acc, c) => {
-    acc[c.column] = acc[c.column] || [];
-    acc[c.column].push(c);
-    return acc;
-  }, {} as Record<string, AdditionalCategoryPricing[]>);
+  const groupedAdditional = additionalCategoryPricing.reduce(
+    (acc, c) => {
+      acc[c.column] = acc[c.column] || [];
+      acc[c.column].push(c);
+      return acc;
+    },
+    {} as Record<string, AdditionalCategoryPricing[]>
+  );
+
+
+
 /* ─────────────────────── render ─────────────────────── */
 return (
   <Card className="w-full border-2 border-indigo-100 shadow-md">
