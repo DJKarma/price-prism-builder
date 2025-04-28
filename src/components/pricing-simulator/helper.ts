@@ -1,35 +1,35 @@
-/* ──────────────────────────────────────────────
-   Shared utilities for dropdown data & type-ahead
-───────────────────────────────────────────────── */
+// src/components/pricing-simulator/helpers.ts
+import debounce from "lodash/debounce";
 
-import { debounce } from "lodash";
-
-/** column → sorted unique values */
-export const buildValueMap = (data: any[]) => {
-  const map: Record<string, string[]> = {};
-  data.forEach((u) => {
-    Object.keys(u).forEach((k) => {
-      if (!u[k]) return;
-      if (!map[k]) map[k] = [];
-      if (!map[k].includes(u[k])) map[k].push(u[k]);
+/** Build a map of every column → its unique sorted values */
+export function buildValueMap(data: any[]): Record<string,string[]> {
+  const map: Record<string,Set<string>> = {};
+  data.forEach(row => {
+    Object.entries(row).forEach(([k,v]) => {
+      if (k.endsWith("_value") && v != null) {
+        map[k.replace(/_value$/, "")] ||= new Set();
+        map[k.replace(/_value$/, "")].add(String(v));
+      }
     });
   });
-  Object.keys(map).forEach((k) => map[k].sort());
-  return map;
-};
-
-/** debounced loader for react-select AsyncSelect */
-export const asyncUnitOptions = (units: string[]) =>
-  debounce(
-    (input: string, cb: (opts: { label: string; value: string }[]) => void) => {
-      const q = (input || "").toLowerCase();
-      cb(
-        units
-          .filter((u) => u.toLowerCase().includes(q))
-          .slice(0, 20)
-          .map((u) => ({ label: u, value: u }))
-      );
-    },
-    200,
-    { leading: false }
+  // also include explicit type/view/floor fields
+  ["type","view","floor"].forEach(f => {
+    map[f] ||= new Set();
+    data.forEach(r => r[f] != null && map[f].add(String(r[f])));
+  });
+  return Object.fromEntries(
+    Object.entries(map)
+      .map(([k,s]) => [k, Array.from(s).sort()])
   );
+}
+
+/** Debounced async loader for react-select */
+export const asyncUnitOptions = (data: any[]) =>
+  debounce((input: string, cb: (opts: any[])=>void) => {
+    const opts = Array.from(new Set(
+      data
+        .map(r => r.name)
+        .filter(n => typeof n === "string" && n.toLowerCase().includes(input.toLowerCase()))
+    )).map(n => ({ label: n, value: n }));
+    cb(opts);
+  }, 200);
