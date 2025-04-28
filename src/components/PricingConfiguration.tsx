@@ -1,6 +1,4 @@
 // src/components/pricing-simulator/PricingConfiguration.tsx
-import { buildValueMap, asyncUnitOptions } from "./helpers";
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -33,6 +31,8 @@ import {
   Hash,
 } from "lucide-react";
 import { toast } from "sonner";
+import AsyncSelect from "react-select/async";
+import { buildValueMap, asyncUnitOptions } from "./helpers";
 
 interface PricingConfigurationProps {
   data: any[];
