@@ -1,3 +1,5 @@
+// src/components/pricing-simulator/PricingConfiguration.tsx
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -379,7 +381,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8 p-6">
-        {/* ─── Floor Rise Rules ─── */}
+        {/* ─── Floor Rise Rules ───────────────────────────── */}
         <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-indigo-700 flex items-center">
@@ -521,7 +523,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </div>
         </div>
 
-        {/* ─── Balcony Pricing ─── */}
+        {/* ─── Balcony Pricing ─────────────────────────────── */}
         {hasBalcony && (
           <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
             <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
@@ -585,7 +587,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </div>
         )}
 
-        {/* ─── Bedroom Type Pricing ─── */}
+        {/* ─── Bedroom Type Pricing ───────────────────────── */}
         {bedroomTypes.length > 0 && (
           <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
             <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
@@ -636,7 +638,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </div>
         )}
 
-        {/* ─── View Pricing ─── */}
+        {/* ─── View Pricing ─────────────────────────────── */}
         {viewTypes.length > 0 && (
           <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
             <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
@@ -682,7 +684,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </div>
         )}
 
-        {/* ─── Additional Category Pricing ─── */}
+        {/* ─── Additional Category Pricing ─────────────────── */}
         {Object.keys(groupedAdditional).length > 0 && (
           <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
             <h3 className="text-lg font-medium text-indigo-700 mb-4 flex items-center">
@@ -716,9 +718,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                         return (
                           <TableRow
                             key={idx}
-                            className={
-                              idx % 2 === 0 ? "bg-white" : "bg-indigo-50/30"
-                            }
+                            className={idx % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}
                           >
                             <TableCell className="font-medium">
                               {item.category}
@@ -747,7 +747,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
           </div>
         )}
 
-        {/* ─── Flat-Price Adders ─── */}
+        {/* ─── Flat-Price Adders ───────────────────────────── */}
         <div className="bg-white p-5 rounded-lg shadow-sm border border-indigo-50">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-indigo-700 flex items-center">
