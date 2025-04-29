@@ -1,3 +1,4 @@
+
 // src/utils/psfOptimizer.ts
 
 export type PricingMode = "villa" | "apartment";
@@ -47,8 +48,8 @@ export const simulatePricing = (
     const acArea   = parseFloat(unit.acArea)   || 0;
 
     // 1) Base PSF + view adjustment
-    const bt = config.bedroomTypePricing.find((b) => b.type === unit.type);
-    const vp = config.viewPricing.find((v) => v.view === unit.view);
+    const bt = (config.bedroomTypePricing || []).find((b) => b.type === unit.type);
+    const vp = (config.viewPricing || []).find((v) => v.view === unit.view);
     const basePsf           = bt?.basePsf       ?? 0;
     const viewPsfAdjustment = vp?.psfAdjustment ?? 0;
 
@@ -234,6 +235,8 @@ export const calculateOverallAveragePsf = (
   config: any,
   mode: PricingMode = "apartment"
 ): number => {
+  if (!data?.length || !config) return 0;
+  
   const priced = simulatePricing(data, config, mode);
   const valid  = priced.filter(u => parseFloat(u.sellArea) > 0 && u.finalTotalPrice > 0);
   if (!valid.length) return 0;
@@ -250,6 +253,8 @@ export const calculateOverallAverageAcPsf = (
   config: any,
   mode: PricingMode = "apartment"
 ): number => {
+  if (!data?.length || !config) return 0;
+  
   const priced = simulatePricing(data, config, mode);
   const valid  = priced.filter(u => parseFloat(u.acArea) > 0 && u.finalTotalPrice > 0);
   if (!valid.length) return 0;

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import {
@@ -60,7 +61,7 @@ const SlotNumber: React.FC<{ v: number; anim?: boolean }> = ({ v, anim }) => {
       i++;
     }, 60);
     return () => clearInterval(id);
-  }, [v, anim]);
+  }, [v, anim, disp]);
   return (
     <span className={anim ? "transition-transform scale-105" : ""}>
       {fmt(disp, 2)}
@@ -71,7 +72,7 @@ const SlotNumber: React.FC<{ v: number; anim?: boolean }> = ({ v, anim }) => {
 /* ────────────────── component ────────────────── */
 
 const MegaOptimize: React.FC<MegaOptimizeProps> = ({
-  data,
+  data = [],
   pricingConfig,
   onOptimized,
 }) => {
@@ -85,11 +86,16 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   );
 
   /* local UI */
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(bedroomTypes);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [animateNums, setAnimateNums] = useState(false);
   const [metric, setMetric] = useState<"sellArea" | "acArea">("sellArea");
   const [processed, setProcessed] = useState<any[]>([]);
   const [highlightedTypes, setHighlightedTypes] = useState<string[]>([]);
+
+  // Update selected types when bedroomTypes change
+  useEffect(() => {
+    setSelectedTypes(bedroomTypes);
+  }, [bedroomTypes]);
 
   /* optimiser hook */
   const {
@@ -107,14 +113,27 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
 
   /* --------  PRE‑PROCESS UNITS (now via simulatePricing)  -------- */
   useEffect(() => {
-    if (!data.length || !pricingConfig) return;
-    setProcessed(simulatePricing(data, pricingConfig)); // <— the fix
+    if (!data.length || !pricingConfig) {
+      setProcessed([]);
+      return;
+    }
+    try {
+      setProcessed(simulatePricing(data, pricingConfig)); // <— the fix
+    } catch (err) {
+      console.error("Error processing data:", err);
+      setProcessed([]);
+    }
   }, [data, pricingConfig]);
 
   /* optimise handler (unchanged) */
   const optimise = () => {
     if (!selectedTypes.length) {
       toast.error("Select bedroom types");
+      return;
+    }
+
+    if (!data.length || !pricingConfig) {
+      toast.error("No data or pricing configuration available");
       return;
     }
 
@@ -185,7 +204,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
             {/* current PSF */}
             <div className="rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 p-4 text-center shadow-md">
               <h3 className="text-indigo-700 text-lg font-medium">
-                Current Overall PSF ({metric === "sellArea" ? "SA" : "AC"})
+                Current Overall PSF ({metric === "sellArea" ? "SA" : "AC"})
               </h3>
               <p className="text-3xl font-bold text-indigo-900 flex justify-center items-center">
                 <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse mr-1" />
@@ -197,7 +216,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
             {/* target PSF by type */}
             <div className="rounded-lg border border-indigo-100 p-4 bg-white">
               <h3 className="text-sm font-medium text-indigo-700 mb-3">
-                Target PSF by Bedroom Type
+                Target PSF by Bedroom Type
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 {bedroomTypes.map((t) => (
@@ -211,7 +230,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                   >
                     <span>{t}</span>
                     <span className="font-bold">
-                      {pricingConfig.bedroomTypePricing.find((b: any) => b.type === t)
+                      {(pricingConfig?.bedroomTypePricing || []).find((b: any) => b.type === t)
                         ?.targetAvgPsf ?? 0}
                     </span>
                   </div>
@@ -241,7 +260,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
             {/* PSF type selector */}
             <div className="md:col-span-4 rounded-lg border border-indigo-100 p-4 bg-white">
               <h3 className="text-sm font-medium text-indigo-700 mb-3">
-                Select PSF Type to Optimize
+                Select PSF Type to Optimize
               </h3>
               <div className="flex gap-2">
                 <Button
@@ -250,7 +269,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                   variant={metric === "sellArea" ? "default" : "outline"}
                   onClick={() => setMetric("sellArea")}
                 >
-                  SA PSF (Sell Area)
+                  SA PSF (Sell Area)
                 </Button>
                 <Button
                   className="flex-1"
@@ -258,7 +277,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                   variant={metric === "acArea" ? "default" : "outline"}
                   onClick={() => setMetric("acArea")}
                 >
-                  AC PSF (AC Area)
+                  AC PSF (AC Area)
                 </Button>
               </div>
             </div>
@@ -290,7 +309,7 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
 
       <CardFooter className="p-4 bg-gradient-to-r from-indigo-50/50 to-blue-50/50 rounded-b text-sm text-muted-foreground">
         {optimizationMode === "basePsf"
-          ? "Base PSF optimisation adjusts only bedroom‑type PSF values."
+          ? "Base PSF optimisation adjusts only bedroom‑type PSF values."
           : "All‑parameter optimisation adjusts bedroom PSF, floor premiums, and view adjustments."}
       </CardFooter>
     </Card>
