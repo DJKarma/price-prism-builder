@@ -1,4 +1,3 @@
-
 // src/utils/psfOptimizer.ts
 
 export type PricingMode = "villa" | "apartment";
@@ -43,38 +42,26 @@ export const simulatePricing = (
     additional?: Record<string, string[]>;
   }
 ): any[] => {
-  // Ensure config and its properties exist with default values if missing
-  if (!data || !Array.isArray(data)) return [];
-  if (!config) return data.map((unit) => ({ ...unit }));
-  
-  const bedroomTypePricing = config.bedroomTypePricing || [];
-  const viewPricing = config.viewPricing || [];
-  const floorRiseRules = config.floorRiseRules || [];
-  const additionalCategoryPricing = config.additionalCategoryPricing || [];
-  const balconyPricing = config.balconyPricing || { fullAreaPct: 0, remainderRate: 0 };
-  const flatPriceAdders = config.flatPriceAdders || [];
-
   return data.map((unit) => {
     const sellArea = parseFloat(unit.sellArea) || 0;
     const acArea   = parseFloat(unit.acArea)   || 0;
 
     // 1) Base PSF + view adjustment
-    const bt = bedroomTypePricing.find((b) => b && b.type === unit.type);
-    const vp = viewPricing.find((v) => v && v.view === unit.view);
+    const bt = config.bedroomTypePricing.find((b) => b.type === unit.type);
+    const vp = config.viewPricing.find((v) => v.view === unit.view);
     const basePsf           = bt?.basePsf       ?? 0;
     const viewPsfAdjustment = vp?.psfAdjustment ?? 0;
 
     // 2) Floor premium (apartments only)
     const floorAdjustment =
       mode === "apartment"
-        ? calculateFloorPremium(parseInt(unit.floor) || 1, floorRiseRules)
+        ? calculateFloorPremium(parseInt(unit.floor) || 1, config.floorRiseRules || [])
         : 0;
 
     // 3) Additional‐category PSF premiums
     let additionalAdjustment = 0;
     const additionalCategoryPriceComponents: Record<string, number> = {};
-    additionalCategoryPricing.forEach((cat) => {
-      if (!cat) return;
+    (config.additionalCategoryPricing || []).forEach((cat) => {
       const val = unit[`${cat.column}_value`];
       const key = `${cat.column}: ${val}`;
       if (val === cat.category) {
@@ -88,7 +75,7 @@ export const simulatePricing = (
     if (mode === "apartment" && sellArea > acArea && !balconyArea) {
       balconyArea = sellArea - acArea;
     }
-    const { fullAreaPct = 0, remainderRate = 0 } = balconyPricing || {};
+    const { fullAreaPct = 0, remainderRate = 0 } = config.balconyPricing || {};
     const fullPct = fullAreaPct / 100;
     const remPct  = remainderRate / 100;
     const balconyPricedArea =
@@ -111,9 +98,7 @@ export const simulatePricing = (
 
     // 8) Flat‐price adders (AND: must match ALL specified criteria)
     let flatAddTotal = 0;
-    flatPriceAdders.forEach((adder) => {
-      if (!adder) return;
-      
+    (config.flatPriceAdders || []).forEach((adder) => {
       // 8a) unit‐name match?
       const unitsMatch = !adder.units || adder.units.length === 0
         ? true
@@ -123,7 +108,6 @@ export const simulatePricing = (
       const colsMatch = !adder.columns
         ? true
         : Object.entries(adder.columns).every(([col, vals]) => {
-            if (!vals || !Array.isArray(vals)) return true;
             const rawVal = unit[`${col}_value`];
             const val = rawVal != null ? rawVal : unit[col];
             return vals.includes(val?.toString() ?? "");
@@ -178,12 +162,9 @@ export const calculateFloorPremium = (
     jumpIncrement?:  number;
   }>
 ): number => {
-  if (!rules || !Array.isArray(rules) || rules.length === 0) return 0;
-  
   let premium = 0;
   const sorted = [...rules].sort((a, b) => a.startFloor - b.startFloor);
   for (const rule of sorted) {
-    if (!rule) continue;
     const end = rule.endFloor ?? Infinity;
     if (floor < rule.startFloor) continue;
     const floorsInRange = Math.min(floor, end) - rule.startFloor + 1;
@@ -205,17 +186,9 @@ export const megaOptimizePsf = (
   types: string[] = [],
   mode: PricingMode = "apartment"
 ) => {
-  if (!config || !config.bedroomTypePricing) {
-    return {
-      success: false,
-      optimizedParams: { bedroomAdjustments: {} },
-      message: "Invalid configuration"
-    };
-  }
-  
   const bedroomAdjustments: Record<string, number> = {};
   types.forEach((type) => {
-    const bt = config.bedroomTypePricing.find((b: any) => b && b.type === type);
+    const bt = config.bedroomTypePricing.find((b: any) => b.type === type);
     if (!bt) return;
     const factor = targetPsf / Math.max(bt.basePsf, 1);
     bedroomAdjustments[type] = bt.basePsf * factor;
@@ -235,24 +208,13 @@ export const fullOptimizePsf = (
   types: string[] = [],
   mode: PricingMode = "apartment"
 ) => {
-  if (!config) {
-    return {
-      success: false,
-      optimizedParams: { bedroomAdjustments: {}, viewAdjustments: {}, additionalCategoryAdjustments: {} },
-      message: "Invalid configuration"
-    };
-  }
-  
   const base = megaOptimizePsf(data, config, targetPsf, types, mode);
   const viewAdjustments: Record<string, number> = {};
   (config.viewPricing || []).forEach(
-    (v: any) => {
-      if (v && v.view) viewAdjustments[v.view] = v.psfAdjustment;
-    }
+    (v: any) => (viewAdjustments[v.view] = v.psfAdjustment)
   );
   const additionalCategoryAdjustments: Record<string, Record<string, number>> = {};
   (config.additionalCategoryPricing || []).forEach((c: any) => {
-    if (!c || !c.column || !c.category) return;
     additionalCategoryAdjustments[c.column] ??= {};
     additionalCategoryAdjustments[c.column][c.category] = c.psfAdjustment;
   });
@@ -272,10 +234,6 @@ export const calculateOverallAveragePsf = (
   config: any,
   mode: PricingMode = "apartment"
 ): number => {
-  if (!data || !Array.isArray(data) || data.length === 0 || !config) {
-    return 0;
-  }
-  
   const priced = simulatePricing(data, config, mode);
   const valid  = priced.filter(u => parseFloat(u.sellArea) > 0 && u.finalTotalPrice > 0);
   if (!valid.length) return 0;
@@ -292,10 +250,6 @@ export const calculateOverallAverageAcPsf = (
   config: any,
   mode: PricingMode = "apartment"
 ): number => {
-  if (!data || !Array.isArray(data) || data.length === 0 || !config) {
-    return 0;
-  }
-  
   const priced = simulatePricing(data, config, mode);
   const valid  = priced.filter(u => parseFloat(u.acArea) > 0 && u.finalTotalPrice > 0);
   if (!valid.length) return 0;
