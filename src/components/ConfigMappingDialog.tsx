@@ -1,4 +1,4 @@
-// src/components/pricing-simulator/ConfigMappingDialog.tsx
+
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -256,7 +256,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <ImportIcon className="h-5 w-5 text-indigo-600" />
@@ -267,13 +267,13 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-4 py-2 space-y-6 overflow-y-auto">
+        <ScrollArea className="flex-1 px-4 py-2 space-y-4 overflow-y-auto">
           {!anyToMap ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>No fields to map</AlertTitle>
               <AlertDescription>
-                Imported config didn’t match any of your current settings.
+                Imported config didn't match any of your current settings.
               </AlertDescription>
             </Alert>
           ) : mappedCount === 0 ? (
@@ -297,7 +297,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                   {sec.currentFields.map((cf) => (
                     <div
                       key={cf.key}
-                      className="flex items-center gap-3"
+                      className="flex items-center gap-3 border border-gray-100 p-2 rounded-md hover:bg-gray-50"
                     >
                       <div className="w-1/3">
                         <Label className="font-medium">
@@ -307,7 +307,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                           </span>
                         </Label>
                       </div>
-                      <ArrowRight className="h-5 w-5 text-gray-400" />
+                      <ArrowRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
                       <div className="flex-1">
                         <Select
                           value={sec.mappings[cf.key] || ""}
@@ -318,7 +318,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="No match" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-[300px]" side="top">
                             <SelectItem value="no-match">No match</SelectItem>
                             {sec.importedFields.map((imp) => (
                               <SelectItem key={imp.key} value={imp.key}>
@@ -342,27 +342,29 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
 
           {/* Floor-rise rule import */}
           {floorOptions.length > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-3 border-t border-gray-200 pt-4 mt-4">
               <h3 className="text-lg font-medium text-indigo-700">
                 Floor Rise Rules
               </h3>
               <p className="text-sm text-gray-500">
-                Check any imported rules you’d like to apply wholesale:
+                Check any imported rules you'd like to apply wholesale:
               </p>
-              <div className="space-y-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {floorOptions.map((opt) => (
                   <label
                     key={opt.key}
-                    className="flex items-center gap-2 cursor-pointer"
+                    className="flex items-center gap-2 cursor-pointer p-2 border border-gray-100 rounded-md hover:bg-gray-50"
                   >
                     <input
                       type="checkbox"
+                      className="text-indigo-600 rounded"
                       checked={selectedFloorKeys.has(opt.key)}
                       onChange={() => toggleFloorRule(opt.key)}
                     />
-                    <span>
-                      {opt.key} → {opt.displayValue}
-                    </span>
+                    <div>
+                      <span className="font-medium">{opt.key}</span>
+                      <span className="block text-xs text-gray-500">{opt.displayValue}</span>
+                    </div>
                   </label>
                 ))}
               </div>
@@ -370,11 +372,11 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
           )}
         </ScrollArea>
 
-        <DialogFooter className="flex justify-end gap-2">
+        <DialogFooter className="flex justify-end gap-2 pt-2 border-t">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleFinish} disabled={!anyToMap}>
+          <Button onClick={handleFinish} disabled={!anyToMap} className="bg-indigo-600">
             Apply Mappings ({mappedCount})
           </Button>
         </DialogFooter>
