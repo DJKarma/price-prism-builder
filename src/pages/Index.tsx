@@ -1,5 +1,3 @@
-// src/index.tsx
-
 import React, { useState, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Upload, FileSpreadsheet, LineChart, PieChart } from "lucide-react";
@@ -86,13 +84,8 @@ const Index = () => {
   /* when user changes / applies a new configuration */
   const handleConfigUpdate = useCallback(
     (cfg: any) => {
-      // merge incoming cfg onto whatever's already in the store
-      setPricingConfig(prev => ({
-        ...(prev || {}),
-        ...cfg,
-      }));
-      // force a remount of PricingSimulator so it picks up the new initialConfig
-      setForceUpdate(n => n + 1);
+      setPricingConfig(cfg);
+      setForceUpdate(p => p + 1);   // force re‑mount of PricingSimulator
     },
     [setPricingConfig],
   );
@@ -101,12 +94,10 @@ const Index = () => {
   const handleManualTab = (value: string) => {
     if (value !== "upload") {
       if (!csvData.length) {
-        toast.error("Please upload a file first");
-        return;
+        toast.error("Please upload a file first"); return;
       }
       if (value === "simulate" && !mappedData.length) {
-        toast.error("Please map your columns first");
-        return;
+        toast.error("Please map your columns first"); return;
       }
     }
     setTransitionDirection(value === "upload" ? "backward" : "forward");
@@ -139,9 +130,9 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3 mb-1">
             <PieChart className="w-8 h-8" />
-            Price Prism Builder
+            Price Prism Builder
           </h1>
-          <p className="opacity-90">Dynamic real-estate pricing simulation tool</p>
+          <p className="opacity-90">Dynamic real‑estate pricing simulation tool</p>
         </div>
       </header>
 
@@ -224,11 +215,11 @@ const Index = () => {
                       onClick={() => changeTab("map", "backward")}
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
-                      Back to Map Columns
+                      Back to Map Columns
                     </Button>
                   </div>
 
-                  {/* full-width summary (new internal grid handles layout) */}
+                  {/* full‑width summary (new internal grid handles layout) */}
                   <MegaOptimize
                     data={mappedData}
                     pricingConfig={pricingConfig}
@@ -257,13 +248,13 @@ const Index = () => {
           <div className="mb-4 md:mb-0">
             <h2 className="font-bold text-xl flex items-center gap-2">
               <PieChart className="w-5 h-5" />
-              Price Prism Builder
+              Price Prism Builder
             </h2>
-            <p className="text-sm opacity-75">Advanced real-estate pricing simulation</p>
+            <p className="text-sm opacity-75">Advanced real‑estate pricing simulation</p>
           </div>
           <div className="text-sm opacity-75">
-            © {new Date().getFullYear()} Price Prism Builder. All rights reserved. <br />
-            <span className="font-medium">Created by Dhananjay Shembe​kar</span>
+            © {new Date().getFullYear()} Price Prism Builder. All rights reserved. <br />
+            <span className="font-medium">Created by Dhananjay Shembe​kar</span>
           </div>
         </div>
       </footer>
