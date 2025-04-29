@@ -1,4 +1,3 @@
-
 // src/utils/psfOptimizer.ts
 
 export type PricingMode = "villa" | "apartment";
@@ -43,20 +42,13 @@ export const simulatePricing = (
     additional?: Record<string, string[]>;
   }
 ): any[] => {
-  // Check if data is undefined/null or config is missing required properties
-  if (!data || !Array.isArray(data) || data.length === 0) return [];
-  if (!config || !config.bedroomTypePricing || !config.viewPricing) {
-    console.error("Missing required configuration for pricing calculation");
-    return [];
-  }
-
   return data.map((unit) => {
     const sellArea = parseFloat(unit.sellArea) || 0;
     const acArea   = parseFloat(unit.acArea)   || 0;
 
-    // 1) Base PSF + view adjustment - add null checking to avoid "cannot read find of undefined"
-    const bt = (config.bedroomTypePricing || []).find((b) => b.type === unit.type);
-    const vp = (config.viewPricing || []).find((v) => v.view === unit.view);
+    // 1) Base PSF + view adjustment
+    const bt = config.bedroomTypePricing.find((b) => b.type === unit.type);
+    const vp = config.viewPricing.find((v) => v.view === unit.view);
     const basePsf           = bt?.basePsf       ?? 0;
     const viewPsfAdjustment = vp?.psfAdjustment ?? 0;
 
@@ -194,15 +186,6 @@ export const megaOptimizePsf = (
   types: string[] = [],
   mode: PricingMode = "apartment"
 ) => {
-  // Add safety check for config
-  if (!config || !config.bedroomTypePricing) {
-    return {
-      success: false,
-      optimizedParams: { bedroomAdjustments: {} },
-      message: "Invalid configuration"
-    };
-  }
-
   const bedroomAdjustments: Record<string, number> = {};
   types.forEach((type) => {
     const bt = config.bedroomTypePricing.find((b: any) => b.type === type);
@@ -225,15 +208,6 @@ export const fullOptimizePsf = (
   types: string[] = [],
   mode: PricingMode = "apartment"
 ) => {
-  // Add safety check for config
-  if (!config || !config.bedroomTypePricing || !config.viewPricing) {
-    return {
-      success: false,
-      optimizedParams: {},
-      message: "Invalid configuration"
-    };
-  }
-
   const base = megaOptimizePsf(data, config, targetPsf, types, mode);
   const viewAdjustments: Record<string, number> = {};
   (config.viewPricing || []).forEach(
@@ -260,9 +234,6 @@ export const calculateOverallAveragePsf = (
   config: any,
   mode: PricingMode = "apartment"
 ): number => {
-  // Add safety checks
-  if (!data || !Array.isArray(data) || data.length === 0 || !config) return 0;
-  
   const priced = simulatePricing(data, config, mode);
   const valid  = priced.filter(u => parseFloat(u.sellArea) > 0 && u.finalTotalPrice > 0);
   if (!valid.length) return 0;
@@ -279,9 +250,6 @@ export const calculateOverallAverageAcPsf = (
   config: any,
   mode: PricingMode = "apartment"
 ): number => {
-  // Add safety checks
-  if (!data || !Array.isArray(data) || data.length === 0 || !config) return 0;
-  
   const priced = simulatePricing(data, config, mode);
   const valid  = priced.filter(u => parseFloat(u.acArea) > 0 && u.finalTotalPrice > 0);
   if (!valid.length) return 0;
