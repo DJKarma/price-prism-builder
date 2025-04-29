@@ -19,8 +19,7 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
   pricingConfig,
   createSummaryData,
 }) => {
-  // Changed default to true as requested
-  const [includeConfig, setIncludeConfig] = useState<boolean>(true);
+  const [includeConfig, setIncludeConfig] = useState<boolean>(false);
 
   const exportCSV = async () => {
     if (!filteredUnits.length) {
@@ -91,11 +90,11 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
       return flatUnit;
     });
     
-    // Export the data with the current pricingConfig
+    // Export the data with the current pricingConfig (not default values)
     await exportToExcel(
       flattenedData, 
       includeConfig, 
-      pricingConfig,
+      pricingConfig,  // Use the current pricingConfig 
       summaryData
     );
   };

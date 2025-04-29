@@ -1,4 +1,3 @@
-
 /*  src/components/mega-optimize/useOptimizer.ts
     One‑shot optimiser that hits target SA‑ or AC‑PSF exactly.
 */
@@ -14,13 +13,10 @@ const overallAvg = (
   data: any[],
   config: any,
   metric: "sellArea" | "acArea"
-) => {
-  if (!data?.length || !config) return 0;
-  
-  return metric === "sellArea"
+) =>
+  metric === "sellArea"
     ? calculateOverallAveragePsf(data, config)
     : calculateOverallAverageAcPsf(data, config);
-};
 
 export const useOptimizer = (
   data: any[],
@@ -31,14 +27,19 @@ export const useOptimizer = (
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isOptimized, setIsOptimized] = useState(false);
 
-  const [currentOverallPsf, setCurrentOverallPsf] = useState(0);
-  const [currentOverallAcPsf, setCurrentOverallAcPsf] = useState(0);
+  const [currentOverallPsf, setCurrentOverallPsf] = useState(
+    calculateOverallAveragePsf(data, pricingConfig)
+  );
+  const [currentOverallAcPsf, setCurrentOverallAcPsf] = useState(
+    calculateOverallAverageAcPsf(data, pricingConfig)
+  );
 
-  const defaultTarget = pricingConfig?.targetOverallPsf ||
-    (pricingConfig?.bedroomTypePricing?.reduce(
+  const defaultTarget =
+    pricingConfig.targetOverallPsf ||
+    pricingConfig.bedroomTypePricing.reduce(
       (s: number, t: any) => s + t.targetAvgPsf,
       0
-    ) / (pricingConfig?.bedroomTypePricing?.length || 1)) || 1000;
+    ) / pricingConfig.bedroomTypePricing.length;
 
   const [targetPsf, setTargetPsf] = useState(defaultTarget);
   const [optimizationMode, setOptimizationMode] = useState<
@@ -47,11 +48,9 @@ export const useOptimizer = (
 
   /* keep current numbers in sync with latest config */
   useEffect(() => {
-    if (data?.length && pricingConfig) {
-      setCurrentOverallPsf(calculateOverallAveragePsf(data, pricingConfig));
-      setCurrentOverallAcPsf(calculateOverallAverageAcPsf(data, pricingConfig));
-      setIsOptimized(!!pricingConfig.isOptimized);
-    }
+    setCurrentOverallPsf(calculateOverallAveragePsf(data, pricingConfig));
+    setCurrentOverallAcPsf(calculateOverallAverageAcPsf(data, pricingConfig));
+    setIsOptimized(!!pricingConfig.isOptimized);
   }, [data, pricingConfig]);
 
   /* ------------- ONE‑STEP optimiser ------------- */
@@ -61,11 +60,6 @@ export const useOptimizer = (
   ) => {
     if (!selectedTypes.length) {
       toast.warning("Select at least one bedroom type");
-      return;
-    }
-
-    if (!data?.length || !pricingConfig) {
-      toast.error("No data or pricing configuration available");
       return;
     }
 
@@ -98,7 +92,7 @@ export const useOptimizer = (
       /* build new config */
       const newConfig = {
         ...pricingConfig,
-        bedroomTypePricing: (pricingConfig.bedroomTypePricing || []).map((bt: any) => {
+        bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => {
           if (!selectedTypes.includes(bt.type)) return bt;
           return {
             ...bt,
@@ -119,7 +113,7 @@ export const useOptimizer = (
       setIsOptimized(true);
 
       toast.success(
-        `Now at ${psfType === "sellArea" ? "SA" : "AC"} PSF ≈ ${targetPsf.toFixed(
+        `Now at ${psfType === "sellArea" ? "SA" : "AC"} PSF ≈ ${targetPsf.toFixed(
           2
         )}`
       );
@@ -133,11 +127,11 @@ export const useOptimizer = (
 
   /* ------------- revert ------------- */
   const revertOptimization = () => {
-    if (!pricingConfig?.isOptimized) return;
+    if (!pricingConfig.isOptimized) return;
 
     const reverted = {
       ...pricingConfig,
-      bedroomTypePricing: (pricingConfig.bedroomTypePricing || []).map((bt: any) => ({
+      bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => ({
         ...bt,
         basePsf: bt.originalBasePsf ?? bt.basePsf,
       })),
