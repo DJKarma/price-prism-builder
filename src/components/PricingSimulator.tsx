@@ -1,3 +1,4 @@
+
 // src/components/PricingSimulator.tsx
 
 import React, { useState, useEffect } from "react";
@@ -275,42 +276,44 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
               : "Pricing with Sellable + Balcony"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <PricingFilters
-            uniqueTypes={getUniqueValues("type")}
-            uniqueViews={getUniqueValues("view")}
-            uniqueFloors={getUniqueValues("floor")}
-            selectedTypes={selectedTypes}
-            setSelectedTypes={setSelectedTypes}
-            selectedViews={selectedViews}
-            setSelectedViews={setSelectedViews}
-            selectedFloors={selectedFloors}
-            setSelectedFloors={setSelectedFloors}
-            additionalColumns={additionalColumns}
-            getUniqueAdditionalValues={(col) =>
-              Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
-            }
-            selectedAdditionalFilters={selectedAdditionalFilters}
-            setSelectedAdditionalFilters={setSelectedAdditionalFilters}
-            resetFilters={resetFilters}
-            visibleColumns={visibleColumns}
-            allColumns={allColumns}
-            toggleColumnVisibility={toggleColumnVisibility}
-            resetColumnVisibility={resetColumnVisibility}
-          />
+        <CardContent className="relative">
+          <div className="space-y-4">
+            <PricingFilters
+              uniqueTypes={getUniqueValues("type")}
+              uniqueViews={getUniqueValues("view")}
+              uniqueFloors={getUniqueValues("floor")}
+              selectedTypes={selectedTypes}
+              setSelectedTypes={setSelectedTypes}
+              selectedViews={selectedViews}
+              setSelectedViews={setSelectedViews}
+              selectedFloors={selectedFloors}
+              setSelectedFloors={setSelectedFloors}
+              additionalColumns={additionalColumns}
+              getUniqueAdditionalValues={(col) =>
+                Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
+              }
+              selectedAdditionalFilters={selectedAdditionalFilters}
+              setSelectedAdditionalFilters={setSelectedAdditionalFilters}
+              resetFilters={resetFilters}
+              visibleColumns={visibleColumns}
+              allColumns={allColumns}
+              toggleColumnVisibility={toggleColumnVisibility}
+              resetColumnVisibility={resetColumnVisibility}
+            />
 
-          <PricingExportControls
-            filteredUnits={filteredUnits}
-            pricingConfig={pricingConfig}
-            createSummaryData={createSummaryData}
-          />
+            <PricingExportControls
+              filteredUnits={filteredUnits}
+              pricingConfig={pricingConfig}
+              createSummaryData={createSummaryData}
+            />
 
-          <PricingTable
-            filteredUnits={filteredUnits}
-            visibleColumns={visibleColumns}
-            additionalColumns={additionalColumns}
-            handleSort={handleSort}
-          />
+            <PricingTable
+              filteredUnits={filteredUnits}
+              visibleColumns={visibleColumns}
+              additionalColumns={additionalColumns}
+              handleSort={handleSort}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>
