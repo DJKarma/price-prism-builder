@@ -130,7 +130,7 @@ const Index = () => {
       {/* -------- header -------- */}
       <header className="gradient-bg py-8 text-white animate-fade-in">
         <div className="container mx-auto px-4">
-          <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3 mb-1">
+          <h1 className="text-3xl flex items-center gap-3 mb-1 md:text-4xl font-medium">
             <PieChart className="w-8 h-8" />
             Price Prism Builder
           </h1>
