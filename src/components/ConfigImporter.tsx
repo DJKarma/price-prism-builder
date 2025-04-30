@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { FileJson } from "lucide-react";
 import ConfigMappingDialog from "./ConfigMappingDialog";
-import { importConfig } from "@/utils/configIO";
+import { importConfig } from "@/utils/configUtils";
 
 interface ConfigImporterProps {
   onConfigImported: (config: any) => void;
