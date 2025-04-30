@@ -18,7 +18,6 @@ interface CSVUploaderProps {
   onDataParsed: (data: any[], headers: string[]) => void;
 }
 
-// Sample data definitions
 const APARTMENT_SAMPLE = [
   ["Unit", "Type", "Floor", "View", "Sell Area", "AC Area", "Balcony", "Param 1", "Param 2"],
   ["Unit 1","1 BR","1","Classic view","815","640","175","",""],
@@ -35,7 +34,7 @@ const VILLA_SAMPLE = [
 
 const renderSampleTable = (rows: string[][]) => (
   <div className="overflow-x-auto">
-    <table className="min-w-full table-auto border-separate border-spacing-0 text-sm">
+    <table className="min-w-full table-auto text-sm">
       <thead>
         <tr className="bg-indigo-100">
           {rows[0].map((h) => (
@@ -150,18 +149,8 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-indigo-700 animate-fade-in">
-          Prism Price Simulator
-        </h1>
-        <p className="mt-2 text-lg text-gray-600 animate-fade-in">
-          Real Estate Pricing tool
-        </p>
-      </div>
-
       {/* Upload Section */}
-      <div className="w-full max-w-lg mb-10 animate-fade-in transition-all duration-500">
+      <div className="w-full max-w-lg mb-10">
         <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
           <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-4 flex items-center gap-2">
             <Upload className="w-6 h-6" />
@@ -169,17 +158,19 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
           </div>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileUp className="w-12 h-12 text-indigo-300 mb-4 animate-pulse" />
-            <input
-              id="csv-upload"
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <label htmlFor="csv-upload">
-              <Button variant="ghost" className="border-dashed border-2 border-indigo-400 hover:border-indigo-600">
+            <label className="cursor-pointer">
+              <Button
+                variant="ghost"
+                className="border-dashed border-2 border-indigo-400 hover:border-indigo-600"
+              >
                 Browse CSV or Excel
               </Button>
+              <input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                className="hidden"
+                onChange={handleFileChange}
+              />
             </label>
             {file && (
               <div className="mt-4 flex items-center text-sm text-gray-700">
@@ -203,7 +194,7 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
       </div>
 
       {/* Sample Data Section */}
-      <div className="w-full max-w-4xl animate-fade-in transition-all duration-500">
+      <div className="w-full max-w-4xl">
         <Card className="shadow-md">
           <CardHeader className="bg-indigo-50">
             <CardTitle className="text-xl text-indigo-800">
@@ -231,7 +222,7 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
       </div>
 
       {/* Footer Credit */}
-      <div className="mt-12 text-sm text-gray-500 animate-fade-in">
+      <div className="mt-12 text-sm text-gray-500">
         Created by Dhananjay Shembekar
       </div>
     </div>
