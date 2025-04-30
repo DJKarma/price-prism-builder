@@ -100,7 +100,7 @@ const defaultVisibleColumns = [
   "psfAfterAllAdjustments",
   "acPrice",               // <-- you’ll add these two keys below
   "balconyPrice",
-  "flatAddTotal"
+  "flatAddTotal",
   "totalPriceRaw",             // “total Price (unc.)”
   "finalTotalPrice",
   "finalPsf",
