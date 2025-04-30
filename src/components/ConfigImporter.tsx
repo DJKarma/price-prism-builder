@@ -1,10 +1,10 @@
-
 // src/components/pricing-simulator/ConfigImporter.tsx
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { FileJson } from "lucide-react";
 import ConfigMappingDialog from "./ConfigMappingDialog";
+import { importConfig } from "@/utils/configIO";
 
 interface ConfigImporterProps {
   onConfigImported: (config: any) => void;
@@ -28,22 +28,16 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      if (
-        !parsed ||
-        typeof parsed !== "object" ||
-        !parsed.floorRiseRules ||
-        !parsed.bedroomTypePricing ||
-        !parsed.viewPricing
-      ) {
-        toast.error("Invalid configuration file");
-        return;
+      const { config, unmatched } = await importConfig(file);
+      if (unmatched.length) {
+        toast.warning(
+          `Ignored unknown fields: ${unmatched.join(", ")}`
+        );
       }
-      setImportedConfig(parsed);
+      setImportedConfig(config);
       setShowMappingDialog(true);
-    } catch {
-      toast.error("Failed to parse configuration");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to parse configuration");
     } finally {
       e.target.value = "";
     }
@@ -55,7 +49,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
     // 1) Deep copy your current config so we don't mutate it
     const merged = JSON.parse(JSON.stringify(currentConfig));
 
-    // 2) Bedroom types
+    // 2) Bedroom types mapping… (unchanged)
     if (
       merged.bedroomTypePricing &&
       importedConfig.bedroomTypePricing &&
@@ -68,16 +62,19 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
             (b: any) => b.type === mappedKey
           );
           if (imp) {
-            return { ...item, ...Object.fromEntries(
-              Object.entries(imp).filter(([k]) => k !== "type")
-            ) };
+            return {
+              ...item,
+              ...Object.fromEntries(
+                Object.entries(imp).filter(([k]) => k !== "type")
+              ),
+            };
           }
         }
         return item;
       });
     }
 
-    // 3) View pricing
+    // 3) View pricing mapping… (unchanged)
     if (
       merged.viewPricing &&
       importedConfig.viewPricing &&
@@ -97,7 +94,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
       });
     }
 
-    // 4) Additional categories
+    // 4) Additional categories mapping… (unchanged)
     if (
       Array.isArray(merged.additionalCategoryPricing) &&
       Array.isArray(importedConfig.additionalCategoryPricing) &&
@@ -122,32 +119,51 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
       );
     }
 
-    // 5) Scalars (basePsf, maxFloor, targetOverallPsf)
+    // 5) Scalars (basePsf, maxFloor, targetOverallPsf) mapping… (unchanged)
     if (mappings.scalarFields) {
-      // Fix TypeScript error by using proper type guard
       const scalarMappings = mappings.scalarFields as Record<string, string>;
       for (const [cur, impField] of Object.entries(scalarMappings)) {
-        if (impField && impField !== "no-match" && impField in importedConfig) {
-          // Adding type safety by ensuring impField is a valid key
-          const key = impField as keyof typeof importedConfig;
-          merged[cur] = importedConfig[key];
+        if (
+          impField &&
+          impField !== "no-match" &&
+          impField in importedConfig
+        ) {
+          merged[cur] = importedConfig[impField];
         }
       }
     }
 
-    // 6) FLOOR -- if user ticked any, replace *all* current rules with those imported
+    // 6) FLOOR -- replace current rules with chosen imported ones
     const toApply: string[] = mappings.floorRiseRulesApply || [];
     if (Array.isArray(toApply) && toApply.length > 0) {
-      merged.floorRiseRules = importedConfig.floorRiseRules.filter((rule: any) => {
-        const key = `${rule.startFloor}-${rule.endFloor == null
-          ? merged.maxFloor || rule.endFloor
-          : rule.endFloor
-        }`;
-        return toApply.includes(key);
-      });
+      merged.floorRiseRules = importedConfig.floorRiseRules.filter(
+        (rule: any) => {
+          const key = `${rule.startFloor}-${
+            rule.endFloor == null
+              ? merged.maxFloor || rule.endFloor
+              : rule.endFloor
+          }`;
+          return toApply.includes(key);
+        }
+      );
     }
 
-    // done!
+    // ── NEW ── 7) Balcony
+    if (mappings.importBalcony && importedConfig.balconyPricing) {
+      merged.balconyPricing = {
+        ...importedConfig.balconyPricing,
+      };
+    }
+
+    // ── NEW ── 8) Flat-price adders
+    if (
+      mappings.importFlatAdders &&
+      Array.isArray(importedConfig.flatPriceAdders)
+    ) {
+      merged.flatPriceAdders = importedConfig.flatPriceAdders;
+    }
+
+    // Done
     onConfigImported(merged);
     toast.success("Configuration imported successfully");
     setShowMappingDialog(false);
