@@ -104,8 +104,7 @@ export const simulatePricing = (
       // villa: always AC area only
       totalPriceRaw = psfAfterAllAdjustments * acArea;
     }
-        // 7) Raw price
-    const totalPriceRaw = psfAfterAllAdjustments * effectiveArea;
+    
 
     // ── NEW: split out AC vs Balcony components ──
     const acPrice      = psfAfterAllAdjustments * acArea;
@@ -152,6 +151,8 @@ export const simulatePricing = (
       balconyArea,
       balconyPercentage: sellArea ? (balconyArea / sellArea) * 100 : 0,
       balconyPricedArea,
+      acPrice,
+      balconyPrice,
       totalPriceRaw,
       flatAddTotal,
       finalTotalPrice,
