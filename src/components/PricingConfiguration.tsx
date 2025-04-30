@@ -124,9 +124,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   additionalCategories = [],
 }) => {
   // ───────────────────────── state ─────────────────────────
-  const [basePsf, setBasePsf] = useState<number>(
-    initialConfig?.basePsf ?? 1000
-  );
+
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>(
     initialConfig?.floorRiseRules?.map(r => ({ ...r })) || [
       { startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
@@ -164,13 +162,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   const valueMap = buildValueMap(data);
 
   // ─────────────────── handlers ───────────────────
-  const handleBasePsfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = parseFloat(e.target.value) || 0;
-    setBasePsf(v);
-    if (!initialConfig) {
-      setBedroomTypes(bs => bs.map(b => ({ ...b, basePsf: v, targetAvgPsf: v })));
-    }
-  };
+
 
   const handleBalconyChange = (f: keyof BalconyPricing, v: number) =>
     setBalconyPricing(p => ({ ...p, [f]: v }));
@@ -291,15 +283,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
             </CardDescription>
           </div>
           <div className="flex items-center space-x-2">
-            <Label htmlFor="base-psf" className="text-indigo-700">Base PSF:</Label>
-            <Input
-              id="base-psf"
-              type="number"
-              min={1}
-              value={basePsf}
-              onChange={handleBasePsfChange}
-              className="w-28 border-indigo-200"
-            />
+          
             <div className="flex items-center space-x-2 ml-4">
               <Checkbox 
                 id="has-balcony" 
