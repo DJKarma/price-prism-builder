@@ -1,3 +1,5 @@
+// src/components/pricing-simulator/PricingTable.tsx
+
 import React from "react";
 import { ArrowUpDown, Check } from "lucide-react";
 import { formatNumberWithCommas } from "./pricingUtils";
@@ -77,6 +79,9 @@ export default function PricingTable({
             {[
               "sellArea",
               "acArea",
+              // ── NEW HEADERS ──
+              "acPrice",
+              "balconyPrice",
               "balconyArea",
               "balconyPercentage",
             ].map((col) =>
@@ -87,9 +92,12 @@ export default function PricingTable({
                   className="px-2 py-1 text-right text-sm border-b border-gray-200 cursor-pointer whitespace-nowrap"
                 >
                   <div className="flex justify-end items-center">
-                    {col === "balconyPercentage"
-                      ? "Balcony %"
-                      : col.charAt(0).toUpperCase() + col.slice(1)}{" "}
+                    {{
+                      acPrice: "AC Component",
+                      balconyPrice: "Balcony Component",
+                      balconyPercentage: "Balcony %",
+                    }[col] ||
+                      (col.charAt(0).toUpperCase() + col.slice(1))}{" "}
                     <ArrowUpDown className="ml-1 h-4 w-4" />
                   </div>
                 </th>
@@ -139,7 +147,9 @@ export default function PricingTable({
                     >
                       {label}
                     </strong>
-                    {col !== "finalTotalPrice" && <ArrowUpDown className="ml-1 h-3 w-3" />}
+                    {col !== "finalTotalPrice" && (
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    )}
                   </div>
                 </th>
               );
@@ -164,22 +174,33 @@ export default function PricingTable({
                 } transition-colors`}
               >
                 {visibleColumns.includes("name") && (
-                  <td className="px-2 py-1 border-b border-gray-100">{unit.name}</td>
+                  <td className="px-2 py-1 border-b border-gray-100">
+                    {unit.name}
+                  </td>
                 )}
                 {visibleColumns.includes("type") && (
-                  <td className="px-2 py-1 border-b border-gray-100">{unit.type}</td>
+                  <td className="px-2 py-1 border-b border-gray-100">
+                    {unit.type}
+                  </td>
                 )}
                 {visibleColumns.includes("floor") && (
-                  <td className="px-2 py-1 border-b border-gray-100">{unit.floor}</td>
+                  <td className="px-2 py-1 border-b border-gray-100">
+                    {unit.floor}
+                  </td>
                 )}
                 {visibleColumns.includes("view") && (
-                  <td className="px-2 py-1 border-b border-gray-100">{unit.view}</td>
+                  <td className="px-2 py-1 border-b border-gray-100">
+                    {unit.view}
+                  </td>
                 )}
 
                 {/* RAW ADDITIONAL */}
                 {additionalColumns.map((col) =>
                   visibleColumns.includes(col) ? (
-                    <td key={col} className="px-2 py-1 border-b border-gray-100">
+                    <td
+                      key={col}
+                      className="px-2 py-1 border-b border-gray-100"
+                    >
                       {unit[`${col}_value`] ?? "–"}
                     </td>
                   ) : null
@@ -192,8 +213,9 @@ export default function PricingTable({
                       key={`${col}_premium`}
                       className="px-2 py-1 border-b border-gray-100 text-right"
                     >
-                      {unit.additionalCategoryPriceComponents?.[`${col}: ${unit[`${col}_value`]}`] ??
-                        0}
+                      {unit.additionalCategoryPriceComponents?.[
+                        `${col}: ${unit[`${col}_value`]}`
+                      ] ?? 0}
                     </td>
                   ) : null
                 )}
@@ -206,6 +228,21 @@ export default function PricingTable({
                 {visibleColumns.includes("acArea") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
                     {parseFloat(unit.acArea).toFixed(2)}
+                  </td>
+                )}
+                {/* ── NEW CELLS ── */}
+                {visibleColumns.includes("acPrice") && (
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                    {unit.acPrice.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                )}
+                {visibleColumns.includes("balconyPrice") && (
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                    {unit.balconyPrice.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
                   </td>
                 )}
                 {visibleColumns.includes("balconyArea") && (
@@ -245,12 +282,16 @@ export default function PricingTable({
                 )}
                 {visibleColumns.includes("flatAddTotal") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.flatAddTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {unit.flatAddTotal.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
                   </td>
                 )}
                 {visibleColumns.includes("totalPriceRaw") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.totalPriceRaw.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {unit.totalPriceRaw.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
                   </td>
                 )}
                 {visibleColumns.includes("finalTotalPrice") && (
@@ -270,7 +311,9 @@ export default function PricingTable({
                 )}
                 {visibleColumns.includes("isOptimized") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-center">
-                    {unit.isOptimized && <Check className="mx-auto h-5 w-5 text-green-600" />}
+                    {unit.isOptimized && (
+                      <Check className="mx-auto h-5 w-5 text-green-600" />
+                    )}
                   </td>
                 )}
               </tr>
