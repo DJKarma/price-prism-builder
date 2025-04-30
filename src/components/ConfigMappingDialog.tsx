@@ -1,4 +1,4 @@
-
+// src/components/pricing-simulator/ConfigMappingDialog.tsx
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -40,7 +40,7 @@ interface ConfigMappingDialogProps {
   currentConfig: any;
   importedConfig: any;
   onMappingComplete: (
-    mappings: Record<string, Record<string, string> | string[]>
+    mappings: Record<string, Record<string, string> | string[] | boolean>
   ) => void;
 }
 
@@ -68,29 +68,35 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
     },
     additionalCategories: {
       title: "Additional Categories",
-      description: "Match imported additional categories to your current categories",
+      description:
+        "Match imported additional categories to your current categories",
       currentFields: [],
       importedFields: [],
       mappings: {},
     },
     scalarFields: {
       title: "Basic Parameters",
-      description: "Match imported basic parameters to your current configuration",
+      description: "Match imported basic parameters to your current config",
       currentFields: [],
       importedFields: [],
       mappings: {},
     },
   });
 
-  // For floor-rise rules we'll keep a separate set of selected keys:
+  // Floor-rise rule checkboxes
   const [floorOptions, setFloorOptions] = useState<FieldOption[]>([]);
-  const [selectedFloorKeys, setSelectedFloorKeys] = useState<Set<string>>(new Set());
+  const [selectedFloorKeys, setSelectedFloorKeys] = useState<Set<string>>(
+    new Set()
+  );
+
+  // ── NEW: state for our two new toggles
+  const [importBalcony, setImportBalcony] = useState<boolean>(true);
+  const [importFlatAdders, setImportFlatAdders] = useState<boolean>(true);
 
   // build the sections plus floor options
   useEffect(() => {
     if (!isOpen) return;
 
-    // helper to format
     const makeOpts = (arr: any[], keyField: string, valField: string) =>
       arr.map((item) => ({
         key: item[keyField].toString(),
@@ -149,7 +155,10 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
     }));
 
     // auto-match helper
-    const initMapping = (curr: FieldOption[], imp: FieldOption[]) =>
+    const initMapping = (
+      curr: FieldOption[],
+      imp: FieldOption[]
+    ): Record<string, string> =>
       curr.reduce((m, f) => {
         const match = imp.find(
           (i) => i.key.toLowerCase() === f.key.toLowerCase()
@@ -158,7 +167,6 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
         return m;
       }, {} as Record<string, string>);
 
-    // set the bedroom/view/add/scalar sections
     setSections({
       bedroomTypes: {
         title: "Bedroom Types",
@@ -176,30 +184,39 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
       },
       additionalCategories: {
         title: "Additional Categories",
-        description: "Match imported additional categories to your current categories",
+        description:
+          "Match imported additional categories to your current categories",
         currentFields: currAdd,
         importedFields: impAdd,
         mappings: initMapping(currAdd, impAdd),
       },
       scalarFields: {
         title: "Basic Parameters",
-        description: "Match imported basic parameters to your current configuration",
+        description:
+          "Match imported basic parameters to your current configuration",
         currentFields: currScalar,
         importedFields: impScalar,
         mappings: initMapping(currScalar, impScalar),
       },
     });
 
-    // build floor-rise checkboxes
+    // floor-rise options
     const maxF = currentConfig.maxFloor ?? 999;
     const impFloors = (importedConfig.floorRiseRules || []).map((r: any) => ({
-      key: `${r.startFloor}-${r.endFloor == null ? maxF : r.endFloor}`,
-      displayValue: `+${r.psfIncrement} psf${r.jumpEveryFloor ? `, jump ${r.jumpIncrement} every ${r.jumpEveryFloor}` : ""
-        }`,
+      key: `${r.startFloor}-${
+        r.endFloor == null ? maxF : r.endFloor
+      }`,
+      displayValue: `+${r.psfIncrement} psf${
+        r.jumpEveryFloor
+          ? `, jump ${r.jumpIncrement} every ${r.jumpEveryFloor}`
+          : ""
+      }`,
     }));
     setFloorOptions(impFloors);
-    // reset selections
     setSelectedFloorKeys(new Set());
+    // reset toggles
+    setImportBalcony(true);
+    setImportFlatAdders(true);
   }, [isOpen, currentConfig, importedConfig]);
 
   const anyToMap =
@@ -215,7 +232,10 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
           (v) => v && v !== "no-match"
         ).length,
       0
-    ) + selectedFloorKeys.size;
+    ) +
+    selectedFloorKeys.size +
+    (importBalcony ? 1 : 0) +
+    (importFlatAdders ? 1 : 0);
 
   const handleValueChange = (
     sectionKey: string,
@@ -244,12 +264,13 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
   };
 
   const handleFinish = () => {
-    const out: Record<string, Record<string, string> | string[]> = {};
-    for (const k of Object.keys(sections)) {
+    const out: any = {};
+    Object.keys(sections).forEach((k) => {
       out[k] = sections[k].mappings;
-    }
-    // include the chosen floor-rise rules
+    });
     out.floorRiseRulesApply = Array.from(selectedFloorKeys);
+    out.importBalcony = importBalcony;
+    out.importFlatAdders = importFlatAdders;
     onMappingComplete(out);
     onClose();
   };
@@ -318,7 +339,11 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="No match" />
                           </SelectTrigger>
-                          <SelectContent position="popper" className="max-h-[300px]" side="top">
+                          <SelectContent
+                            position="popper"
+                            className="max-h-[300px]"
+                            side="top"
+                          >
                             <SelectItem value="no-match">No match</SelectItem>
                             {sec.importedFields.map((imp) => (
                               <SelectItem key={imp.key} value={imp.key}>
@@ -363,10 +388,34 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                     />
                     <div>
                       <span className="font-medium">{opt.key}</span>
-                      <span className="block text-xs text-gray-500">{opt.displayValue}</span>
+                      <span className="block text-xs text-gray-500">
+                        {opt.displayValue}
+                      </span>
                     </div>
                   </label>
                 ))}
+
+                {/* ── NEW: Balcony import toggle ── */}
+                <label className="flex items-center gap-2 cursor-pointer p-2 border border-gray-100 rounded-md hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="text-indigo-600 rounded"
+                    checked={importBalcony}
+                    onChange={() => setImportBalcony(!importBalcony)}
+                  />
+                  <span>Import Balcony Pricing</span>
+                </label>
+
+                {/* ── NEW: Flat-Adders import toggle ── */}
+                <label className="flex items-center gap-2 cursor-pointer p-2 border border-gray-100 rounded-md hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="text-indigo-600 rounded"
+                    checked={importFlatAdders}
+                    onChange={() => setImportFlatAdders(!importFlatAdders)}
+                  />
+                  <span>Import Flat-Price Adders</span>
+                </label>
               </div>
             </div>
           )}
