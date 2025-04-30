@@ -86,7 +86,7 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   //
   const defaultVisibleColumns = [
     "name","type","floor","view",
-    "sellArea","acArea",
+    "sellArea","acArea","acPrice","balconyPrice",
     "balconyArea","balconyPercentage",
     "basePsf","viewPsfAdjustment","floorAdjustment",
     "additionalAdjustment","psfAfterAllAdjustments",
@@ -196,6 +196,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
     { id: "view", label: "View", required: true },
     { id: "sellArea", label: "Sell Area", required: true },
     { id: "acArea", label: "AC Area", required: true },
+    { id: "acPrice",           label: "AC Component AED", required: false },
+    { id: "balconyPrice",      label: "Balcony Component AED", required: false },
     { id: "balconyArea", label: "Balcony", required: false },
     { id: "balconyPercentage", label: "Balcony %", required: false },
     { id: "basePsf", label: "Base PSF", required: false },
