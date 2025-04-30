@@ -1,4 +1,3 @@
-
 // src/utils/configIO.ts
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
@@ -13,9 +12,9 @@ interface BalconyPricing {
 
 /**
  * Export configuration to JSON
- * - Deep‑clones config
+ * - Deep-clones config
  * - Ensures balconyPricing + floorRiseRules are present (defaults if missing)
- * - Adds simple metadata for easier re‑imports
+ * - Adds simple metadata for easier re-imports
  */
 export function exportConfig(config: any): string {
   // Deep copy
@@ -40,6 +39,7 @@ export function exportConfig(config: any): string {
       ...Object.keys(cfg),
       "balconyPricing",
       "floorRiseRules",
+      "flatPriceAdders",
     ],
   };
 
@@ -102,8 +102,8 @@ export async function exportToExcel(
  * Import a JSON config file.
  * — parses
  * — validates required fields (including balconyPricing + floorRiseRules)
- * — lower‑cases keys for case‑insensitive match
- * — fills missing balconyPricing with zeros
+ * — lower-cases keys for case-insensitive match
+ * — fills missing balconyPricing + flatPriceAdders with defaults
  */
 export async function importConfig(
   file: File
@@ -120,7 +120,7 @@ export async function importConfig(
           throw new Error("Invalid file format");
         }
 
-        // Required top‑level
+        // Required top-level
         const need = [
           "basePsf",
           "bedroomTypePricing",
@@ -139,21 +139,27 @@ export async function importConfig(
         imp.floorRiseRules = Array.isArray(imp.floorRiseRules)
           ? imp.floorRiseRules
           : [];
-        
-        // Ensure balconyPricing has the correct shape with proper type casting
+
+        // Ensure balconyPricing has the correct shape
         const balconyPricing = imp.balconyPricing as BalconyPricing | undefined;
         imp.balconyPricing = {
           fullAreaPct: balconyPricing?.fullAreaPct ?? 0,
           remainderRate: balconyPricing?.remainderRate ?? 0,
         };
 
-        // Known keys (case‑insensitive)
-        const known = new Set([
+        // ── NEW: ensure flatPriceAdders always exists ──
+        imp.flatPriceAdders = Array.isArray(imp.flatPriceAdders)
+          ? imp.flatPriceAdders
+          : [];
+
+        // Known keys (case-insensitive)
+        const known = new Set<string>([
           ...need,
           "targetOverallPsf",
           "additionalCategoryPricing",
           "optimizedTypes",
           "isOptimized",
+          "flatPriceAdders",               // ← include here
         ]);
 
         // Filter out metadata + unknown
@@ -193,7 +199,7 @@ export function mergeConfigSelectively(
   const unmatched: string[] = [];
   const skip = new Set(["_metadata"]);
 
-  // Top‑level
+  // Top-level
   Object.entries(incoming).forEach(([k, v]) => {
     if (skip.has(k)) return;
     if (!(k in current)) {
@@ -203,11 +209,23 @@ export function mergeConfigSelectively(
 
     // Special: balconyPricing
     if (k === "balconyPricing" && typeof v === "object" && v !== null) {
-      const balconyPricing = v as BalconyPricing;
+      const bp = v as BalconyPricing;
       merged.balconyPricing = {
-        fullAreaPct: balconyPricing.fullAreaPct ?? current.balconyPricing?.fullAreaPct ?? 0,
-        remainderRate: balconyPricing.remainderRate ?? current.balconyPricing?.remainderRate ?? 0,
+        fullAreaPct:
+          bp.fullAreaPct ?? current.balconyPricing?.fullAreaPct ?? 0,
+        remainderRate:
+          bp.remainderRate ?? current.balconyPricing?.remainderRate ?? 0,
       };
+      return;
+    }
+
+    // ── NEW: flatPriceAdders ──
+    if (k === "flatPriceAdders" && Array.isArray(v)) {
+      merged.flatPriceAdders = v.map((a: any) => ({
+        units: a.units ?? [],
+        columns: a.columns ?? {},
+        amount: a.amount ?? 0,
+      }));
       return;
     }
 
