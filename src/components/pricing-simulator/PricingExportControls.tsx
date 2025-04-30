@@ -1,9 +1,7 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { exportToExcel } from "@/utils/configUtils";
 import { UnitWithPricing } from '../PricingSimulator';
@@ -19,8 +17,6 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
   pricingConfig,
   createSummaryData,
 }) => {
-  const [includeConfig, setIncludeConfig] = useState<boolean>(false);
-
   const exportCSV = async () => {
     if (!filteredUnits.length) {
       toast.error("No data to export");
@@ -97,28 +93,17 @@ const allColumns = [
       return flatUnit;
     });
     
-    // Export the data with the current pricingConfig (not default values)
+    // Export the data with the current pricingConfig
     await exportToExcel(
       flattenedData, 
-      includeConfig, 
-      pricingConfig,  // Use the current pricingConfig 
+      false, // Always export without config
+      pricingConfig,
       summaryData
     );
   };
   
   return (
     <div className="flex justify-end mb-4">
-      <div className="flex items-center space-x-2 border border-gray-200 rounded-md px-2 py-1 mr-2">
-        <Switch
-          id="include-config"
-          checked={includeConfig}
-          onCheckedChange={setIncludeConfig}
-        />
-        <Label htmlFor="include-config" className="text-xs">
-          Include config
-        </Label>
-      </div>
-      
       <Button 
         variant="outline" 
         size="sm"
