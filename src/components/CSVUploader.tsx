@@ -1,6 +1,6 @@
 // src/components/CSVUploader.tsx
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Card,
   CardHeader,
@@ -71,6 +71,7 @@ const renderSampleTable = (rows: string[][]) => (
 const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
@@ -158,20 +159,20 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
           </div>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileUp className="w-12 h-12 text-indigo-300 mb-4 animate-pulse" />
-            <label className="cursor-pointer">
-              <Button
-                variant="ghost"
-                className="border-dashed border-2 border-indigo-400 hover:border-indigo-600"
-              >
-                Browse CSV or Excel
-              </Button>
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button
+              variant="ghost"
+              className="border-dashed border-2 border-indigo-400 hover:border-indigo-600"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Browse CSV or Excel
+            </Button>
             {file && (
               <div className="mt-4 flex items-center text-sm text-gray-700">
                 <Check className="w-4 h-4 text-green-500 mr-2" />
