@@ -19,7 +19,7 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
   pricingConfig,
   createSummaryData,
 }) => {
-  const [includeConfig, setIncludeConfig] = useState<boolean>(true);
+  const [includeConfig, setIncludeConfig] = useState<boolean>(false);
 
   const exportCSV = async () => {
     if (!filteredUnits.length) {
@@ -36,29 +36,30 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
       const flatUnit: Record<string, any> = {};
       
       // Add basic fields
-      const allColumns = [
-        { id: "name",                 label: "Name" },
-        { id: "type",                 label: "Type" },
-        { id: "floor",                label: "Floor" },
-        { id: "view",                 label: "View" },
-        { id: "sellArea",             label: "Sell Area" },
-        { id: "acArea",               label: "AC Area" },
-        { id: "balconyArea",          label: "Balcony Area" },
-        { id: "balconyPercentage",    label: "Balcony %" },
-        { id: "basePsf",              label: "Base PSF" },
-        { id: "viewPsfAdjustment",    label: "View PSF Adjustment" },
-        { id: "floorAdjustment",      label: "Floor PSF Adjustment" },
-        { id: "additionalAdjustment", label: "Add-Cat Premium (Position, Pool, Furniture)" },
-        { id: "psfAfterAllAdjustments", label: "PSF After All Adjustments" },
-        { id: "acPrice",          label: "AC Component" },
-        { id: "balconyPrice",     label: "Balcony Component" },
-        { id: "totalPriceRaw",        label: "Total Price (unc.)" },
-        { id: "flatAddTotal",             label: "Flat Adders", },
-        { id: "finalTotalPrice",      label: "Final Total Price" },
-        { id: "finalPsf",             label: "Final PSF" },
-        { id: "finalAcPsf",           label: "Final AC PSF" },
-        { id: "isOptimized",          label: "Optimized" },
-      ];
+const allColumns = [
+  { id: "name",                 label: "Name" },
+  { id: "type",                 label: "Type" },
+  { id: "floor",                label: "Floor" },
+  { id: "view",                 label: "View" },
+  { id: "sellArea",             label: "Sell Area" },
+  { id: "acArea",               label: "AC Area" },
+  { id: "balconyArea",          label: "Balcony Area" },
+  { id: "balconyPercentage",    label: "Balcony %" },
+  { id: "basePsf",              label: "Base PSF" },
+  { id: "viewPsfAdjustment",    label: "View PSF Adjustment" },
+  { id: "floorAdjustment",      label: "Floor PSF Adjustment" },
+  { id: "additionalAdjustment", label: "Add-Cat Premium (Position, Pool, Furniture)" },
+  { id: "psfAfterAllAdjustments", label: "PSF After All Adjustments" },
+  { id: "acPrice",          label: "AC Component" },
+  { id: "balconyPrice",     label: "Balcony Component" },
+  { id: "totalPriceRaw",        label: "Total Price (unc.)" },
+  { id: "flatAddTotal",             label: "Flat Adders", },
+  { id: "finalTotalPrice",      label: "Final Total Price" },
+  { id: "finalPsf",             label: "Final PSF" },
+  { id: "finalAcPsf",           label: "Final AC PSF" },
+  { id: "isOptimized",          label: "Optimized" },
+];
+
       
       allColumns.forEach(col => {
         if (col.id in unit) {
@@ -112,7 +113,6 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
           id="include-config"
           checked={includeConfig}
           onCheckedChange={setIncludeConfig}
-          defaultChecked={true}
         />
         <Label htmlFor="include-config" className="text-xs">
           Include config

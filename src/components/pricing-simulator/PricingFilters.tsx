@@ -60,6 +60,8 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
   toggleColumnVisibility,
   resetColumnVisibility,
 }) => {
+  const [includeConfig, setIncludeConfig] = useState<boolean>(true);
+  
   const createOptions = (values: string[]): SelectOption[] =>
     values.map(v => ({ label: v, value: v }));
 
@@ -144,53 +146,67 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
         </div>
 
         <div className="lg:col-span-4 flex flex-col justify-end">
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetFilters}
-              className="h-8"
-            >
-              <RotateCcw className="h-3.5 w-3.5 mr-1" />
-              Reset
-            </Button>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-config"
+                checked={includeConfig}
+                onCheckedChange={(checked) => setIncludeConfig(!!checked)} 
+                defaultChecked
+              />
+              <Label htmlFor="include-config" className="text-sm">
+                Include config
+              </Label>
+            </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8">
-                  <Settings className="h-3.5 w-3.5 mr-1" />
-                  Columns
-                </Button>
-              </DropdownMenuTrigger>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetFilters}
+                className="h-8"
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                Reset
+              </Button>
 
-              <DropdownMenuContent className="w-56 max-h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-300" align="end">
-                <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-
-                {allColumns.map((column) => (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    checked={visibleColumns.includes(column.id)}
-                    onCheckedChange={() => toggleColumnVisibility(column.id)}
-                    disabled={column.required && visibleColumns.includes(column.id)}
-                  >
-                    {column.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-
-                <DropdownMenuSeparator />
-                <div className="px-2 py-1.5">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={resetColumnVisibility}
-                  >
-                    Reset to Default
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8">
+                    <Settings className="h-3.5 w-3.5 mr-1" />
+                    Columns
                   </Button>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent className="w-56 max-h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-300" align="end">
+                  <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+
+                  {allColumns.map((column) => (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      checked={visibleColumns.includes(column.id)}
+                      onCheckedChange={() => toggleColumnVisibility(column.id)}
+                      disabled={column.required && visibleColumns.includes(column.id)}
+                    >
+                      {column.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={resetColumnVisibility}
+                    >
+                      Reset to Default
+                    </Button>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </div>
