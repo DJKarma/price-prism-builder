@@ -104,8 +104,14 @@ export const simulatePricing = (
       // villa: always AC area only
       totalPriceRaw = psfAfterAllAdjustments * acArea;
     }
+        // 7) Raw price
+    const totalPriceRaw = psfAfterAllAdjustments * effectiveArea;
 
-    // 7) Flat‐price adders (must match ALL specified criteria)
+    // ── NEW: split out AC vs Balcony components ──
+    const acPrice      = psfAfterAllAdjustments * acArea;
+    const balconyPrice = psfAfterAllAdjustments * balconyPricedArea;
+
+    // 8) Flat‐price adders …
     let flatAddTotal = 0;
     (config.flatPriceAdders || []).forEach((adder) => {
       // name‐match (or empty = match all)
