@@ -1,44 +1,85 @@
+// src/components/CSVUploader.tsx
+
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Upload, FileUp, Check } from "lucide-react";
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Upload, FileUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { motion } from "framer-motion";
 
 interface CSVUploaderProps {
   onDataParsed: (data: any[], headers: string[]) => void;
 }
 
-const sampleDataApartment = [
+const APARTMENT_SAMPLE = [
   ["Unit", "Type", "Floor", "View", "Sell Area", "AC Area", "Balcony", "Additional Parameter 1", "Additional Parameter 2"],
   ["Unit 1", "1 BR", "1", "Classic view", "815", "640", "175", "", ""],
-  ["Unit 2", "2 BR", "2", "Sea View", "1075", "45", "1030", "", ""],
-  ["Unit 3", "3 BR", "20", "Premium View", "1800", "1500", "300", "", ""],
+  ["Unit 2", "2 BR", "2", "Sea View",    "1075", "45",  "1030", "", ""],
+  ["Unit 3", "3 BR", "20","Premium View","1800","1500","300",   "", ""],
 ];
 
-const sampleDataVilla = [
-  ["Unit", "Type", "Floor", "Pool", "Total Area", "Inside/Suite Area", "Balcony Size", "Furnished?", "Additional Parameter 1", "Additional Parameter 2"],
-  ["Villa 1", "1 BR", "1", "No", "1800", "1500", "300", "Yes", "", ""],
-  ["Townhouse 1", "2 BR", "2", "Yes", "2000", "1800", "200", "No", "", ""],
-  ["Townhouse 2", "3 BR Dup", "20", "No", "3000", "2500", "500", "Yes", "", ""],
+const VILLA_SAMPLE = [
+  ["Unit",       "Type",    "Floor", "Pool", "Total Area","Inside/Suite Area","Balcony Size","Furnished?","Additional Parameter 1","Additional Parameter 2"],
+  ["Villa 1",    "1 BR",    "1",     "No",   "1800",     "1500",            "300",       "Yes",     "",                      ""],
+  ["Townhouse 1","2 BR",    "2",     "Yes",  "2000",     "1800",            "200",       "No",      "",                      ""],
+  ["Townhouse 2","3 BR Dup","20",    "No",   "3000",     "2500",            "500",       "Yes",     "",                      ""],
 ];
+
+const renderTable = (rows: string[][]) => (
+  <table className="min-w-full border-collapse">
+    <thead>
+      <tr className="bg-indigo-100">
+        {rows[0].map((h) => (
+          <th
+            key={h}
+            className="px-2 py-1 text-left text-sm font-semibold text-indigo-700 border border-indigo-200"
+          >
+            {h}
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {rows.slice(1).map((r, i) => (
+        <tr
+          key={i}
+          className={i % 2 === 0 ? "bg-white" : "bg-indigo-50"}
+        >
+          {r.map((c, j) => (
+            <td
+              key={j}
+              className="px-2 py-1 text-xs text-gray-700 border border-indigo-200"
+            >
+              {c || "—"}
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+);
 
 const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] || null;
+    const f = e.target.files?.[0] ?? null;
     if (
       f &&
-      !["text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"].includes(f.type)
+      ![
+        "text/csv",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+      ].includes(f.type)
     ) {
       toast.error("Please upload a CSV or Excel file");
       return;
@@ -53,142 +94,162 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
     }
     setIsUploading(true);
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = (e) => {
       try {
-        const content = e.target?.result;
         let data: any[] = [];
         let headers: string[] = [];
-        if (file.name.endsWith('.csv')) {
-          const text = content as string;
-          const rows = text.split('\n');
-          headers = rows[0].split(',').map(h => h.trim());
-          for (let i = 1; i < rows.length; i++) {
-            if (!rows[i].trim()) continue;
-            const vals = rows[i].split(',').map(v => v.trim());
-            const obj: Record<string,string> = {};
-            headers.forEach((h, idx) => obj[h] = vals[idx] || '');
-            data.push(obj);
+        const content = e.target?.result as string;
+        if (file.name.endsWith(".csv")) {
+          const lines = content.split("\n").filter((l) => l.trim());
+          headers = lines[0].split(",").map((h) => h.trim());
+          for (let i = 1; i < lines.length; i++) {
+            const vals = lines[i].split(",").map((v) => v.trim());
+            const row: Record<string, any> = {};
+            headers.forEach((h, idx) => (row[h] = vals[idx] ?? ""));
+            data.push(row);
           }
         } else {
-          const wb = XLSX.read(content, { type: 'binary' });
+          const wb = XLSX.read(content, { type: "binary" });
           const ws = wb.Sheets[wb.SheetNames[0]];
-          const arr = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[];
+          const arr = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 });
           if (arr.length) {
-            headers = arr[0].map(String);
+            headers = arr[0].map((h) => String(h).trim());
             for (let i = 1; i < arr.length; i++) {
-              const row = arr[i] as any[];
-              if (!row.length) continue;
-              const obj: Record<string,string> = {};
-              row.forEach((v, idx) => {
-                if (idx < headers.length) obj[headers[idx]] = String(v ?? '').trim();
+              if (!arr[i] || !arr[i].length) continue;
+              const row: Record<string, any> = {};
+              arr[i].forEach((v, idx) => {
+                if (idx < headers.length) row[headers[idx]] = v ?? "";
               });
-              data.push(obj);
+              data.push(row);
             }
           }
         }
         onDataParsed(data, headers);
-        toast.success(`${file.name} parsed successfully`);
+        toast.success(`${file.name} parsed successfully!`);
       } catch (err) {
         console.error(err);
-        toast.error('Parsing error. Please check file format.');
+        toast.error("Error parsing file");
       } finally {
         setIsUploading(false);
       }
     };
     reader.onerror = () => {
-      toast.error('File read error');
+      toast.error("Error reading file");
       setIsUploading(false);
     };
-    file.name.endsWith('.csv') ? reader.readAsText(file) : reader.readAsBinaryString(file);
+    file.name.endsWith(".csv")
+      ? reader.readAsText(file)
+      : reader.readAsBinaryString(file);
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 space-y-6 animate-fade-in">
-      <h1 className="text-3xl font-bold text-indigo-800">Prism Price Simulator</h1>
-      <p className="text-gray-600">Real Estate Pricing tool</p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-8">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="text-center mb-8"
+      >
+        <h1 className="text-4xl font-bold text-indigo-700">
+          Prism Price Simulator
+        </h1>
+        <p className="mt-2 text-lg text-gray-600">
+          Real Estate Pricing tool
+        </p>
+      </motion.div>
 
-      <Card className="w-full max-w-3xl shadow-lg">
-        <CardHeader>
-          <CardTitle>Sample Data Formats</CardTitle>
-          <CardDescription>Use these templates to format your upload</CardDescription>
+      {/* Sample Data Formats */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.5 }}
+        className="w-full max-w-4xl bg-white shadow-md rounded-lg overflow-hidden"
+      >
+        <CardHeader className="bg-indigo-50">
+          <CardTitle className="text-xl text-indigo-800">
+            Sample Data Formats
+          </CardTitle>
+          <CardDescription className="px-6 pb-4 text-gray-600">
+            Use one of these templates to format your upload
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 overflow-auto">
+        <CardContent className="px-6 pb-6 space-y-6">
           <div>
-            <h4 className="font-semibold">Apartment / Tower</h4>
-            <table className="w-full text-sm table-auto border-collapse border border-gray-300">
-              <thead className="bg-gray-100">
-                <tr>{sampleDataApartment[0].map(h => (<th key={h} className="border px-2 py-1">{h}</th>))}</tr>
-              </thead>
-              <tbody>
-                {sampleDataApartment.slice(1).map((row,i) => (
-                  <tr key={i} className={i%2 ? 'bg-white':'bg-gray-50'}>
-                    {row.map((cell,j)=>(
-                      <td key={j} className="border px-2 py-1">{cell}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <h3 className="font-semibold text-indigo-700 mb-2">
+              Apartment / Tower
+            </h3>
+            {renderTable(APARTMENT_SAMPLE)}
           </div>
           <div>
-            <h4 className="font-semibold">Villa / Townhouse</h4>
-            <table className="w-full text-sm table-auto border-collapse border border-gray-300">
-              <thead className="bg-gray-100">
-                <tr>{sampleDataVilla[0].map(h => (<th key={h} className="border px-2 py-1">{h}</th>))}</tr>
-              </thead>
-              <tbody>
-                {sampleDataVilla.slice(1).map((row,i) => (
-                  <tr key={i} className={i%2 ? 'bg-white':'bg-gray-50'}>
-                    {row.map((cell,j)=>(
-                      <td key={j} className="border px-2 py-1">{cell}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <h3 className="font-semibold text-indigo-700 mb-2">
+              Villa / Townhouse
+            </h3>
+            {renderTable(VILLA_SAMPLE)}
           </div>
         </CardContent>
-      </Card>
+      </motion.div>
 
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Upload className="text-indigo-600" />
-            <CardTitle>Upload Your File</CardTitle>
-          </div>
-          <CardDescription>Select CSV or Excel</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-8 space-y-3">
-            <FileUp className="h-10 w-10 text-gray-400 animate-pulse" />
-            <p className="text-gray-500">Drag & drop, or browse to upload</p>
+      {/* Upload Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.5 }}
+        className="w-full max-w-lg mt-10"
+      >
+        <Card className="border-2 border-dashed border-indigo-200 hover:border-indigo-300 transition-colors">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-indigo-700">
+              <Upload className="w-5 h-5" /> Upload Your File
+            </CardTitle>
+            <CardDescription>
+              Drag &amp; drop a CSV or Excel file, or click to browse
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <FileUp className="w-12 h-12 text-gray-300 mb-4 animate-pulse" />
             <input
+              id="csv-upload"
               type="file"
               accept=".csv,.xlsx,.xls"
               className="hidden"
-              id="file-input"
               onChange={handleFileChange}
             />
-            <label htmlFor="file-input" className="px-4 py-2 bg-indigo-600 text-white rounded cursor-pointer hover:bg-indigo-700 transition">
-              Browse Files
+            <label htmlFor="csv-upload">
+              <Button variant="outline">Browse Files</Button>
             </label>
+
             {file && (
-              <div className="flex items-center gap-2 text-sm text-green-600">
-                <Check /> {file.name}
+              <div className="mt-4 flex items-center text-sm text-gray-700">
+                <Check className="w-4 h-4 text-green-500 mr-2" />
+                <span>
+                  {file.name} &mdash; {(file.size / 1024).toFixed(1)} KB
+                </span>
               </div>
             )}
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button onClick={handleUpload} disabled={!file || isUploading}>
-            {isUploading ? 'Processing...' : 'Upload & Parse'}
-          </Button>
-        </CardFooter>
-      </Card>
+          </CardContent>
 
-      <footer className="text-gray-500 text-xs mt-4">
+          <CardFooter className="flex justify-end">
+            <Button
+              onClick={handleUpload}
+              disabled={!file || isUploading}
+            >
+              {isUploading ? "Processing…" : "Upload & Parse"}
+            </Button>
+          </CardFooter>
+        </Card>
+      </motion.div>
+
+      {/* Footer Credit */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+        className="mt-12 text-sm text-gray-500"
+      >
         Created by Dhananjay Shembekar
-      </footer>
+      </motion.div>
     </div>
   );
 };
