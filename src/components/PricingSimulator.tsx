@@ -98,8 +98,8 @@ const defaultVisibleColumns = [
   "floorAdjustment",
   "additionalAdjustment",      // “Add-Cat Premium (…)"
   "psfAfterAllAdjustments",
-  "acComponent",               // <-- you’ll add these two keys below
-  "balconyComponent",
+  "acPrice",               // <-- you’ll add these two keys below
+  "balconyPrice",
   "totalPriceRaw",             // “total Price (unc.)”
   "finalTotalPrice",
   "finalPsf",
@@ -219,8 +219,8 @@ const allColumns = [
                                          ", "
                                        )})`,                    required: false },
   { id: "psfAfterAllAdjustments",   label: "PSF After All Adjustments",               required: false },
-  { id: "acComponent",              label: "AC Component",                             required: false },
-  { id: "balconyComponent",         label: "Balcony Component",                        required: false },
+  { id: "acPrice",              label: "AC Component",                             required: false },
+  { id: "balconyPrice",         label: "Balcony Component",                        required: false },
   { id: "totalPriceRaw",            label: "Total Price (unc.)",                      required: false },
   { id: "finalTotalPrice",          label: "Final Total Price",                        required: true  },
   { id: "finalPsf",                 label: "Final PSF",                                required: true  },

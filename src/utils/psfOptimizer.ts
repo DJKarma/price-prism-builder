@@ -107,6 +107,7 @@ export const simulatePricing = (
     
 
     // ── NEW: split out AC vs Balcony components ──
+   
     const acPrice      = psfAfterAllAdjustments * acArea;
     const balconyPrice = psfAfterAllAdjustments * balconyPricedArea;
 
