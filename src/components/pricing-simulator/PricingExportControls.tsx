@@ -53,6 +53,7 @@ const allColumns = [
   { id: "acPrice",          label: "AC Component" },
   { id: "balconyPrice",     label: "Balcony Component" },
   { id: "totalPriceRaw",        label: "Total Price (unc.)" },
+  { id: "flatAddTotal",             label: "Flat Adders", },
   { id: "finalTotalPrice",      label: "Final Total Price" },
   { id: "finalPsf",             label: "Final PSF" },
   { id: "finalAcPsf",           label: "Final AC PSF" },
