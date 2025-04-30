@@ -100,6 +100,7 @@ const defaultVisibleColumns = [
   "psfAfterAllAdjustments",
   "acPrice",               // <-- you’ll add these two keys below
   "balconyPrice",
+  "flatAddTotal"
   "totalPriceRaw",             // “total Price (unc.)”
   "finalTotalPrice",
   "finalPsf",
@@ -221,6 +222,7 @@ const allColumns = [
   { id: "psfAfterAllAdjustments",   label: "PSF After All Adjustments",               required: false },
   { id: "acPrice",              label: "AC Component",                             required: false },
   { id: "balconyPrice",         label: "Balcony Component",                        required: false },
+  { id: "flatAddTotal",             label: "Flat Adders",            required: false },
   { id: "totalPriceRaw",            label: "Total Price (unc.)",                      required: false },
   { id: "finalTotalPrice",          label: "Final Total Price",                        required: true  },
   { id: "finalPsf",                 label: "Final PSF",                                required: true  },
