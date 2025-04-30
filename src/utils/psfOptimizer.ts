@@ -78,6 +78,7 @@ export const simulatePricing = (
     const { fullAreaPct = 0, remainderRate = 0 } = config.balconyPricing || {};
     const fullPct = fullAreaPct / 100;
     const remPct  = remainderRate / 100;
+    // priceable portion of balcony
     const balconyPricedArea =
       mode === "apartment"
         ? balconyArea * fullPct + balconyArea * (1 - fullPct) * remPct
@@ -87,42 +88,48 @@ export const simulatePricing = (
     const psfAfterAllAdjustments =
       basePsf + viewPsfAdjustment + floorAdjustment + additionalAdjustment;
 
-    // 6) Effective area
-    const effectiveArea =
-      mode === "villa"
-        ? acArea
-        : acArea + balconyPricedArea;
+    // 6) Raw price (two‐mode apartment vs. villa)
+    let totalPriceRaw: number;
+    if (mode === "apartment") {
+      if (balconyArea > 0) {
+        // split AC vs. balcony
+        const acPrice       = psfAfterAllAdjustments * acArea;
+        const balconyPrice  = psfAfterAllAdjustments * balconyPricedArea;
+        totalPriceRaw = acPrice + balconyPrice;
+      } else {
+        // no balcony → price whole sellable area
+        totalPriceRaw = psfAfterAllAdjustments * sellArea;
+      }
+    } else {
+      // villa: always AC area only
+      totalPriceRaw = psfAfterAllAdjustments * acArea;
+    }
 
-    // 7) Raw price
-    const totalPriceRaw = psfAfterAllAdjustments * effectiveArea;
-
-    // 8) Flat‐price adders (AND: must match ALL specified criteria)
+    // 7) Flat‐price adders (must match ALL specified criteria)
     let flatAddTotal = 0;
     (config.flatPriceAdders || []).forEach((adder) => {
-      // 8a) unit‐name match?
+      // name‐match (or empty = match all)
       const unitsMatch = !adder.units || adder.units.length === 0
         ? true
         : adder.units.includes(unit.name);
-
-      // 8b) column‐filters match?  ▼ **NEW**: first try unit["col_value"], then unit[col]
+      // column‐match (or unset = match all)
       const colsMatch = !adder.columns
         ? true
         : Object.entries(adder.columns).every(([col, vals]) => {
             const rawVal = unit[`${col}_value`];
-            const val = rawVal != null ? rawVal : unit[col];
-            return vals.includes(val?.toString() ?? "");
+            const v       = rawVal != null ? rawVal : unit[col];
+            return vals.includes(v?.toString() ?? "");
           });
-
       if (unitsMatch && colsMatch) {
         flatAddTotal += adder.amount;
       }
     });
     const priceWithFlat = totalPriceRaw + flatAddTotal;
 
-    // 9) Round up to nearest 1,000 AED
+    // 8) Round up to nearest 1,000 AED
     const finalTotalPrice = Math.ceil(priceWithFlat / 1000) * 1000;
 
-    // 10) Final PSF metrics
+    // 9) Final PSF metrics
     const finalPsf   =
       mode === "villa"
         ? acArea   ? finalTotalPrice / acArea   : 0
