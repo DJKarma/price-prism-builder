@@ -13,24 +13,24 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { motion } from "framer-motion";
 
 interface CSVUploaderProps {
   onDataParsed: (data: any[], headers: string[]) => void;
 }
 
+// sample data tables
 const APARTMENT_SAMPLE = [
-  ["Unit", "Type", "Floor", "View", "Sell Area", "AC Area", "Balcony", "Additional Parameter 1", "Additional Parameter 2"],
-  ["Unit 1", "1 BR", "1", "Classic view", "815", "640", "175", "", ""],
-  ["Unit 2", "2 BR", "2", "Sea View",    "1075", "45",  "1030", "", ""],
-  ["Unit 3", "3 BR", "20","Premium View","1800","1500","300",   "", ""],
+  ["Unit", "Type", "Floor", "View", "Sell Area", "AC Area", "Balcony", "Additional Param 1", "Additional Param 2"],
+  ["Unit 1","1 BR","1","Classic view","815","640","175","",""],
+  ["Unit 2","2 BR","2","Sea View","1075","45","1030","",""],
+  ["Unit 3","3 BR","20","Premium View","1800","1500","300","",""],
 ];
 
 const VILLA_SAMPLE = [
-  ["Unit",       "Type",    "Floor", "Pool", "Total Area","Inside/Suite Area","Balcony Size","Furnished?","Additional Parameter 1","Additional Parameter 2"],
-  ["Villa 1",    "1 BR",    "1",     "No",   "1800",     "1500",            "300",       "Yes",     "",                      ""],
-  ["Townhouse 1","2 BR",    "2",     "Yes",  "2000",     "1800",            "200",       "No",      "",                      ""],
-  ["Townhouse 2","3 BR Dup","20",    "No",   "3000",     "2500",            "500",       "Yes",     "",                      ""],
+  ["Unit","Type","Floor","Pool","Total Area","Inside/Suite Area","Balcony Size","Furnished?","Additional Param 1","Additional Param 2"],
+  ["Villa 1","1 BR","1","No","1800","1500","300","Yes","",""],
+  ["Townhouse 1","2 BR","2","Yes","2000","1800","200","No","",""],
+  ["Townhouse 2","3 BR Dup","20","No","3000","2500","500","Yes","",""],
 ];
 
 const renderTable = (rows: string[][]) => (
@@ -40,7 +40,7 @@ const renderTable = (rows: string[][]) => (
         {rows[0].map((h) => (
           <th
             key={h}
-            className="px-2 py-1 text-left text-sm font-semibold text-indigo-700 border border-indigo-200"
+            className="px-2 py-1 text-left text-sm font-semibold text-indigo-800 border border-indigo-200"
           >
             {h}
           </th>
@@ -49,10 +49,7 @@ const renderTable = (rows: string[][]) => (
     </thead>
     <tbody>
       {rows.slice(1).map((r, i) => (
-        <tr
-          key={i}
-          className={i % 2 === 0 ? "bg-white" : "bg-indigo-50"}
-        >
+        <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-indigo-50"}>
           {r.map((c, j) => (
             <td
               key={j}
@@ -93,12 +90,14 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
       return;
     }
     setIsUploading(true);
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         let data: any[] = [];
         let headers: string[] = [];
         const content = e.target?.result as string;
+
         if (file.name.endsWith(".csv")) {
           const lines = content.split("\n").filter((l) => l.trim());
           headers = lines[0].split(",").map((h) => h.trim());
@@ -124,6 +123,7 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
             }
           }
         }
+
         onDataParsed(data, headers);
         toast.success(`${file.name} parsed successfully!`);
       } catch (err) {
@@ -133,10 +133,12 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
         setIsUploading(false);
       }
     };
+
     reader.onerror = () => {
       toast.error("Error reading file");
       setIsUploading(false);
     };
+
     file.name.endsWith(".csv")
       ? reader.readAsText(file)
       : reader.readAsBinaryString(file);
@@ -145,27 +147,15 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-8">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center mb-8"
-      >
+      <div className="animate-fade-in text-center mb-8">
         <h1 className="text-4xl font-bold text-indigo-700">
           Prism Price Simulator
         </h1>
-        <p className="mt-2 text-lg text-gray-600">
-          Real Estate Pricing tool
-        </p>
-      </motion.div>
+        <p className="mt-2 text-lg text-gray-600">Real Estate Pricing tool</p>
+      </div>
 
-      {/* Sample Data Formats */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.5 }}
-        className="w-full max-w-4xl bg-white shadow-md rounded-lg overflow-hidden"
-      >
+      {/* Sample Data */}
+      <div className="w-full max-w-4xl bg-white shadow-md rounded-lg overflow-hidden animate-fade-in transition-all duration-500">
         <CardHeader className="bg-indigo-50">
           <CardTitle className="text-xl text-indigo-800">
             Sample Data Formats
@@ -188,15 +178,10 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
             {renderTable(VILLA_SAMPLE)}
           </div>
         </CardContent>
-      </motion.div>
+      </div>
 
       {/* Upload Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.5 }}
-        className="w-full max-w-lg mt-10"
-      >
+      <div className="w-full max-w-lg mt-10 animate-fade-in transition-all duration-500">
         <Card className="border-2 border-dashed border-indigo-200 hover:border-indigo-300 transition-colors">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-indigo-700">
@@ -231,25 +216,17 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
           </CardContent>
 
           <CardFooter className="flex justify-end">
-            <Button
-              onClick={handleUpload}
-              disabled={!file || isUploading}
-            >
+            <Button onClick={handleUpload} disabled={!file || isUploading}>
               {isUploading ? "Processing…" : "Upload & Parse"}
             </Button>
           </CardFooter>
         </Card>
-      </motion.div>
+      </div>
 
       {/* Footer Credit */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="mt-12 text-sm text-gray-500"
-      >
+      <div className="mt-12 text-sm text-gray-500 animate-fade-in">
         Created by Dhananjay Shembekar
-      </motion.div>
+      </div>
     </div>
   );
 };
