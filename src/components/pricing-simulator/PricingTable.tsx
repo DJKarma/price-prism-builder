@@ -10,6 +10,7 @@ interface Props {
   visibleColumns: string[];
   additionalColumns: string[];
   handleSort: (key: string) => void;
+  pricingConfig: any;
 }
 
 export default function PricingTable({
@@ -17,6 +18,7 @@ export default function PricingTable({
   visibleColumns,
   additionalColumns,
   handleSort,
+  pricingConfig,
 }: Props) {
   // build the list for the Add-Cat Premium header
   const addCatList = additionalColumns.join(", ") || "none";
@@ -30,7 +32,7 @@ export default function PricingTable({
       "
     >
       <table className="min-w-full table-fixed border-separate border-spacing-0">
-        <thead className="bg-indigo-50 sticky top-0 z-10">
+        <thead className="bg-indigo-50 sticky top-0 z-30">
           <tr>
             {/* BASIC */}
             {["name", "type", "floor", "view"].map((col) =>
@@ -113,6 +115,7 @@ export default function PricingTable({
               "psfAfterAllAdjustments",
               "flatAddTotal",
               "totalPriceRaw",
+              "percentageIncrease",
               "finalTotalPrice",
               "finalPsf",
               "finalAcPsf",
@@ -128,6 +131,9 @@ export default function PricingTable({
               }
               if (col === "flatAddTotal") {
                 label = "Flat Adders";
+              }
+              if (col === "percentageIncrease") {
+                label = "% Increase";
               }
               return (
                 <th
@@ -284,6 +290,11 @@ export default function PricingTable({
                 {visibleColumns.includes("totalPriceRaw") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
                     {Math.round(unit.totalPriceRaw).toLocaleString()}
+                  </td>
+                )}
+                {visibleColumns.includes("percentageIncrease") && (
+                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                    {pricingConfig.percentageIncrease || 0}%
                   </td>
                 )}
                 {visibleColumns.includes("finalTotalPrice") && (

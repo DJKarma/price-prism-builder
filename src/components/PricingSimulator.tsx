@@ -224,6 +224,7 @@ const allColumns = [
   { id: "balconyPrice",         label: "Balcony Component",                        required: false },
   { id: "flatAddTotal",             label: "Flat Adders",            required: false },
   { id: "totalPriceRaw",            label: "Total Price (unc.)",                      required: false },
+  { id: "percentageIncrease",       label: "% Increase",                               required: false },
   { id: "finalTotalPrice",          label: "Final Total Price",                        required: true  },
   { id: "finalPsf",                 label: "Final PSF",                                required: true  },
   { id: "finalAcPsf",               label: "Final AC PSF",                             required: true  },
@@ -326,6 +327,7 @@ const allColumns = [
             visibleColumns={visibleColumns}
             additionalColumns={additionalColumns}
             handleSort={handleSort}
+            pricingConfig={pricingConfig}
           />
         </CardContent>
       </Card>
