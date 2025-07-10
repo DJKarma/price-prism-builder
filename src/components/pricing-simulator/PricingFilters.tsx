@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import Select from "react-select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { RotateCcw, Settings, Filter } from "lucide-react";
 import {
   DropdownMenu,
@@ -60,8 +59,6 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
   toggleColumnVisibility,
   resetColumnVisibility,
 }) => {
-  const [includeConfig, setIncludeConfig] = useState<boolean>(true);
-  
   const createOptions = (values: string[]): SelectOption[] =>
     values.map(v => ({ label: v, value: v }));
 
@@ -146,19 +143,7 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
         </div>
 
         <div className="lg:col-span-4 flex flex-col justify-end">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="include-config"
-                checked={includeConfig}
-                onCheckedChange={(checked) => setIncludeConfig(!!checked)} 
-                defaultChecked
-              />
-              <Label htmlFor="include-config" className="text-sm">
-                Include config
-              </Label>
-            </div>
-
+          <div className="flex items-center justify-end gap-2">
             <div className="flex gap-2">
               <Button
                 variant="outline"
