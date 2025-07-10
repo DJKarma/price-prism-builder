@@ -166,10 +166,10 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                         <p className="text-muted-foreground text-xs">Base PSF</p>
                         <p className="font-medium">{type.basePsf.toFixed(2)}</p>
                       </div>
-                      <div>
+                       <div>
                         <p className="text-muted-foreground text-xs">Target Avg PSF</p>
-                        <p className="font-medium">{displayTargetAvgPsf.toFixed(2)}</p>
-                      </div>
+                        <p className="font-medium">{Math.round(displayTargetAvgPsf)}</p>
+                       </div>
                       {hasChanged && (
                         <div className="col-span-2 mt-2 pt-2 border-t">
                           <p className="text-muted-foreground text-xs">Original Base PSF</p>
