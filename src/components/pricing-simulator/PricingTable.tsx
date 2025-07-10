@@ -222,76 +222,68 @@ export default function PricingTable({
 
                 {visibleColumns.includes("sellArea") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {parseFloat(unit.sellArea).toFixed(2)}
+                    {Math.round(parseFloat(unit.sellArea))}
                   </td>
                 )}
                 {visibleColumns.includes("acArea") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {parseFloat(unit.acArea).toFixed(2)}
+                    {Math.round(parseFloat(unit.acArea))}
                   </td>
                 )}
                 {/* ── NEW CELLS ── */}
                 {visibleColumns.includes("acPrice") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.acPrice.toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                    })}
+                    {Math.round(unit.acPrice).toLocaleString()}
                   </td>
                 )}
                 {visibleColumns.includes("balconyPrice") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.balconyPrice.toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                    })}
+                    {Math.round(unit.balconyPrice).toLocaleString()}
                   </td>
                 )}
                 {visibleColumns.includes("balconyArea") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.balconyArea.toFixed(2)}
+                    {Math.round(unit.balconyArea)}
                   </td>
                 )}
                 {visibleColumns.includes("balconyPercentage") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.balconyPercentage.toFixed(2)}%
+                    {Math.round(unit.balconyPercentage)}%
                   </td>
                 )}
                 {visibleColumns.includes("basePsf") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.basePsf.toFixed(2)}
+                    {Math.round(unit.basePsf)}
                   </td>
                 )}
                 {visibleColumns.includes("viewPsfAdjustment") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.viewPsfAdjustment.toFixed(2)}
+                    {Math.round(unit.viewPsfAdjustment)}
                   </td>
                 )}
                 {visibleColumns.includes("floorAdjustment") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.floorAdjustment.toFixed(2)}
+                    {Math.round(unit.floorAdjustment)}
                   </td>
                 )}
                 {visibleColumns.includes("additionalAdjustment") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.additionalAdjustment.toFixed(2)}
+                    {Math.round(unit.additionalAdjustment)}
                   </td>
                 )}
                 {visibleColumns.includes("psfAfterAllAdjustments") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.psfAfterAllAdjustments.toFixed(2)}
+                    {Math.round(unit.psfAfterAllAdjustments)}
                   </td>
                 )}
                 {visibleColumns.includes("flatAddTotal") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.flatAddTotal.toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                    })}
+                    {Math.round(unit.flatAddTotal).toLocaleString()}
                   </td>
                 )}
                 {visibleColumns.includes("totalPriceRaw") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right">
-                    {unit.totalPriceRaw.toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                    })}
+                    {Math.round(unit.totalPriceRaw).toLocaleString()}
                   </td>
                 )}
                 {visibleColumns.includes("finalTotalPrice") && (
@@ -301,12 +293,12 @@ export default function PricingTable({
                 )}
                 {visibleColumns.includes("finalPsf") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
-                    {unit.finalPsf.toFixed(2)}
+                    {Math.round(unit.finalPsf)}
                   </td>
                 )}
                 {visibleColumns.includes("finalAcPsf") && (
                   <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
-                    {unit.finalAcPsf.toFixed(2)}
+                    {Math.round(unit.finalAcPsf)}
                   </td>
                 )}
                 {visibleColumns.includes("isOptimized") && (

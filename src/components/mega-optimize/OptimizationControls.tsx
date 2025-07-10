@@ -47,7 +47,7 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
               Target {psfTypeLabel} PSF
             </label>
             <span className="text-sm text-muted-foreground">
-              Current: {currentOverallPsf.toFixed(2)}
+              Current: {Math.round(currentOverallPsf)}
             </span>
           </div>
           

@@ -206,7 +206,7 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                           <span className="text-xs font-medium text-green-700">Final PSF</span>
                         </div>
                         <p className="font-semibold text-sm text-green-900 mt-1">
-                          {avgPsf > 0 ? avgPsf.toFixed(2) : "0.00"}
+                          {avgPsf > 0 ? Math.round(avgPsf) : "0"}
                         </p>
                       </div>
                     </div>

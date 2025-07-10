@@ -435,7 +435,7 @@ const PremiumEditor: React.FC<PremiumEditorProps> = ({
                       return (
                         <TableRow key={floor} className={isJumpFloor ? "bg-green-50" : ""}>
                           <TableCell>{floor}</TableCell>
-                          <TableCell>{psfValue.toFixed(2)}</TableCell>
+                          <TableCell>{Math.round(psfValue)}</TableCell>
                           <TableCell>
                             {isJumpFloor ? 
                               `Jump floor (+${appliedRule?.jumpIncrement})` : ""}
