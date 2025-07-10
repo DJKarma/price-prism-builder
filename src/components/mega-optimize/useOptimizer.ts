@@ -65,6 +65,10 @@ export const useOptimizer = (
 
     setIsOptimizing(true);
     try {
+      /* Determine if optimizing subset or all types */
+      const allBedroomTypes = pricingConfig.bedroomTypePricing.map((bt: any) => bt.type);
+      const isSubsetOptimization = selectedTypes.length < allBedroomTypes.length;
+      
       /* Current overall */
       const curOverall = overallAvg(data, pricingConfig, psfType);
 
@@ -85,26 +89,73 @@ export const useOptimizer = (
       const totalDenominatorArea =
         psfType === "sellArea" ? totalSellArea : totalAcArea;
 
-      /* delta that takes us exactly to target */
-      const delta =
-        (targetPsf - curOverall) * (totalDenominatorArea / selectedSellArea);
+      /* Calculate target PSF and delta based on subset vs full optimization */
+      let effectiveTargetPsf = targetPsf;
+      let delta: number;
+      
+      if (isSubsetOptimization) {
+        /* For subset: adjust target to maintain overall target when only changing selected types */
+        delta = (targetPsf - curOverall) * (totalDenominatorArea / selectedSellArea);
+      } else {
+        /* For full optimization: use target directly */
+        delta = targetPsf - curOverall;
+      }
 
-      /* build new config */
-      const newConfig = {
-        ...pricingConfig,
-        bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => {
-          if (!selectedTypes.includes(bt.type)) return bt;
-          return {
-            ...bt,
-            originalBasePsf: bt.originalBasePsf ?? bt.basePsf,
-            basePsf: Math.max(0, bt.basePsf + delta),
-          };
-        }),
-        isOptimized: true,
-        optimizedTypes: selectedTypes,
-        targetOverallPsf: targetPsf,
-        optimizePsfType: psfType,
-      };
+      /* build new config based on optimization mode */
+      let newConfig;
+      
+      if (optimizationMode === "basePsf") {
+        /* Base PSF only - adjust bedroom type PSF values */
+        newConfig = {
+          ...pricingConfig,
+          bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => {
+            if (!selectedTypes.includes(bt.type)) return bt;
+            return {
+              ...bt,
+              originalBasePsf: bt.originalBasePsf ?? bt.basePsf,
+              basePsf: Math.max(0, bt.basePsf + delta),
+            };
+          }),
+          isOptimized: true,
+          optimizedTypes: selectedTypes,
+          targetOverallPsf: targetPsf,
+          optimizePsfType: psfType,
+          optimizationMode: "basePsf",
+        };
+      } else {
+        /* All Parameters - adjust base PSF but proportionally adjust other parameters */
+        const adjustmentFactor = isSubsetOptimization 
+          ? (targetPsf / curOverall) // For subsets, use proportional adjustment
+          : (targetPsf / curOverall);
+          
+        newConfig = {
+          ...pricingConfig,
+          bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => {
+            if (!selectedTypes.includes(bt.type)) return bt;
+            return {
+              ...bt,
+              originalBasePsf: bt.originalBasePsf ?? bt.basePsf,
+              basePsf: Math.max(0, bt.basePsf + delta),
+            };
+          }),
+          /* Also store original values for view and additional category pricing */
+          viewPricing: pricingConfig.viewPricing?.map((vp: any) => ({
+            ...vp,
+            originalPsfAdjustment: vp.originalPsfAdjustment ?? vp.psfAdjustment,
+            psfAdjustment: vp.psfAdjustment * adjustmentFactor,
+          })) || [],
+          additionalCategoryPricing: pricingConfig.additionalCategoryPricing?.map((acp: any) => ({
+            ...acp,
+            originalPsfAdjustment: acp.originalPsfAdjustment ?? acp.psfAdjustment,
+            psfAdjustment: acp.psfAdjustment * adjustmentFactor,
+          })) || [],
+          isOptimized: true,
+          optimizedTypes: selectedTypes,
+          targetOverallPsf: targetPsf,
+          optimizePsfType: psfType,
+          optimizationMode: "allParams",
+        };
+      }
 
       /* push up */
       onOptimized(newConfig);
@@ -135,8 +186,19 @@ export const useOptimizer = (
         ...bt,
         basePsf: bt.originalBasePsf ?? bt.basePsf,
       })),
+      /* Revert view pricing if it was modified in "All Parameters" mode */
+      viewPricing: pricingConfig.viewPricing?.map((vp: any) => ({
+        ...vp,
+        psfAdjustment: vp.originalPsfAdjustment ?? vp.psfAdjustment,
+      })) || pricingConfig.viewPricing,
+      /* Revert additional category pricing if it was modified */
+      additionalCategoryPricing: pricingConfig.additionalCategoryPricing?.map((acp: any) => ({
+        ...acp,
+        psfAdjustment: acp.originalPsfAdjustment ?? acp.psfAdjustment,
+      })) || pricingConfig.additionalCategoryPricing,
       isOptimized: false,
       optimizedTypes: [],
+      optimizationMode: undefined,
     };
 
     onOptimized(reverted);
