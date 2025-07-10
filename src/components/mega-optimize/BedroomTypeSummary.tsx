@@ -162,10 +162,10 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                   <div className="grid grid-cols-1 gap-4">
                     {/* Primary pricing info with improved layout */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                      <div>
+                       <div>
                         <p className="text-muted-foreground text-xs">Base PSF</p>
-                        <p className="font-medium">{type.basePsf.toFixed(2)}</p>
-                      </div>
+                        <p className="font-medium">{Math.round(type.basePsf)}</p>
+                       </div>
                        <div>
                         <p className="text-muted-foreground text-xs">Target Avg PSF</p>
                         <p className="font-medium">{Math.round(displayTargetAvgPsf)}</p>
@@ -173,7 +173,7 @@ const BedroomTypeSummary: React.FC<BedroomTypeSummaryProps> = ({
                       {hasChanged && (
                         <div className="col-span-2 mt-2 pt-2 border-t">
                           <p className="text-muted-foreground text-xs">Original Base PSF</p>
-                          <p className="font-medium">{type.originalBasePsf?.toFixed(2)}</p>
+                          <p className="font-medium">{Math.round(type.originalBasePsf || 0)}</p>
                         </div>
                       )}
                     </div>

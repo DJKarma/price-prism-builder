@@ -34,10 +34,10 @@ const OptimizationImpact: React.FC<OptimizationImpactProps> = ({ pricingConfig }
                     <li key={view.view} className="text-sm flex items-center justify-between">
                       <span className="font-medium">{view.view}:</span>
                       <span className="flex items-center">
-                        {original.toFixed(2)}
+                        {Math.round(original)}
                         <ArrowRight className="mx-1 h-3 w-3" />
                         <span className={isPositive ? "text-green-600" : "text-amber-600"}>
-                          {current.toFixed(2)} ({isPositive ? "+" : ""}{diff.toFixed(2)})
+                          {Math.round(current)} ({isPositive ? "+" : ""}{Math.round(diff)})
                         </span>
                       </span>
                     </li>
@@ -71,10 +71,10 @@ const OptimizationImpact: React.FC<OptimizationImpactProps> = ({ pricingConfig }
                           <div className="flex items-center justify-between text-xs">
                             <span>Base Increment:</span>
                             <span className="flex items-center">
-                              {origIncrement.toFixed(2)}
+                              {Math.round(origIncrement)}
                               <ArrowRight className="mx-1 h-3 w-3" />
                               <span className={isIncrementPositive ? "text-green-600" : "text-amber-600"}>
-                                {currentIncrement.toFixed(2)} ({isIncrementPositive ? "+" : ""}{incrementChange}%)
+                                {Math.round(currentIncrement)} ({isIncrementPositive ? "+" : ""}{incrementChange}%)
                               </span>
                             </span>
                           </div>
@@ -83,14 +83,14 @@ const OptimizationImpact: React.FC<OptimizationImpactProps> = ({ pricingConfig }
                             <div className="flex items-center justify-between text-xs">
                               <span>Jump Increment:</span>
                               <span className="flex items-center">
-                                {originalRule.jumpIncrement?.toFixed(2) || "0.00"}
+                                {Math.round(originalRule.jumpIncrement || 0)}
                                 <ArrowRight className="mx-1 h-3 w-3" />
                                 <span className={
                                   (rule.jumpIncrement || 0) > (originalRule.jumpIncrement || 0) 
                                     ? "text-green-600" 
                                     : "text-amber-600"
                                 }>
-                                  {rule.jumpIncrement?.toFixed(2) || "0.00"}
+                                  {Math.round(rule.jumpIncrement || 0)}
                                 </span>
                               </span>
                             </div>

@@ -31,7 +31,7 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
     return (
       <div className="bg-white p-3 border rounded shadow-md text-xs">
         <p className="font-semibold">{`Floor ${label}`}</p>
-        <p className="text-blue-600">{`PSF Adjustment: +${data.psf.toFixed(2)}`}</p>
+        <p className="text-blue-600">{`PSF Adjustment: +${Math.round(data.psf)}`}</p>
         {data.isJump && <p className="text-amber-600 font-medium">Jump Floor</p>}
       </div>
     );
