@@ -92,7 +92,7 @@ const BedroomTypeSelector: React.FC<BedroomTypeSelectorProps> = ({
             <ChevronDown className="h-4 w-4 ml-2" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-full min-w-[200px] p-2 bg-background">
+        <DropdownMenuContent className="w-full min-w-[200px] p-2 bg-background border shadow-lg z-50">
           <DropdownMenuLabel>Bedroom Types</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {/* Toggle All option */}

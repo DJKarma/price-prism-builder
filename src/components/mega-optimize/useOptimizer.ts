@@ -89,7 +89,9 @@ export const useOptimizer = (
         }
         
         const currentSelectedPsf = selectedValue / selectedArea;
-        const delta = targetPsf - currentSelectedPsf;
+        
+        /* Use proportional adjustment for better convergence */
+        const adjustmentFactor = targetPsf / currentSelectedPsf;
         
         console.log("Subset optimization:", {
           selectedTypes,
@@ -98,7 +100,7 @@ export const useOptimizer = (
           selectedValue,
           currentSelectedPsf,
           targetPsf,
-          delta
+          adjustmentFactor
         });
         
         newConfig = {
@@ -106,8 +108,8 @@ export const useOptimizer = (
           bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => {
             if (!selectedTypes.includes(bt.type)) return bt;
             
-            const newBasePsf = Math.max(100, bt.basePsf + delta); // Ensure minimum PSF of 100
-            console.log(`Updating ${bt.type}: ${bt.basePsf} + ${delta} = ${newBasePsf}`);
+            const newBasePsf = Math.max(100, bt.basePsf * adjustmentFactor); // Proportional adjustment
+            console.log(`Updating ${bt.type}: ${bt.basePsf} * ${adjustmentFactor} = ${newBasePsf}`);
             
             return {
               ...bt,
@@ -154,7 +156,7 @@ export const useOptimizer = (
             bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => ({
               ...bt,
               originalBasePsf: bt.originalBasePsf ?? bt.basePsf,
-              basePsf: Math.max(0, bt.basePsf + delta),
+              basePsf: Math.max(100, bt.basePsf * adjustmentFactor), // Use factor, not delta
               targetAvgPsf: targetPsf, // Update visual feedback
             })),
             viewPricing: pricingConfig.viewPricing?.map((vp: any) => ({
