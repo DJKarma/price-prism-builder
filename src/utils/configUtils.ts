@@ -40,6 +40,7 @@ export function exportConfig(config: any): string {
       "balconyPricing",
       "floorRiseRules",
       "flatPriceAdders",
+      "percentageIncrease",
     ],
   };
 
@@ -173,7 +174,8 @@ export async function importConfig(
           "additionalCategoryPricing",
           "optimizedTypes",
           "isOptimized",
-          "flatPriceAdders",               // ← include here
+          "flatPriceAdders",
+          "percentageIncrease",
         ]);
 
         // Filter out metadata + unknown

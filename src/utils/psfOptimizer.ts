@@ -32,6 +32,7 @@ export const simulatePricing = (
     }>;
     balconyPricing?:       { fullAreaPct: number; remainderRate: number };
     flatPriceAdders?: FlatPriceAdder[];
+    percentageIncrease?: number;
   },
   mode: PricingMode = "apartment",
   /** UI filters no longer gate flat adders */
@@ -132,10 +133,14 @@ export const simulatePricing = (
     });
     const priceWithFlat = totalPriceRaw + flatAddTotal;
 
-    // 8) Round up to nearest 1,000 AED
-    const finalTotalPrice = Math.ceil(priceWithFlat / 1000) * 1000;
+    // 8) Apply percentage increase if specified
+    const percentageMultiplier = 1 + ((config.percentageIncrease || 0) / 100);
+    const priceWithPercentage = priceWithFlat * percentageMultiplier;
 
-    // 9) Final PSF metrics
+    // 9) Round up to nearest 1,000 AED
+    const finalTotalPrice = Math.ceil(priceWithPercentage / 1000) * 1000;
+
+    // 10) Final PSF metrics
     const finalPsf   =
       mode === "villa"
         ? acArea   ? finalTotalPrice / acArea   : 0

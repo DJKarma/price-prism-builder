@@ -37,6 +37,7 @@ import {
   DollarSign,
   Hash,
   ChevronDown,
+  Percent,
 } from "lucide-react";
 import { toast } from "sonner";
 import AsyncSelect from "react-select/async";
@@ -110,6 +111,7 @@ export interface PricingConfig {
   additionalCategoryPricing?: AdditionalCategoryPricing[];
   balconyPricing?: BalconyPricing;
   flatPriceAdders?: FlatPriceAdder[];
+  percentageIncrease?: number;
   targetOverallPsf?: number;
   isOptimized?: boolean;
   maxFloor?: number;
@@ -159,6 +161,11 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   // flat‐adder state
   const [flatAdders, setFlatAdders] = useState<FlatPriceAdder[]>(
     initialConfig?.flatPriceAdders?.map(a => ({ ...a })) || []
+  );
+
+  // percentage increase state
+  const [percentageIncrease, setPercentageIncrease] = useState<number>(
+    initialConfig?.percentageIncrease ?? 0
   );
 
   // build a map of every category → values for our multi‐selects
@@ -252,6 +259,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
       additionalCategoryPricing,
       ...(hasBalcony && { balconyPricing }),
       flatPriceAdders: flatAdders,
+      percentageIncrease,
       maxFloor,
       ...(initialConfig && {
         targetOverallPsf: initialConfig.targetOverallPsf,
@@ -301,7 +309,7 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
 
       <CardContent className="p-4">
         <Tabs defaultValue="floor" className="w-full">
-          <TabsList className="grid grid-cols-5 mb-4">
+          <TabsList className="grid grid-cols-6 mb-4">
             <TabsTrigger value="floor" className="text-xs sm:text-sm">
               <Ruler className="h-4 w-4 mr-1 hidden sm:inline" />
               Floor Rise
@@ -327,6 +335,10 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
             <TabsTrigger value="flat" className="text-xs sm:text-sm">
               <Hash className="h-4 w-4 mr-1 hidden sm:inline" />
               Flat Adders
+            </TabsTrigger>
+            <TabsTrigger value="percentage" className="text-xs sm:text-sm">
+              <Percent className="h-4 w-4 mr-1 hidden sm:inline" />
+              Percentage
             </TabsTrigger>
           </TabsList>
           
@@ -812,6 +824,61 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                     No flat price adders. Click "Add Rule" to create one.
                   </div>
                 )}
+              </div>
+            </div>
+          </TabsContent>
+          
+          {/* Percentage Increase Tab */}
+          <TabsContent value="percentage">
+            <div className="bg-white p-3 rounded-lg shadow-sm border border-indigo-50">
+              <h3 className="text-md font-medium text-indigo-700 mb-3 flex items-center">
+                <Percent className="h-5 w-5 mr-2 text-indigo-600" />
+                Percentage Increase
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="percentageIncrease" className="text-indigo-700 text-sm">
+                      Overall Price Adjustment (%)
+                    </Label>
+                    <Input
+                      id="percentageIncrease"
+                      type="number"
+                      step="0.1"
+                      value={percentageIncrease}
+                      onChange={e =>
+                        setPercentageIncrease(parseFloat(e.target.value) || 0)
+                      }
+                      placeholder="Enter percentage (positive or negative)"
+                      className="border-indigo-200"
+                    />
+                    <p className="text-xs text-indigo-600">
+                      Positive values increase prices, negative values decrease them.
+                      Example: 5 = +5%, -3 = -3%
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-indigo-700 text-sm">Preview</Label>
+                    <div className="p-3 bg-indigo-50/50 rounded border border-indigo-100">
+                      <div className="text-sm space-y-1">
+                        <div className="flex justify-between">
+                          <span>Base Price:</span>
+                          <span>1,000,000 AED</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Adjustment ({percentageIncrease}%):</span>
+                          <span className={percentageIncrease >= 0 ? "text-green-600" : "text-red-600"}>
+                            {percentageIncrease >= 0 ? "+" : ""}{((1000000 * percentageIncrease) / 100).toLocaleString()} AED
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-t pt-1 font-medium">
+                          <span>Final Price:</span>
+                          <span>{(1000000 * (1 + percentageIncrease / 100)).toLocaleString()} AED</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </TabsContent>
