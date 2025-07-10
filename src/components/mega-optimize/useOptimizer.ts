@@ -74,12 +74,16 @@ export const useOptimizer = (
       if (isSubsetOptimization) {
         /* SUBSET OPTIMIZATION: Adjust only selected types so their average PSF meets target */
         
+        /* First, get properly calculated prices using simulatePricing */
+        const { simulatePricing } = await import("@/utils/psfOptimizer");
+        const currentPricedUnits = simulatePricing(data, pricingConfig);
+        
         /* Get current PSF for selected types */
-        const selectedUnits = data.filter((u) => selectedTypes.includes(u.type));
+        const selectedUnits = currentPricedUnits.filter((u) => selectedTypes.includes(u.type));
         const selectedArea = selectedUnits.reduce((s, u) => s + Number(psfType === "sellArea" ? u.sellArea : u.acArea), 0);
         const selectedValue = selectedUnits.reduce((s, u) => s + u.finalTotalPrice, 0);
         
-        if (!selectedArea) {
+        if (!selectedArea || selectedArea === 0) {
           toast.error("Selected bedroom types have zero area");
           return;
         }
@@ -87,14 +91,28 @@ export const useOptimizer = (
         const currentSelectedPsf = selectedValue / selectedArea;
         const delta = targetPsf - currentSelectedPsf;
         
+        console.log("Subset optimization:", {
+          selectedTypes,
+          selectedUnits: selectedUnits.length,
+          selectedArea,
+          selectedValue,
+          currentSelectedPsf,
+          targetPsf,
+          delta
+        });
+        
         newConfig = {
           ...pricingConfig,
           bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => {
             if (!selectedTypes.includes(bt.type)) return bt;
+            
+            const newBasePsf = Math.max(100, bt.basePsf + delta); // Ensure minimum PSF of 100
+            console.log(`Updating ${bt.type}: ${bt.basePsf} + ${delta} = ${newBasePsf}`);
+            
             return {
               ...bt,
               originalBasePsf: bt.originalBasePsf ?? bt.basePsf,
-              basePsf: Math.max(0, bt.basePsf + delta),
+              basePsf: newBasePsf,
               targetAvgPsf: targetPsf, // Update visual feedback
             };
           }),
