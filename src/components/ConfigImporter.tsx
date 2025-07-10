@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { FileJson } from "lucide-react";
 import ConfigMappingDialog from "./ConfigMappingDialog";
-import { importConfig } from "@/utils/configUtils";
+import { importConfig, validateConfigStructure } from "@/utils/configUtils";
 
 interface ConfigImporterProps {
   onConfigImported: (config: any) => void;
@@ -161,6 +161,14 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
       Array.isArray(importedConfig.flatPriceAdders)
     ) {
       merged.flatPriceAdders = importedConfig.flatPriceAdders;
+    }
+
+    // Validate the merged configuration before applying
+    const validationResult = validateConfigStructure(merged);
+    if (!validationResult.isValid) {
+      toast.error(`Configuration validation failed: ${validationResult.errors.join(', ')}`);
+      console.error('Config validation errors:', validationResult.errors);
+      return;
     }
 
     // Done

@@ -58,6 +58,19 @@ export async function exportToExcel(
   summaryData: any[] | null = null
 ) {
   try {
+    // Validate data before export
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      throw new Error("No valid data to export");
+    }
+    
+    // Validate config if it's being included
+    if (includeConfig && config) {
+      const validation = validateConfigStructure(config);
+      if (!validation.isValid) {
+        console.warn("Config validation failed, but proceeding with export:", validation.errors);
+        // Don't throw error here, just log warning and continue
+      }
+    }
     const book = XLSX.utils.book_new();
     // Units sheet
     const unitsWs = XLSX.utils.json_to_sheet(data);
@@ -93,8 +106,9 @@ export async function exportToExcel(
       toast.success("Exported pricing data successfully");
     }
   } catch (err) {
-    console.error(err);
-    toast.error("Failed to export data");
+    console.error("Export error details:", err);
+    const errorMessage = err instanceof Error ? err.message : "Unknown export error";
+    toast.error(`Failed to export data: ${errorMessage}`);
   }
 }
 
@@ -257,4 +271,120 @@ export function mergeConfigSelectively(
   });
 
   return { merged, unmatched };
+}
+
+/**
+ * Validates that a pricing configuration has all required fields and correct types
+ */
+export function validateConfigStructure(config: any): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  // Check if config exists
+  if (!config || typeof config !== 'object') {
+    return { isValid: false, errors: ['Configuration is null or not an object'] };
+  }
+  
+  // Required fields
+  const requiredFields = [
+    'bedroomTypePricing',
+    'viewPricing', 
+    'floorRiseRules',
+    'balconyPricing'
+  ];
+  
+  requiredFields.forEach(field => {
+    if (!(field in config)) {
+      errors.push(`Missing required field: ${field}`);
+    }
+  });
+  
+  // Validate bedroomTypePricing
+  if (config.bedroomTypePricing) {
+    if (!Array.isArray(config.bedroomTypePricing)) {
+      errors.push('bedroomTypePricing must be an array');
+    } else {
+      config.bedroomTypePricing.forEach((item: any, index: number) => {
+        if (!item.type || typeof item.type !== 'string') {
+          errors.push(`bedroomTypePricing[${index}] missing or invalid type`);
+        }
+        if (typeof item.basePsf !== 'number' || item.basePsf < 0) {
+          errors.push(`bedroomTypePricing[${index}] invalid basePsf`);
+        }
+      });
+    }
+  }
+  
+  // Validate viewPricing
+  if (config.viewPricing) {
+    if (!Array.isArray(config.viewPricing)) {
+      errors.push('viewPricing must be an array');
+    } else {
+      config.viewPricing.forEach((item: any, index: number) => {
+        if (!item.view || typeof item.view !== 'string') {
+          errors.push(`viewPricing[${index}] missing or invalid view`);
+        }
+        if (typeof item.psfAdjustment !== 'number') {
+          errors.push(`viewPricing[${index}] invalid psfAdjustment`);
+        }
+      });
+    }
+  }
+  
+  // Validate floorRiseRules
+  if (config.floorRiseRules) {
+    if (!Array.isArray(config.floorRiseRules)) {
+      errors.push('floorRiseRules must be an array');
+    } else {
+      config.floorRiseRules.forEach((rule: any, index: number) => {
+        if (typeof rule.startFloor !== 'number' || rule.startFloor < 0) {
+          errors.push(`floorRiseRules[${index}] invalid startFloor`);
+        }
+        if (rule.endFloor !== null && (typeof rule.endFloor !== 'number' || rule.endFloor < rule.startFloor)) {
+          errors.push(`floorRiseRules[${index}] invalid endFloor`);
+        }
+        if (typeof rule.psfIncrement !== 'number') {
+          errors.push(`floorRiseRules[${index}] invalid psfIncrement`);
+        }
+      });
+    }
+  }
+  
+  // Validate balconyPricing
+  if (config.balconyPricing) {
+    if (typeof config.balconyPricing !== 'object') {
+      errors.push('balconyPricing must be an object');
+    } else {
+      if (typeof config.balconyPricing.fullAreaPct !== 'number' || 
+          config.balconyPricing.fullAreaPct < 0 || 
+          config.balconyPricing.fullAreaPct > 100) {
+        errors.push('balconyPricing.fullAreaPct must be a number between 0-100');
+      }
+      if (typeof config.balconyPricing.remainderRate !== 'number' || 
+          config.balconyPricing.remainderRate < 0 || 
+          config.balconyPricing.remainderRate > 100) {
+        errors.push('balconyPricing.remainderRate must be a number between 0-100');
+      }
+    }
+  }
+  
+  // Validate additionalCategoryPricing if present
+  if (config.additionalCategoryPricing && !Array.isArray(config.additionalCategoryPricing)) {
+    errors.push('additionalCategoryPricing must be an array');
+  }
+  
+  // Validate flatPriceAdders if present
+  if (config.flatPriceAdders && !Array.isArray(config.flatPriceAdders)) {
+    errors.push('flatPriceAdders must be an array');
+  }
+  
+  // Ensure essential defaults exist
+  if (!config.flatPriceAdders) {
+    config.flatPriceAdders = [];
+  }
+  
+  if (!config.additionalCategoryPricing) {
+    config.additionalCategoryPricing = [];
+  }
+  
+  return { isValid: errors.length === 0, errors };
 }

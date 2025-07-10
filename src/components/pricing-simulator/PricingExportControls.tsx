@@ -27,11 +27,33 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
       return;
     }
     
+    // Validate the data structure before export
+    const validUnits = filteredUnits.filter(unit => {
+      return unit && typeof unit === 'object' && 
+             'finalTotalPrice' in unit && 
+             'name' in unit;
+    });
+    
+    if (validUnits.length === 0) {
+      toast.error("No valid units found to export");
+      return;
+    }
+    
+    if (validUnits.length < filteredUnits.length) {
+      toast.warning(`Exporting ${validUnits.length} valid units out of ${filteredUnits.length} total`);
+    }
+    
     // Create summary data for the summary sheet
-    const summaryData = createSummaryData(filteredUnits);
+    let summaryData: any[] = [];
+    try {
+      summaryData = createSummaryData(validUnits);
+    } catch (err) {
+      console.warn("Failed to create summary data:", err);
+      // Continue without summary if it fails
+    }
     
     // Create a flat array of data for the export
-    const flattenedData = filteredUnits.map(unit => {
+    const flattenedData = validUnits.map(unit => {
       // Create a flattened version of the unit data for export
       const flatUnit: Record<string, any> = {};
       
@@ -67,10 +89,13 @@ const allColumns = [
           if (col.id === "isOptimized") {
             flatUnit[col.label] = value ? "Yes" : "No";
           } else if (typeof value === 'number') {
-            flatUnit[col.label] = value;
+            flatUnit[col.label] = isNaN(value) ? 0 : value;
           } else {
-            flatUnit[col.label] = value;
+            flatUnit[col.label] = value ?? "";
           }
+        } else {
+          // Provide safe defaults for missing fields
+          flatUnit[col.label] = col.id === "isOptimized" ? "No" : (typeof unit[col.id] === 'number' ? 0 : "");
         }
       });
       

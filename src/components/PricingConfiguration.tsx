@@ -125,6 +125,9 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
 }) => {
   // ───────────────────────── state ─────────────────────────
 
+  const [basePsf, setBasePsf] = useState<number>(
+    initialConfig?.basePsf || 1000
+  );
   const [floorRiseRules, setFloorRiseRules] = useState<FloorRiseRule[]>(
     initialConfig?.floorRiseRules?.map(r => ({ ...r })) || [
       { startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
