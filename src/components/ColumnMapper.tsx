@@ -32,7 +32,7 @@ import {
 interface ColumnMapperProps {
   headers: string[];
   data: any[];
-  onMappingComplete: (mapping: Record<string, string>, data: any[], additionalCategories: any[]) => void;
+  onMappingComplete: (mapping: Record<string, string>, data: any[], additionalCategories: any[], dynamicFields?: DynamicField[]) => void;
   onBack: () => void;
 }
 
@@ -40,6 +40,12 @@ export interface AdditionalCategory {
   column: string;
   categories: string[];
   selectedCategories: string[];
+}
+
+export interface DynamicField {
+  column: string;
+  categories: string[];
+  isDynamic: boolean;
 }
 
 const requiredFields = [
@@ -70,6 +76,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [blankValues, setBlankValues] = useState<{field: string, count: number}[]>([]);
   const [additionalCategories, setAdditionalCategories] = useState<AdditionalCategory[]>([]);
+  const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
   const [availableHeaders, setAvailableHeaders] = useState<string[]>([]);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   
@@ -80,6 +87,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     const unmappedColumns = headers.filter(header => !mappedColumns.has(header));
     
     const potentialCategories: AdditionalCategory[] = [];
+    const newDynamicFields: DynamicField[] = [];
     
     unmappedColumns.forEach(column => {
       const firstFewValues = data.slice(0, 10).map(row => row[column]);
@@ -98,16 +106,45 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         
         if (uniqueValues.size > 1 && uniqueValues.size <= 20) {
           const categories = Array.from(uniqueValues).sort();
-          potentialCategories.push({
-            column,
-            categories: categories,
-            selectedCategories: [...categories]
-          });
+          
+          // Check if this could be a dynamic pricing field (like "furnished", "pool access", etc.)
+          const columnLower = column.toLowerCase();
+          const isPotentialPricingField = categories.length >= 2 && categories.length <= 10 && 
+            (columnLower.includes('furnished') || 
+             columnLower.includes('access') || 
+             columnLower.includes('feature') || 
+             columnLower.includes('amenity') ||
+             columnLower.includes('premium') ||
+             columnLower.includes('upgrade') ||
+             uniqueValues.size <= 5); // Small number of categories suggests it could be a pricing factor
+          
+          if (isPotentialPricingField) {
+            newDynamicFields.push({
+              column,
+              categories,
+              isDynamic: true
+            });
+          } else {
+            potentialCategories.push({
+              column,
+              categories: categories,
+              selectedCategories: [...categories]
+            });
+          }
         }
       }
     });
     
     setAdditionalCategories(potentialCategories);
+    setDynamicFields(newDynamicFields);
+    
+    // Notify about dynamic fields detection
+    if (newDynamicFields.length > 0) {
+      toast.info(`Detected ${newDynamicFields.length} potential pricing field(s): ${newDynamicFields.map(f => f.column).join(', ')}`, {
+        description: "These will be available for PSF configuration",
+        duration: 4000,
+      });
+    }
   }, [headers, data, mapping]);
 
   useEffect(() => {
@@ -437,7 +474,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     });
 
     setTimeout(() => {
-      onMappingComplete(mapping, transformedData, selectedCategoriesData);
+      onMappingComplete(mapping, transformedData, selectedCategoriesData, dynamicFields);
     }, 800);
   };
 
@@ -635,6 +672,47 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
                 ))}
               </div>
             </div>
+            
+            {dynamicFields.length > 0 && (
+              <div className="mt-6 animate-slide-in">
+                <h3 className="text-lg font-medium mb-3 text-emerald-800 flex items-center gap-2">
+                  <svg className="h-5 w-5 text-emerald-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7V10C2 16 6 20.5 12 22C18 20.5 22 16 22 10V7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Dynamic Pricing Fields Detected
+                </h3>
+                <Alert className="mb-4 bg-emerald-50 border-emerald-200">
+                  <svg className="h-4 w-4 text-emerald-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 16V12M12 8H12.01M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  <AlertDescription className="text-emerald-700">
+                    These fields have been automatically identified as potential pricing factors. 
+                    They will be available for PSF configuration in the next step.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {dynamicFields.map((field, index) => (
+                    <div key={field.column} className="border rounded-lg p-4 bg-white shadow-sm card-hover border-emerald-200">
+                      <h4 className="text-md font-medium text-emerald-700 mb-2">{field.column}</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {field.categories.map((category) => (
+                          <span 
+                            key={category}
+                            className="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs rounded-md border border-emerald-200"
+                          >
+                            {category}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-2 text-xs text-emerald-600">
+                        {field.categories.length} categories available for pricing
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {additionalCategories.length > 0 && (
               <div className="mt-8 animate-slide-in">
