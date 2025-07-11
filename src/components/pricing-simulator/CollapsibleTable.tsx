@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PricingTable from "./PricingTable";
+import PricingFilters from "./PricingFilters";
+import PricingExportControls from "./PricingExportControls";
 import { UnitWithPricing } from "../PricingSimulator";
 
 interface CollapsibleTableProps {
@@ -13,6 +15,26 @@ interface CollapsibleTableProps {
   additionalColumns: string[];
   handleSort: (key: string) => void;
   pricingMode: string;
+  // Filter props
+  uniqueTypes: string[];
+  uniqueViews: string[];
+  uniqueFloors: string[];
+  selectedTypes: string[];
+  setSelectedTypes: (types: string[]) => void;
+  selectedViews: string[];
+  setSelectedViews: (views: string[]) => void;
+  selectedFloors: string[];
+  setSelectedFloors: (floors: string[]) => void;
+  getUniqueAdditionalValues: (column: string) => string[];
+  selectedAdditionalFilters: Record<string, string[]>;
+  setSelectedAdditionalFilters: (filters: Record<string, string[]>) => void;
+  resetFilters: () => void;
+  allColumns: Array<{ id: string; label: string; required: boolean }>;
+  toggleColumnVisibility: (columnId: string) => void;
+  resetColumnVisibility: () => void;
+  // Export props
+  pricingConfig: any;
+  createSummaryData: (filteredUnits: UnitWithPricing[]) => any;
 }
 
 const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
@@ -21,6 +43,26 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
   additionalColumns,
   handleSort,
   pricingMode,
+  // Filter props
+  uniqueTypes,
+  uniqueViews,
+  uniqueFloors,
+  selectedTypes,
+  setSelectedTypes,
+  selectedViews,
+  setSelectedViews,
+  selectedFloors,
+  setSelectedFloors,
+  getUniqueAdditionalValues,
+  selectedAdditionalFilters,
+  setSelectedAdditionalFilters,
+  resetFilters,
+  allColumns,
+  toggleColumnVisibility,
+  resetColumnVisibility,
+  // Export props
+  pricingConfig,
+  createSummaryData,
 }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -87,14 +129,49 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
             id="pricing-table-content"
             className="transition-all duration-300 ease-in-out"
           >
-            <CardContent className="p-0">
-              <PricingTable
-                filteredUnits={filteredUnits}
-                visibleColumns={visibleColumns}
-                additionalColumns={additionalColumns}
-                handleSort={handleSort}
-                isFullScreen={false}
-              />
+            <CardContent className="p-6 space-y-6">
+              {/* Integrated Filters */}
+              <div className="bg-card/50 backdrop-blur-sm rounded-lg p-6 border border-border/50">
+                <PricingFilters
+                  uniqueTypes={uniqueTypes}
+                  uniqueViews={uniqueViews}
+                  uniqueFloors={uniqueFloors}
+                  selectedTypes={selectedTypes}
+                  setSelectedTypes={setSelectedTypes}
+                  selectedViews={selectedViews}
+                  setSelectedViews={setSelectedViews}
+                  selectedFloors={selectedFloors}
+                  setSelectedFloors={setSelectedFloors}
+                  additionalColumns={additionalColumns}
+                  getUniqueAdditionalValues={getUniqueAdditionalValues}
+                  selectedAdditionalFilters={selectedAdditionalFilters}
+                  setSelectedAdditionalFilters={setSelectedAdditionalFilters}
+                  resetFilters={resetFilters}
+                  visibleColumns={visibleColumns}
+                  allColumns={allColumns}
+                  toggleColumnVisibility={toggleColumnVisibility}
+                  resetColumnVisibility={resetColumnVisibility}
+                />
+
+                <div className="mt-6 pt-6 border-t border-border/50">
+                  <PricingExportControls
+                    filteredUnits={filteredUnits}
+                    pricingConfig={pricingConfig}
+                    createSummaryData={() => createSummaryData(filteredUnits)}
+                  />
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="border border-border/50 rounded-lg overflow-hidden">
+                <PricingTable
+                  filteredUnits={filteredUnits}
+                  visibleColumns={visibleColumns}
+                  additionalColumns={additionalColumns}
+                  handleSort={handleSort}
+                  isFullScreen={false}
+                />
+              </div>
             </CardContent>
           </CollapsibleContent>
         </Collapsible>
@@ -131,8 +208,41 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
             </div>
           </DialogHeader>
           
-          <div className="flex-1 overflow-hidden p-6">
-            <div className="h-full">
+          <div className="flex-1 overflow-hidden p-6 space-y-6">
+            {/* Filters in Full Screen */}
+            <div className="bg-card/50 backdrop-blur-sm rounded-lg p-6 border border-border/50">
+              <PricingFilters
+                uniqueTypes={uniqueTypes}
+                uniqueViews={uniqueViews}
+                uniqueFloors={uniqueFloors}
+                selectedTypes={selectedTypes}
+                setSelectedTypes={setSelectedTypes}
+                selectedViews={selectedViews}
+                setSelectedViews={setSelectedViews}
+                selectedFloors={selectedFloors}
+                setSelectedFloors={setSelectedFloors}
+                additionalColumns={additionalColumns}
+                getUniqueAdditionalValues={getUniqueAdditionalValues}
+                selectedAdditionalFilters={selectedAdditionalFilters}
+                setSelectedAdditionalFilters={setSelectedAdditionalFilters}
+                resetFilters={resetFilters}
+                visibleColumns={visibleColumns}
+                allColumns={allColumns}
+                toggleColumnVisibility={toggleColumnVisibility}
+                resetColumnVisibility={resetColumnVisibility}
+              />
+
+              <div className="mt-6 pt-6 border-t border-border/50">
+                <PricingExportControls
+                  filteredUnits={filteredUnits}
+                  pricingConfig={pricingConfig}
+                  createSummaryData={() => createSummaryData(filteredUnits)}
+                />
+              </div>
+            </div>
+
+            {/* Table in Full Screen */}
+            <div className="flex-1 border border-border/50 rounded-lg overflow-hidden">
               <PricingTable
                 filteredUnits={filteredUnits}
                 visibleColumns={visibleColumns}

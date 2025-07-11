@@ -305,53 +305,36 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
         </div>
       )}
 
-      {/* ─── Results Section ─── */}
-      <div className="space-y-8">
-        {/* Filters and Controls */}
-        <Card className="w-full glass-card border-border/50 shadow-md">
-          <CardContent className="pt-8 pb-8">
-            <PricingFilters
-              uniqueTypes={getUniqueValues("type")}
-              uniqueViews={getUniqueValues("view")}
-              uniqueFloors={getUniqueValues("floor")}
-              selectedTypes={selectedTypes}
-              setSelectedTypes={setSelectedTypes}
-              selectedViews={selectedViews}
-              setSelectedViews={setSelectedViews}
-              selectedFloors={selectedFloors}
-              setSelectedFloors={setSelectedFloors}
-              additionalColumns={additionalColumns}
-              getUniqueAdditionalValues={(col) =>
-                Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
-              }
-              selectedAdditionalFilters={selectedAdditionalFilters}
-              setSelectedAdditionalFilters={setSelectedAdditionalFilters}
-              resetFilters={resetFilters}
-              visibleColumns={visibleColumns}
-              allColumns={allColumns}
-              toggleColumnVisibility={toggleColumnVisibility}
-              resetColumnVisibility={resetColumnVisibility}
-            />
-
-            <div className="mt-6 pt-6 border-t border-border/50">
-              <PricingExportControls
-                filteredUnits={filteredUnits}
-                pricingConfig={pricingConfig}
-                createSummaryData={createSummaryData}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Collapsible Table */}
-        <CollapsibleTable
-          filteredUnits={filteredUnits}
-          visibleColumns={visibleColumns}
-          additionalColumns={additionalColumns}
-          handleSort={handleSort}
-          pricingMode={pricingMode}
-        />
-      </div>
+      {/* ─── Integrated Table with Filters ─── */}
+      <CollapsibleTable
+        filteredUnits={filteredUnits}
+        visibleColumns={visibleColumns}
+        additionalColumns={additionalColumns}
+        handleSort={handleSort}
+        pricingMode={pricingMode}
+        // Pass filter props to integrate them
+        uniqueTypes={getUniqueValues("type")}
+        uniqueViews={getUniqueValues("view")}
+        uniqueFloors={getUniqueValues("floor")}
+        selectedTypes={selectedTypes}
+        setSelectedTypes={setSelectedTypes}
+        selectedViews={selectedViews}
+        setSelectedViews={setSelectedViews}
+        selectedFloors={selectedFloors}
+        setSelectedFloors={setSelectedFloors}
+        getUniqueAdditionalValues={(col) =>
+          Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
+        }
+        selectedAdditionalFilters={selectedAdditionalFilters}
+        setSelectedAdditionalFilters={setSelectedAdditionalFilters}
+        resetFilters={resetFilters}
+        allColumns={allColumns}
+        toggleColumnVisibility={toggleColumnVisibility}
+        resetColumnVisibility={resetColumnVisibility}
+        // Export controls
+        pricingConfig={pricingConfig}
+        createSummaryData={createSummaryData}
+      />
     </div>
   );
 };
