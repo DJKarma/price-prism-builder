@@ -31,10 +31,16 @@ export function exportConfig(config: any): string {
     ? cfg.floorRiseRules
     : [];
 
+  // Extract dynamic fields from additionalCategoryPricing
+  const dynamicFields = Array.from(new Set(
+    (cfg.additionalCategoryPricing || []).map((item: any) => item.column)
+  ));
+
   // Metadata
   cfg._metadata = {
     exportVersion: "1.0.0",
     exportDate: new Date().toISOString(),
+    dynamicFields: dynamicFields, // Include detected dynamic fields
     availableParameters: [
       ...Object.keys(cfg),
       "balconyPricing",

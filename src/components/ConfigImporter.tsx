@@ -34,6 +34,26 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
           `Ignored unknown fields: ${unmatched.join(", ")}`
         );
       }
+
+      // Check for dynamic field compatibility
+      if (config._metadata?.dynamicFields) {
+        const currentDynamicFields = Array.from(new Set(
+          (currentConfig.additionalCategoryPricing || []).map((item: any) => item.column)
+        ));
+        const importedDynamicFields = config._metadata.dynamicFields;
+        
+        const missingFields = importedDynamicFields.filter(
+          (field: string) => !currentDynamicFields.includes(field)
+        );
+        
+        if (missingFields.length > 0) {
+          toast.warning(
+            `Imported config contains dynamic fields not present in current data: ${missingFields.join(", ")}. These will be mapped during import process.`,
+            { duration: 8000 }
+          );
+        }
+      }
+
       setImportedConfig(config);
       setShowMappingDialog(true);
     } catch (err: any) {

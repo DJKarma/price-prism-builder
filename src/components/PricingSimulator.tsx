@@ -84,7 +84,8 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   //
   // 3) columns visibility (persisted across config changes)
   //
-const defaultVisibleColumns = [
+const getDefaultVisibleColumns = (additionalColumns: string[]) => {
+  const baseColumns = [
   "name",
   "type",
   "floor",
@@ -106,10 +107,19 @@ const defaultVisibleColumns = [
   "finalPsf",
   "finalAcPsf",
   "isOptimized",
-];
+    ];
+    
+    // Add dynamic additional columns (show both value and premium for important fields)
+    const dynamicColumns = additionalColumns.flatMap(col => [
+      col, // The actual value column
+      `${col}_premium` // The premium column
+    ]);
+    
+    return [...baseColumns, ...dynamicColumns];
+  };
 
   const [visibleColumns, setVisibleColumns] =
-    useState<string[]>(defaultVisibleColumns);
+    useState<string[]>([]);
 
   //
   // 4) filtering & sorting
@@ -162,6 +172,16 @@ const defaultVisibleColumns = [
   ]);
 
   //
+  // 6) update visible columns when additional columns change
+  //
+  useEffect(() => {
+    // Only set default visible columns if visibleColumns is empty (initial load)
+    if (visibleColumns.length === 0) {
+      setVisibleColumns(getDefaultVisibleColumns(additionalColumns));
+    }
+  }, [additionalColumns, visibleColumns.length]);
+
+  //
   // 6) handlers
   //
   const handlePricingConfigChange = (newConfig: any) => {
@@ -179,7 +199,7 @@ const defaultVisibleColumns = [
           : "ascending",
     }));
   const resetColumnVisibility = () => {
-    setVisibleColumns(defaultVisibleColumns);
+    setVisibleColumns(getDefaultVisibleColumns(additionalColumns));
     toast.success("Column visibility reset to default");
   };
   const toggleColumnVisibility = (columnId: string) => {
@@ -204,31 +224,36 @@ const defaultVisibleColumns = [
   //
   // 8) build dynamic allColumns (with bracketed list for Add-Cat Premium)
   //
-const allColumns = [
-  { id: "name",                     label: "Unit",                                     required: true  },
-  { id: "type",                     label: "Type",                                     required: true  },
-  { id: "floor",                    label: "Floor",                                    required: true  },
-  { id: "view",                     label: "View",                                     required: true  },
-  { id: "sellArea",                 label: "Sell Area",                                required: true  },
-  { id: "acArea",                   label: "AC Area",                                  required: true  },
-  { id: "balconyArea",              label: "Balcony Area",                             required: false },
-  { id: "balconyPercentage",        label: "Balcony %",                               required: false },
-  { id: "basePsf",                  label: "Base PSF",                                 required: false },
-  { id: "viewPsfAdjustment",        label: "View PSF Adjustment",                     required: false },
-  { id: "floorAdjustment",          label: "Floor PSF Adjustment",                    required: false },
-  { id: "additionalAdjustment",     label: `Add-Cat Premium (${additionalColumns.join(
-                                         ", "
-                                       )})`,                    required: false },
-  { id: "psfAfterAllAdjustments",   label: "PSF After All Adjustments",               required: false },
-  { id: "acPrice",              label: "AC Component",                             required: false },
-  { id: "balconyPrice",         label: "Balcony Component",                        required: false },
-  { id: "flatAddTotal",             label: "Flat Adders",            required: false },
-  { id: "totalPriceRaw",            label: "Total Price (unc.)",                      required: false },
-  { id: "finalTotalPrice",          label: "Final Total Price",                        required: true  },
-  { id: "finalPsf",                 label: "Final PSF",                                required: true  },
-  { id: "finalAcPsf",               label: "Final AC PSF",                             required: true  },
-  { id: "isOptimized",              label: "Optimized",                                required: true  },
-];
+  const allColumns = [
+    { id: "name",                     label: "Unit",                                     required: true  },
+    { id: "type",                     label: "Type",                                     required: true  },
+    { id: "floor",                    label: "Floor",                                    required: true  },
+    { id: "view",                     label: "View",                                     required: true  },
+    { id: "sellArea",                 label: "Sell Area",                                required: true  },
+    { id: "acArea",                   label: "AC Area",                                  required: true  },
+    { id: "balconyArea",              label: "Balcony Area",                             required: false },
+    { id: "balconyPercentage",        label: "Balcony %",                               required: false },
+    { id: "basePsf",                  label: "Base PSF",                                 required: false },
+    { id: "viewPsfAdjustment",        label: "View PSF Adjustment",                     required: false },
+    { id: "floorAdjustment",          label: "Floor PSF Adjustment",                    required: false },
+    { id: "additionalAdjustment",     label: `Add-Cat Premium (${additionalColumns.join(
+                                           ", "
+                                         )})`,                    required: false },
+    { id: "psfAfterAllAdjustments",   label: "PSF After All Adjustments",               required: false },
+    { id: "acPrice",              label: "AC Component",                             required: false },
+    { id: "balconyPrice",         label: "Balcony Component",                        required: false },
+    { id: "flatAddTotal",             label: "Flat Adders",            required: false },
+    { id: "totalPriceRaw",            label: "Total Price (unc.)",                      required: false },
+    { id: "finalTotalPrice",          label: "Final Total Price",                        required: true  },
+    { id: "finalPsf",                 label: "Final PSF",                                required: true  },
+    { id: "finalAcPsf",               label: "Final AC PSF",                             required: true  },
+    { id: "isOptimized",              label: "Optimized",                                required: true  },
+    // Add dynamic additional columns
+    ...additionalColumns.flatMap(col => [
+      { id: col, label: col, required: false },
+      { id: `${col}_premium`, label: `${col} Premium`, required: false }
+    ])
+  ];
 
 
   return (
