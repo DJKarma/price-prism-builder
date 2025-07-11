@@ -454,6 +454,18 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
         }
       });
 
+      // Handle dynamic fields data transformation
+      dynamicFields.forEach(field => {
+        const columnValue = row[field.column];
+        transformedRow[`${field.column}_value`] = columnValue;
+        
+        // Create boolean flags for each category in the dynamic field
+        field.categories.forEach(category => {
+          const key = `additional_${field.column}_${category}`.replace(/\s+/g, '_').toLowerCase();
+          transformedRow[key] = columnValue === category;
+        });
+      });
+
       return transformedRow;
     });
 
