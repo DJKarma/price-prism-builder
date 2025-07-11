@@ -75,15 +75,18 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-foreground">Filters & Options</h3>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+          <Filter className="h-4 w-4" />
+          Filters & Options
+        </h3>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+        <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Bedroom Types
             </Label>
             <Select
@@ -103,8 +106,8 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Views
             </Label>
             <Select
@@ -124,8 +127,8 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Floors
             </Label>
             <Select
@@ -147,14 +150,14 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
         </div>
 
         <div className="lg:col-span-4 flex flex-col justify-end">
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={resetFilters}
-              className="h-9 px-4 font-medium transition-all hover:bg-muted"
+              className="h-8 px-3 text-xs font-medium transition-all hover:bg-muted"
             >
-              <RotateCcw className="h-4 w-4 mr-2" />
+              <RotateCcw className="h-3 w-3 mr-1.5" />
               Reset Filters
             </Button>
 
@@ -163,9 +166,9 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="h-9 px-4 font-medium transition-all hover:bg-muted"
+                  className="h-8 px-3 text-xs font-medium transition-all hover:bg-muted"
                 >
-                  <Settings className="h-4 w-4 mr-2" />
+                  <Settings className="h-3 w-3 mr-1.5" />
                   Columns
                 </Button>
               </DropdownMenuTrigger>
@@ -203,12 +206,12 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
       </div>
 
       {additionalColumns.length > 0 && (
-        <div className="space-y-3">
-          <h4 className="text-md font-medium text-foreground">Additional Filters</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Additional Filters</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {additionalColumns.map((column) => (
-              <div key={column} className="space-y-2">
-                <Label className="text-sm font-medium text-foreground">
+              <div key={column} className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   {column}
                 </Label>
                 <Select

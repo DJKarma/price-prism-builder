@@ -179,8 +179,8 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
 
       {/* Full Screen Modal */}
       <Dialog open={isFullScreen} onOpenChange={setIsFullScreen}>
-        <DialogContent className="max-w-[100vw] w-full h-full max-h-[100vh] p-0 overflow-hidden">
-          <DialogHeader className="gradient-bg text-primary-foreground p-6 border-b">
+        <DialogContent className="max-w-[100vw] w-full h-full max-h-[100vh] p-0 overflow-hidden [&>button]:hidden">
+          <DialogHeader className="gradient-bg text-primary-foreground p-6 border-b flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <TableIcon className="h-6 w-6" />
@@ -208,9 +208,9 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
             </div>
           </DialogHeader>
           
-          <div className="flex-1 overflow-hidden p-6 space-y-6">
-            {/* Filters in Full Screen */}
-            <div className="bg-card/50 backdrop-blur-sm rounded-lg p-6 border border-border/50">
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Filters in Full Screen - Compact Layout */}
+            <div className="flex-shrink-0 bg-card/50 backdrop-blur-sm border-b border-border/50 p-4">
               <PricingFilters
                 uniqueTypes={uniqueTypes}
                 uniqueViews={uniqueViews}
@@ -232,7 +232,7 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
                 resetColumnVisibility={resetColumnVisibility}
               />
 
-              <div className="mt-6 pt-6 border-t border-border/50">
+              <div className="mt-4 pt-4 border-t border-border/50">
                 <PricingExportControls
                   filteredUnits={filteredUnits}
                   pricingConfig={pricingConfig}
@@ -241,8 +241,8 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
               </div>
             </div>
 
-            {/* Table in Full Screen */}
-            <div className="flex-1 border border-border/50 rounded-lg overflow-hidden">
+            {/* Table in Full Screen - Scrollable */}
+            <div className="flex-1 overflow-auto">
               <PricingTable
                 filteredUnits={filteredUnits}
                 visibleColumns={visibleColumns}
