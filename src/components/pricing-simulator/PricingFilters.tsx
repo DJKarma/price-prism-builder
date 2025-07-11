@@ -75,11 +75,15 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
   };
 
   return (
-    <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pb-3 border-b mb-4 shadow-sm">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
-        <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <Label className="mb-1 block text-sm font-medium text-gray-700">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-foreground">Filters & Options</h3>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">
               Bedroom Types
             </Label>
             <Select
@@ -99,8 +103,8 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
             />
           </div>
 
-          <div>
-            <Label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">
               Views
             </Label>
             <Select
@@ -120,8 +124,8 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
             />
           </div>
 
-          <div>
-            <Label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">
               Floors
             </Label>
             <Select
@@ -143,89 +147,94 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
         </div>
 
         <div className="lg:col-span-4 flex flex-col justify-end">
-          <div className="flex items-center justify-end gap-2">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetFilters}
-                className="h-8"
-              >
-                <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                Reset
-              </Button>
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetFilters}
+              className="h-9 px-4 font-medium transition-all hover:bg-muted"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset Filters
+            </Button>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8">
-                    <Settings className="h-3.5 w-3.5 mr-1" />
-                    Columns
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-9 px-4 font-medium transition-all hover:bg-muted"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Columns
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent className="w-56 max-h-64 overflow-y-auto" align="end">
+                <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                {allColumns.map((column) => (
+                  <DropdownMenuCheckboxItem
+                    key={column.id}
+                    checked={visibleColumns.includes(column.id)}
+                    onCheckedChange={() => toggleColumnVisibility(column.id)}
+                    disabled={column.required && visibleColumns.includes(column.id)}
+                  >
+                    {column.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={resetColumnVisibility}
+                  >
+                    Reset to Default
                   </Button>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent className="w-56 max-h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-300" align="end">
-                  <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-
-                  {allColumns.map((column) => (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      checked={visibleColumns.includes(column.id)}
-                      onCheckedChange={() => toggleColumnVisibility(column.id)}
-                      disabled={column.required && visibleColumns.includes(column.id)}
-                    >
-                      {column.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-xs"
-                      onClick={resetColumnVisibility}
-                    >
-                      Reset to Default
-                    </Button>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
 
       {additionalColumns.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {additionalColumns.map((column) => (
-            <div key={column}>
-              <Label className="mb-1 block text-sm font-medium text-gray-700">
-                {column}
-              </Label>
-              <Select
-                options={createOptions(getUniqueAdditionalValues(column))}
-                value={createSelectedOptions(
-                  selectedAdditionalFilters[column] || [],
-                  createOptions(getUniqueAdditionalValues(column))
-                )}
-                onChange={(selected) =>
-                  setSelectedAdditionalFilters({
-                    ...selectedAdditionalFilters,
-                    [column]: selected ? selected.map(s => s.value) : [],
-                  })
-                }
-                isMulti
-                className="react-select-container"
-                classNamePrefix="react-select"
-                placeholder={`Select ${column}...`}
-                menuPortalTarget={document.body}
-                menuPlacement="auto"
-                menuPosition="fixed"
-                styles={selectStyles}
-              />
-            </div>
-          ))}
+        <div className="space-y-3">
+          <h4 className="text-md font-medium text-foreground">Additional Filters</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {additionalColumns.map((column) => (
+              <div key={column} className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">
+                  {column}
+                </Label>
+                <Select
+                  options={createOptions(getUniqueAdditionalValues(column))}
+                  value={createSelectedOptions(
+                    selectedAdditionalFilters[column] || [],
+                    createOptions(getUniqueAdditionalValues(column))
+                  )}
+                  onChange={(selected) =>
+                    setSelectedAdditionalFilters({
+                      ...selectedAdditionalFilters,
+                      [column]: selected ? selected.map(s => s.value) : [],
+                    })
+                  }
+                  isMulti
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  placeholder={`Select ${column}...`}
+                  menuPortalTarget={document.body}
+                  menuPlacement="auto"
+                  menuPosition="fixed"
+                  styles={selectStyles}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

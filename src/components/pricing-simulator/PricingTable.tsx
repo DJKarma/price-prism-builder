@@ -24,13 +24,13 @@ export default function PricingTable({
   return (
     <div
       className="
-        max-h-[650px] overflow-y-scroll overflow-x-auto
-        scrollbar-thin scrollbar-thumb-indigo-300 scrollbar-track-indigo-50
-        border border-gray-200 rounded-b
+        max-h-[650px] overflow-y-auto overflow-x-auto
+        border border-border rounded-lg
+        shadow-sm
       "
     >
-      <table className="min-w-full table-fixed border-separate border-spacing-0">
-        <thead className="bg-indigo-50 sticky top-0 z-10">
+      <table className="min-w-full table-fixed border-separate border-spacing-0 bg-background">{}
+        <thead className="bg-muted/50 sticky top-0 z-10">{}
           <tr>
             {/* BASIC */}
             {["name", "type", "floor", "view"].map((col) =>

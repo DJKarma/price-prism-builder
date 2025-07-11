@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { usePricingStore } from "@/store/pricingStore";
 import PricingFilters from "./pricing-simulator/PricingFilters";
-import PricingTable from "./pricing-simulator/PricingTable";
+import CollapsibleTable from "./pricing-simulator/CollapsibleTable";
 import PricingExportControls from "./pricing-simulator/PricingExportControls";
 import CollapsibleConfigPanel from "./pricing-simulator/CollapsibleConfigPanel";
 import { useUnitFilters } from "./pricing-simulator/useUnitFilters";
@@ -257,42 +257,44 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
 
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-8 animate-fade-in">
       {/* ────── Mode toggle ────── */}
-      <Card className="w-full glass-card border-primary/20 hover-glow animate-slide-up">
-        <CardContent className="pt-6 flex items-center gap-6">
-          <Label className="font-semibold">Mode:</Label>
-          <RadioGroup
-            value={pricingMode}
-            onValueChange={(v: PricingMode) => {
-              setPricingMode(v);
-              toast.success(
-                `Switched to ${
-                  v === "apartment" ? "Apartment" : "Villa/Townhouse"
-                } mode`
-              );
-            }}
-            className="flex space-x-4"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="apartment" id="apt" />
-              <Label htmlFor="apt" className="flex items-center gap-1">
-                <Building className="h-4 w-4" /> Apartment
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="villa" id="villa" />
-              <Label htmlFor="villa" className="flex items-center gap-1">
-                <House className="h-4 w-4" /> Villa/Townhouse
-              </Label>
-            </div>
-          </RadioGroup>
+      <Card className="w-full glass-card border-border/50 shadow-md hover-glow animate-slide-up">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-6">
+            <Label className="text-base font-semibold text-foreground">Mode:</Label>
+            <RadioGroup
+              value={pricingMode}
+              onValueChange={(v: PricingMode) => {
+                setPricingMode(v);
+                toast.success(
+                  `Switched to ${
+                    v === "apartment" ? "Apartment" : "Villa/Townhouse"
+                  } mode`
+                );
+              }}
+              className="flex space-x-6"
+            >
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="apartment" id="apt" />
+                <Label htmlFor="apt" className="flex items-center gap-2 font-medium cursor-pointer">
+                  <Building className="h-4 w-4" /> Apartment
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="villa" id="villa" />
+                <Label htmlFor="villa" className="flex items-center gap-2 font-medium cursor-pointer">
+                  <House className="h-4 w-4" /> Villa/Townhouse
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
         </CardContent>
       </Card>
 
       {/* ─── Configuration Panel ─── */}
       {onConfigUpdate && !hideConfigPanel && (
-        <div className="glass-panel hover-glow transition-all rounded-lg animate-slide-up stagger-1">
+        <div className="glass-panel rounded-lg shadow-md border border-border/50 animate-slide-up stagger-1">
           <CollapsibleConfigPanel
             data={data}
             pricingConfig={pricingConfig}
@@ -303,57 +305,53 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
         </div>
       )}
 
-      {/* ─── Results ─── */}
-      <Card className="w-full mb-6 glass-card border-primary/20 hover-glow animate-slide-up stagger-2">
-        <CardHeader className="gradient-bg text-primary-foreground">
-          <CardTitle className="flex items-center gap-2">
-            <TableIcon className="h-5 w-5 animate-float" />
-            Unit Pricing Details
-          </CardTitle>
-          <CardDescription className="text-primary-foreground/90">
-            {pricingMode === "villa"
-              ? "Pricing on AC Area only"
-              : "Pricing with Sellable + Balcony"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PricingFilters
-            uniqueTypes={getUniqueValues("type")}
-            uniqueViews={getUniqueValues("view")}
-            uniqueFloors={getUniqueValues("floor")}
-            selectedTypes={selectedTypes}
-            setSelectedTypes={setSelectedTypes}
-            selectedViews={selectedViews}
-            setSelectedViews={setSelectedViews}
-            selectedFloors={selectedFloors}
-            setSelectedFloors={setSelectedFloors}
-            additionalColumns={additionalColumns}
-            getUniqueAdditionalValues={(col) =>
-              Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
-            }
-            selectedAdditionalFilters={selectedAdditionalFilters}
-            setSelectedAdditionalFilters={setSelectedAdditionalFilters}
-            resetFilters={resetFilters}
-            visibleColumns={visibleColumns}
-            allColumns={allColumns}
-            toggleColumnVisibility={toggleColumnVisibility}
-            resetColumnVisibility={resetColumnVisibility}
-          />
+      {/* ─── Results Section ─── */}
+      <div className="space-y-8">
+        {/* Filters and Controls */}
+        <Card className="w-full glass-card border-border/50 shadow-md">
+          <CardContent className="pt-8 pb-8">
+            <PricingFilters
+              uniqueTypes={getUniqueValues("type")}
+              uniqueViews={getUniqueValues("view")}
+              uniqueFloors={getUniqueValues("floor")}
+              selectedTypes={selectedTypes}
+              setSelectedTypes={setSelectedTypes}
+              selectedViews={selectedViews}
+              setSelectedViews={setSelectedViews}
+              selectedFloors={selectedFloors}
+              setSelectedFloors={setSelectedFloors}
+              additionalColumns={additionalColumns}
+              getUniqueAdditionalValues={(col) =>
+                Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
+              }
+              selectedAdditionalFilters={selectedAdditionalFilters}
+              setSelectedAdditionalFilters={setSelectedAdditionalFilters}
+              resetFilters={resetFilters}
+              visibleColumns={visibleColumns}
+              allColumns={allColumns}
+              toggleColumnVisibility={toggleColumnVisibility}
+              resetColumnVisibility={resetColumnVisibility}
+            />
 
-          <PricingExportControls
-            filteredUnits={filteredUnits}
-            pricingConfig={pricingConfig}
-            createSummaryData={createSummaryData}
-          />
+            <div className="mt-6 pt-6 border-t border-border/50">
+              <PricingExportControls
+                filteredUnits={filteredUnits}
+                pricingConfig={pricingConfig}
+                createSummaryData={createSummaryData}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-          <PricingTable
-            filteredUnits={filteredUnits}
-            visibleColumns={visibleColumns}
-            additionalColumns={additionalColumns}
-            handleSort={handleSort}
-          />
-        </CardContent>
-      </Card>
+        {/* Collapsible Table */}
+        <CollapsibleTable
+          filteredUnits={filteredUnits}
+          visibleColumns={visibleColumns}
+          additionalColumns={additionalColumns}
+          handleSort={handleSort}
+          pricingMode={pricingMode}
+        />
+      </div>
     </div>
   );
 };
