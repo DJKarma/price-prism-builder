@@ -169,18 +169,18 @@
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* Interactive elements */
+/* Simplified Interactive Elements - 150-400ms transitions */
 .hover-scale { 
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  transition: transform 200ms ease, box-shadow 200ms ease; 
   cursor: pointer;
 }
 .hover-scale:hover { 
-  transform: scale(1.02) translateY(-2px); 
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px); 
+  box-shadow: var(--shadow-md);
 }
 
 .hover-glow {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: box-shadow 300ms ease, transform 200ms ease;
 }
 .hover-glow:hover {
   box-shadow: var(--shadow-glow);
@@ -188,25 +188,55 @@
 }
 
 .interactive-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 250ms ease, box-shadow 250ms ease;
   cursor: pointer;
 }
 .interactive-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
 }
 
-/* Glass morphism effect */
+/* iOS 26 Liquid Glass Morphism */
 .glass {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .glass-card {
   background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(24px) saturate(1.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(28px) saturate(2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-overlay {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px) saturate(1.5);
+}
+
+/* Dark mode glass effects */
+.dark .glass {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .glass-card {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dark .glass-panel {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Premium shadows */

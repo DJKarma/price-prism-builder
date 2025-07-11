@@ -152,7 +152,7 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-background flex flex-col items-center py-8 px-4 animate-fade-in">
       {/* Upload Section */}
       <div className="w-full max-w-lg mb-10 animate-slide-up">
-        <Card className="overflow-hidden shadow-premium hover:shadow-glow transition-all duration-500 hover-scale border-primary/20">
+        <Card className="overflow-hidden glass-card hover-glow transition-shadow duration-300 border-primary/20">
           <div className="gradient-bg text-primary-foreground p-4 flex items-center gap-2">
             <Upload className="w-6 h-6 animate-float" />
             <h2 className="text-xl font-semibold">Upload Your File</h2>
@@ -167,9 +167,9 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
               onChange={handleFileChange}
             />
             <Button
-              variant="outline"
+              variant="glass"
               size="lg"
-              className="border-dashed border-2 border-primary/50 hover:border-primary hover:bg-primary/5 transition-all duration-300"
+              className="border-dashed border-2 border-primary/50"
               onClick={() => fileInputRef.current?.click()}
             >
               Browse CSV or Excel
@@ -199,7 +199,7 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
 
       {/* Sample Data Section */}
       <div className="w-full max-w-4xl animate-slide-up stagger-1">
-        <Card className="shadow-lg hover:shadow-xl transition-all duration-500 border-primary/20">
+        <Card className="glass border-primary/20 hover-glow transition-shadow duration-300">
           <CardHeader className="gradient-secondary text-foreground">
             <CardTitle className="text-xl text-primary">
               Sample Data Formats

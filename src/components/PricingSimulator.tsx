@@ -259,7 +259,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* ────── Mode toggle ────── */}
-      <Card className="w-full shadow-lg border-primary/20 hover-glow animate-slide-up">
+      <Card className="w-full glass-card border-primary/20 hover-glow animate-slide-up">
         <CardContent className="pt-6 flex items-center gap-6">
           <Label className="font-semibold">Mode:</Label>
           <RadioGroup
@@ -292,7 +292,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
 
       {/* ─── Configuration Panel ─── */}
       {onConfigUpdate && !hideConfigPanel && (
-        <div className="hover-glow transition-all rounded-lg animate-slide-up stagger-1">
+        <div className="glass-panel hover-glow transition-all rounded-lg animate-slide-up stagger-1">
           <CollapsibleConfigPanel
             data={data}
             pricingConfig={pricingConfig}
@@ -304,7 +304,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
       )}
 
       {/* ─── Results ─── */}
-      <Card className="w-full mb-6 shadow-premium border-primary/20 hover-glow animate-slide-up stagger-2">
+      <Card className="w-full mb-6 glass-card border-primary/20 hover-glow animate-slide-up stagger-2">
         <CardHeader className="gradient-bg text-primary-foreground">
           <CardTitle className="flex items-center gap-2">
             <TableIcon className="h-5 w-5 animate-float" />
