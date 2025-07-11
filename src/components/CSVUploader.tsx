@@ -33,14 +33,14 @@ const VILLA_SAMPLE = [
 ];
 
 const renderSampleTable = (rows: string[][]) => (
-  <div className="overflow-x-auto">
+  <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
     <table className="min-w-full table-auto text-sm">
       <thead>
-        <tr className="bg-indigo-100">
+        <tr className="bg-primary/10">
           {rows[0].map((h) => (
             <th
               key={h}
-              className="px-3 py-2 font-medium text-indigo-800 border-b border-indigo-200"
+              className="px-3 py-2 font-medium text-primary border-b border-border"
             >
               {h}
             </th>
@@ -51,12 +51,12 @@ const renderSampleTable = (rows: string[][]) => (
         {rows.slice(1).map((r, i) => (
           <tr
             key={i}
-            className={i % 2 === 0 ? "bg-white" : "bg-indigo-50"}
+            className={i % 2 === 0 ? "bg-background hover:bg-muted/50" : "bg-muted/30 hover:bg-muted/70"}
           >
             {r.map((c, j) => (
               <td
                 key={j}
-                className="px-3 py-2 text-gray-700 border-b border-indigo-100"
+                className="px-3 py-2 text-foreground border-b border-border transition-colors"
               >
                 {c || "—"}
               </td>
@@ -149,16 +149,16 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-background flex flex-col items-center py-8 px-4 animate-fade-in">
       {/* Upload Section */}
-      <div className="w-full max-w-lg mb-10">
-        <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-4 flex items-center gap-2">
-            <Upload className="w-6 h-6" />
+      <div className="w-full max-w-lg mb-10 animate-slide-up">
+        <Card className="overflow-hidden shadow-premium hover:shadow-glow transition-all duration-500 hover-scale border-primary/20">
+          <div className="gradient-bg text-primary-foreground p-4 flex items-center gap-2">
+            <Upload className="w-6 h-6 animate-float" />
             <h2 className="text-xl font-semibold">Upload Your File</h2>
           </div>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileUp className="w-12 h-12 text-indigo-300 mb-4 animate-pulse" />
+            <FileUp className="w-12 h-12 text-primary mb-4 animate-float" />
             <input
               ref={fileInputRef}
               type="file"
@@ -167,26 +167,29 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
               onChange={handleFileChange}
             />
             <Button
-              variant="ghost"
-              className="border-dashed border-2 border-indigo-400 hover:border-indigo-600"
+              variant="outline"
+              size="lg"
+              className="border-dashed border-2 border-primary/50 hover:border-primary hover:bg-primary/5 transition-all duration-300"
               onClick={() => fileInputRef.current?.click()}
             >
               Browse CSV or Excel
             </Button>
             {file && (
-              <div className="mt-4 flex items-center text-sm text-gray-700">
-                <Check className="w-4 h-4 text-green-500 mr-2" />
+              <div className="mt-4 flex items-center text-sm text-foreground animate-scale-in">
+                <Check className="w-4 h-4 text-success mr-2" />
                 <span>
                   {file.name} ({(file.size / 1024).toFixed(1)} KB)
                 </span>
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex justify-end bg-gray-50">
+          <CardFooter className="flex justify-end bg-secondary/50">
             <Button
               onClick={handleUpload}
               disabled={!file || isUploading}
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
+              variant="premium"
+              size="lg"
+              className={isUploading ? "animate-pulse" : ""}
             >
               {isUploading ? "Processing…" : "Upload & Parse"}
             </Button>
@@ -195,25 +198,25 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
       </div>
 
       {/* Sample Data Section */}
-      <div className="w-full max-w-4xl">
-        <Card className="shadow-md">
-          <CardHeader className="bg-indigo-50">
-            <CardTitle className="text-xl text-indigo-800">
+      <div className="w-full max-w-4xl animate-slide-up stagger-1">
+        <Card className="shadow-lg hover:shadow-xl transition-all duration-500 border-primary/20">
+          <CardHeader className="gradient-secondary text-foreground">
+            <CardTitle className="text-xl text-primary">
               Sample Data Formats
             </CardTitle>
-            <CardDescription className="px-6 pb-4 text-gray-600">
+            <CardDescription className="px-6 pb-4 text-muted-foreground">
               Use these templates to format your upload
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-8 px-6 pb-6">
-            <div>
-              <h3 className="text-indigo-700 font-semibold mb-2">
+            <div className="animate-slide-left stagger-1">
+              <h3 className="text-primary font-semibold mb-2">
                 Apartment / Tower
               </h3>
               {renderSampleTable(APARTMENT_SAMPLE)}
             </div>
-            <div>
-              <h3 className="text-indigo-700 font-semibold mb-2">
+            <div className="animate-slide-left stagger-2">
+              <h3 className="text-primary font-semibold mb-2">
                 Villa / Townhouse
               </h3>
               {renderSampleTable(VILLA_SAMPLE)}
@@ -223,7 +226,7 @@ const CSVUploader: React.FC<CSVUploaderProps> = ({ onDataParsed }) => {
       </div>
 
       {/* Footer Credit */}
-      <div className="mt-12 text-sm text-gray-500">
+      <div className="mt-12 text-sm text-muted-foreground animate-fade-in stagger-3">
         Created by Dhananjay Shembekar
       </div>
     </div>
