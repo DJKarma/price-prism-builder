@@ -75,7 +75,7 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
   };
 
   return (
-    <div className="sticky top-0 z-10 bg-white pb-3 border-b mb-4">
+    <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pb-3 border-b mb-4 shadow-sm">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
         <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
