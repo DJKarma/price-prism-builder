@@ -53,6 +53,7 @@ const optionalFields = [
   { id: "acArea", label: "AC Area", keywords: ["ac", "air", "conditioning", "climate", "cool", "controlled", "hvac"] },
   { id: "balcony", label: "Balcony", keywords: ["balcony", "patio", "outdoor", "terrace", "deck", "veranda", "porch"] },
   { id: "floor", label: "Floor Level", keywords: ["floor", "level", "story", "storey", "elevation", "height", "tier"] },
+  { id: "pool", label: "Pool", keywords: ["pool", "swimming", "swim", "spa", "jacuzzi", "hot tub", "water feature"] },
 ];
 
 const allFields = [...requiredFields, ...optionalFields];
@@ -390,7 +391,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
 
             if (field.id === "floor") {
               value = parseFloorValue(value);
-            } else if (["sellArea", "acArea", "balcony"].includes(field.id)) {
+            } else if (["sellArea", "acArea", "balcony", "pool"].includes(field.id)) {
               value = parseNumericValue(value, 0);
             }
           }
@@ -477,6 +478,8 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       case "acArea":
         return 0;
       case "balcony":
+        return 0;
+      case "pool":
         return 0;
       case "floor":
         return "0";
