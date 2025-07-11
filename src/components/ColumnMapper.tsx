@@ -81,28 +81,43 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
     const potentialCategories: AdditionalCategory[] = [];
     
     unmappedColumns.forEach(column => {
-      const firstFewValues = data.slice(0, 10).map(row => row[column]);
-      const seemsNumerical = firstFewValues.every(val => 
-        val === undefined || val === null || val === "" || !isNaN(Number(val))
-      );
+      const uniqueValues = new Set<string>();
+      data.forEach(row => {
+        const value = row[column];
+        if (value !== undefined && value !== null && value !== "") {
+          uniqueValues.add(String(value));
+        }
+      });
       
-      if (!seemsNumerical) {
-        const uniqueValues = new Set<string>();
-        data.forEach(row => {
-          const value = row[column];
-          if (value !== undefined && value !== null && value !== "") {
-            uniqueValues.add(String(value));
+      // Skip if no unique values or too many unique values
+      if (uniqueValues.size === 0 || uniqueValues.size > 20) {
+        return;
+      }
+      
+      // Check if it's a categorical field (even if numeric)
+      const isCategorical = uniqueValues.size <= 10 || // Small number of unique values
+        Array.from(uniqueValues).every(val => {
+          const num = Number(val);
+          return isNaN(num) || // Non-numeric values
+            (Number.isInteger(num) && num >= 0 && num <= 100); // Small integers (likely categorical)
+        });
+      
+      if (isCategorical && uniqueValues.size > 1) {
+        const categories = Array.from(uniqueValues).sort((a, b) => {
+          // Sort numeric values numerically, text values alphabetically
+          const aNum = Number(a);
+          const bNum = Number(b);
+          if (!isNaN(aNum) && !isNaN(bNum)) {
+            return aNum - bNum;
           }
+          return a.localeCompare(b);
         });
         
-        if (uniqueValues.size > 1 && uniqueValues.size <= 20) {
-          const categories = Array.from(uniqueValues).sort();
-          potentialCategories.push({
-            column,
-            categories: categories,
-            selectedCategories: [...categories]
-          });
-        }
+        potentialCategories.push({
+          column,
+          categories: categories,
+          selectedCategories: [...categories]
+        });
       }
     });
     
