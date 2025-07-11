@@ -26,10 +26,10 @@ const APARTMENT_SAMPLE = [
 ];
 
 const VILLA_SAMPLE = [
-  ["Unit","Type","Floor","Pool","Total Area","Inside/Suite Area","Balcony Size","Furnished?","Param 1","Param 2"],
-  ["Villa 1","1 BR","1","No","1800","1500","300","Yes","",""],
-  ["Townhouse 1","2 BR","2","Yes","2000","1800","200","No","",""],
-  ["Townhouse 2","3 BR Dup","20","No","3000","2500","500","Yes","",""],
+  ["Unit","Type","Pool","Total Area","Inside/Suite Area","Balcony Size","Furnished?","Param 1","Param 2"],
+  ["Villa 1","1 BR","No","1800","1500","300","Yes","",""],
+  ["Townhouse 1","2 BR","Yes","2000","1800","200","No","",""],
+  ["Townhouse 2","3 BR Dup","No","3000","2500","500","Yes","",""],
 ];
 
 const renderSampleTable = (rows: string[][]) => (
