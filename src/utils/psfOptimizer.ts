@@ -65,7 +65,8 @@ export const simulatePricing = (
     (config.additionalCategoryPricing || []).forEach((cat) => {
       const val = unit[`${cat.column}_value`];
       const key = `${cat.column}: ${val}`;
-      if (val === cat.category) {
+      // Handle both string and numeric comparisons
+      if (val !== undefined && val !== null && String(val) === String(cat.category)) {
         additionalAdjustment += cat.psfAdjustment;
         additionalCategoryPriceComponents[key] = cat.psfAdjustment;
       }
