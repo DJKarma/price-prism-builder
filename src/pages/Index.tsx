@@ -19,7 +19,6 @@ const Index = () => {
   const [transitionDirection, setTransitionDirection] = useState<"forward" | "backward">("forward");
   const [tabChanging, setTabChanging] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
-  const [dynamicFields, setDynamicFields] = useState<any[]>([]);
 
   /* global store */
   const {
@@ -59,37 +58,22 @@ const Index = () => {
     mapping: Record<string, string>,
     rows: any[],
     categories: { column: string; categories: string[] }[],
-    detectedDynamicFields?: any[]
   ) => {
     setMappedData(rows, categories);
-    setDynamicFields(detectedDynamicFields || []);
 
     /* ------- build a quick default pricingConfig ------- */
     const BASE_PSF = 1_000;
     const uniqueTypes = [...new Set(rows.map(r => r.type).filter(Boolean))] as string[];
     const uniqueViews = [...new Set(rows.map(r => r.view).filter(Boolean))] as string[];
 
-    // Create pricing for dynamic fields
-    const dynamicFieldPricing = (detectedDynamicFields || []).flatMap(field =>
-      field.categories.map((category: string) => ({
-        column: field.column,
-        category,
-        psfAdjustment: 0
-      }))
-    );
-
     const defaultConfig = {
       basePsf : BASE_PSF,
       bedroomTypePricing : uniqueTypes.map(t => ({ type: t, basePsf: BASE_PSF, targetAvgPsf: BASE_PSF })),
       viewPricing        : uniqueViews.map(v => ({ view: v, psfAdjustment: 0 })),
       floorRiseRules     : [{ startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 }],
-      additionalCategoryPricing: [
-        ...categories.flatMap(cat =>
-          cat.categories.map(val => ({ column: cat.column, category: val, psfAdjustment: 0 }))
-        ),
-        ...dynamicFieldPricing
-      ],
-      dynamicFields: detectedDynamicFields || [],
+      additionalCategoryPricing: categories.flatMap(cat =>
+        cat.categories.map(val => ({ column: cat.column, category: val, psfAdjustment: 0 }))
+      ),
       maxFloor,
     };
 
@@ -248,7 +232,6 @@ const Index = () => {
                     pricingConfig={pricingConfig}
                     onConfigUpdate={handleConfigUpdate}
                     additionalCategories={additionalCategories}
-                    dynamicFields={dynamicFields}
                     maxFloor={maxFloor}
                     key={`sim-${forceUpdate}`}
                   />

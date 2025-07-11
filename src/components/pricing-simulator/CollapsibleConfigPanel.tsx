@@ -17,7 +17,6 @@ interface Props {
   onConfigUpdate: (u: any) => void;
   maxFloor?: number;
   additionalCategories?: Array<{ column: string; categories: string[] }>;
-  dynamicFields?: Array<{ column: string; categories: string[]; isDynamic: boolean }>;
 }
 
 const CollapsibleConfigPanel: React.FC<Props> = ({
@@ -26,7 +25,6 @@ const CollapsibleConfigPanel: React.FC<Props> = ({
   onConfigUpdate,
   maxFloor,
   additionalCategories,
-  dynamicFields,
 }) => {
   const handleConfigImport = (cfg: any) => onConfigUpdate(cfg);
 
@@ -61,7 +59,6 @@ const CollapsibleConfigPanel: React.FC<Props> = ({
               onConfigurationComplete={onConfigUpdate}
               maxFloor={maxFloor}
               additionalCategories={additionalCategories}
-              dynamicFields={dynamicFields}
             />
           </AccordionContent>
         </AccordionItem>

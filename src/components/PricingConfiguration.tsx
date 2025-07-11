@@ -50,7 +50,6 @@ interface PricingConfigurationProps {
   onConfigurationComplete: (config: PricingConfig) => void;
   maxFloor?: number;
   additionalCategories?: Array<{ column: string; categories: string[] }>;
-  dynamicFields?: Array<{ column: string; categories: string[]; isDynamic: boolean }>;
 }
 
 export interface FloorRiseRule {
@@ -125,7 +124,6 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   onConfigurationComplete,
   maxFloor = 50,
   additionalCategories = [],
-  dynamicFields = [],
 }) => {
   // ───────────────────────── state ─────────────────────────
 
@@ -145,26 +143,15 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   );
   const [additionalCategoryPricing, setAdditionalCategoryPricing] = useState<AdditionalCategoryPricing[]>(
     initialConfig?.additionalCategoryPricing ||
-      [
-        ...(additionalCategories.length
-          ? additionalCategories.flatMap(cat =>
-              cat.categories.map(c => ({
-                column: cat.column,
-                category: c,
-                psfAdjustment: 0,
-              }))
-            )
-          : []),
-        ...(dynamicFields.length
-          ? dynamicFields.flatMap(field =>
-              field.categories.map(c => ({
-                column: field.column,
-                category: c,
-                psfAdjustment: 0,
-              }))
-            )
-          : [])
-      ]
+      (additionalCategories.length
+        ? additionalCategories.flatMap(cat =>
+            cat.categories.map(c => ({
+              column: cat.column,
+              category: c,
+              psfAdjustment: 0,
+            }))
+          )
+        : [])
   );
   const [hasBalcony, setHasBalcony] = useState<boolean>(!!initialConfig?.balconyPricing);
   const [balconyPricing, setBalconyPricing] = useState<BalconyPricing>(

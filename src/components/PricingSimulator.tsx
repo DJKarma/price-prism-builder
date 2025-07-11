@@ -46,7 +46,6 @@ interface PricingSimulatorProps {
   pricingConfig: any;
   onConfigUpdate?: (updatedConfig: any) => void;
   additionalCategories?: Array<{ column: string; categories: string[] }>;
-  dynamicFields?: Array<{ column: string; categories: string[]; isDynamic: boolean }>;
   maxFloor?: number;
   hideConfigPanel?: boolean;
 }
@@ -56,7 +55,6 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   pricingConfig: externalConfig,
   onConfigUpdate,
   additionalCategories = [],
-  dynamicFields = [],
   maxFloor = 50,
   hideConfigPanel = false,
 }) => {
@@ -132,31 +130,12 @@ const defaultVisibleColumns = [
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
 
-    // detect additional columns (including dynamic fields)
+    // detect additional columns
     const cols = new Set<string>();
     (pricingConfig.additionalCategoryPricing || []).forEach((item: any) => {
       cols.add(item.column);
     });
     setAdditionalColumns(Array.from(cols));
-    
-    // Add dynamic field columns to default visible columns if they're not already there
-    const dynamicColumns = (dynamicFields || []).map(field => field.column);
-    if (dynamicColumns.length > 0) {
-      setVisibleColumns(prev => {
-        const newVisible = [...prev];
-        dynamicColumns.forEach(col => {
-          if (!newVisible.includes(col)) {
-            newVisible.push(col);
-          }
-          // Also add the premium column for dynamic fields
-          const premiumCol = `${col}_premium`;
-          if (!newVisible.includes(premiumCol)) {
-            newVisible.push(premiumCol);
-          }
-        });
-        return newVisible;
-      });
-    }
 
     // run simulation with active filters scoped to flat-price adders
     setUnits(
@@ -245,7 +224,6 @@ const allColumns = [
   { id: "balconyPrice",         label: "Balcony Component",                        required: false },
   { id: "flatAddTotal",             label: "Flat Adders",            required: false },
   { id: "totalPriceRaw",            label: "Total Price (unc.)",                      required: false },
-  { id: "percentageIncrease",       label: "% Increase",                               required: false },
   { id: "finalTotalPrice",          label: "Final Total Price",                        required: true  },
   { id: "finalPsf",                 label: "Final PSF",                                required: true  },
   { id: "finalAcPsf",               label: "Final AC PSF",                             required: true  },
@@ -295,7 +273,6 @@ const allColumns = [
             pricingConfig={pricingConfig}
             onConfigUpdate={handlePricingConfigChange}
             additionalCategories={additionalCategories}
-            dynamicFields={dynamicFields}
             maxFloor={maxFloor}
           />
         </div>
@@ -349,7 +326,6 @@ const allColumns = [
             visibleColumns={visibleColumns}
             additionalColumns={additionalColumns}
             handleSort={handleSort}
-            pricingConfig={pricingConfig}
           />
         </CardContent>
       </Card>
