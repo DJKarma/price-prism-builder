@@ -10,6 +10,7 @@ interface Props {
   visibleColumns: string[];
   additionalColumns: string[];
   handleSort: (key: string) => void;
+  isFullScreen?: boolean;
 }
 
 export default function PricingTable({
@@ -17,20 +18,20 @@ export default function PricingTable({
   visibleColumns,
   additionalColumns,
   handleSort,
+  isFullScreen = false,
 }: Props) {
   // build the list for the Add-Cat Premium header
   const addCatList = additionalColumns.join(", ") || "none";
 
   return (
     <div
-      className="
-        max-h-[650px] overflow-y-auto overflow-x-auto
-        border border-border rounded-lg
-        shadow-sm
-      "
+      className={`
+        ${isFullScreen ? 'h-full' : 'max-h-[650px]'} overflow-y-auto overflow-x-auto
+        border-0 ${isFullScreen ? '' : 'border border-border rounded-lg shadow-sm'}
+      `}
     >
-      <table className="min-w-full table-fixed border-separate border-spacing-0 bg-background">{}
-        <thead className="bg-muted/50 sticky top-0 z-10">{}
+      <table className="min-w-full table-fixed border-separate border-spacing-0 bg-background">
+        <thead className={`${isFullScreen ? 'bg-muted' : 'bg-muted'} sticky top-0 z-10`}>
           <tr>
             {/* BASIC */}
             {["name", "type", "floor", "view"].map((col) =>
@@ -38,7 +39,7 @@ export default function PricingTable({
                 <th
                   key={col}
                   onClick={() => handleSort(col)}
-                  className="px-2 py-1 text-left text-sm border-b border-gray-200 cursor-pointer"
+                  className="px-3 py-3 text-left text-sm font-medium border-b border-border cursor-pointer hover:bg-muted/30 transition-colors"
                 >
                   <div className="flex items-center">
                     {col.charAt(0).toUpperCase() + col.slice(1)}{" "}
@@ -53,7 +54,7 @@ export default function PricingTable({
               visibleColumns.includes(col) ? (
                 <th
                   key={col}
-                  className="px-2 py-1 text-left text-sm border-b border-gray-200"
+                  className="px-3 py-3 text-left text-sm font-medium border-b border-border"
                 >
                   {col}
                 </th>
@@ -66,7 +67,7 @@ export default function PricingTable({
                 <th
                   key={`${col}_premium`}
                   onClick={() => handleSort(`${col}_premium`)}
-                  className="px-2 py-1 text-right text-xs text-muted-foreground border-b border-gray-200 cursor-pointer"
+                  className="px-3 py-3 text-right text-xs font-medium text-muted-foreground border-b border-border cursor-pointer hover:bg-muted/30 transition-colors"
                 >
                   <div className="flex justify-end items-center">
                     {col} Premium <ArrowUpDown className="ml-1 h-3 w-3" />
@@ -89,7 +90,7 @@ export default function PricingTable({
                 <th
                   key={col}
                   onClick={() => handleSort(col)}
-                  className="px-2 py-1 text-right text-sm border-b border-gray-200 cursor-pointer whitespace-nowrap"
+                  className="px-3 py-3 text-right text-sm font-medium border-b border-border cursor-pointer whitespace-nowrap hover:bg-muted/30 transition-colors"
                 >
                   <div className="flex justify-end items-center">
                     {{
@@ -133,7 +134,7 @@ export default function PricingTable({
                 <th
                   key={col}
                   onClick={() => handleSort(col)}
-                  className="px-2 py-1 text-right text-xs text-muted-foreground border-b border-gray-200 cursor-pointer whitespace-nowrap"
+                  className="px-3 py-3 text-right text-xs font-medium text-muted-foreground border-b border-border cursor-pointer whitespace-nowrap hover:bg-muted/30 transition-colors"
                 >
                   <div className="flex justify-end items-center">
                     <strong
@@ -157,7 +158,7 @@ export default function PricingTable({
 
             {/* OPTIMIZED */}
             {visibleColumns.includes("isOptimized") && (
-              <th className="px-2 py-1 text-center text-sm border-b border-gray-200">
+              <th className="px-3 py-3 text-center text-sm font-medium border-b border-border">
                 Optimized
               </th>
             )}
@@ -174,22 +175,22 @@ export default function PricingTable({
                 } transition-colors`}
               >
                 {visibleColumns.includes("name") && (
-                  <td className="px-2 py-1 border-b border-gray-100">
+                  <td className="px-3 py-2 border-b border-border/50 text-sm">
                     {unit.name}
                   </td>
                 )}
                 {visibleColumns.includes("type") && (
-                  <td className="px-2 py-1 border-b border-gray-100">
+                  <td className="px-3 py-2 border-b border-border/50 text-sm">
                     {unit.type}
                   </td>
                 )}
                 {visibleColumns.includes("floor") && (
-                  <td className="px-2 py-1 border-b border-gray-100">
+                  <td className="px-3 py-2 border-b border-border/50 text-sm">
                     {unit.floor}
                   </td>
                 )}
                 {visibleColumns.includes("view") && (
-                  <td className="px-2 py-1 border-b border-gray-100">
+                  <td className="px-3 py-2 border-b border-border/50 text-sm">
                     {unit.view}
                   </td>
                 )}
@@ -199,7 +200,7 @@ export default function PricingTable({
                   visibleColumns.includes(col) ? (
                     <td
                       key={col}
-                      className="px-2 py-1 border-b border-gray-100"
+                      className="px-3 py-2 border-b border-border/50 text-sm"
                     >
                       {unit[`${col}_value`] ?? "–"}
                     </td>
@@ -211,7 +212,7 @@ export default function PricingTable({
                   visibleColumns.includes(`${col}_premium`) ? (
                     <td
                       key={`${col}_premium`}
-                      className="px-2 py-1 border-b border-gray-100 text-right"
+                      className="px-3 py-2 border-b border-border/50 text-right text-sm"
                     >
                       {unit.additionalCategoryPriceComponents?.[
                         `${col}: ${unit[`${col}_value`]}`
@@ -221,88 +222,88 @@ export default function PricingTable({
                 )}
 
                 {visibleColumns.includes("sellArea") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(parseFloat(unit.sellArea))}
                   </td>
                 )}
                 {visibleColumns.includes("acArea") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(parseFloat(unit.acArea))}
                   </td>
                 )}
                 {/* ── NEW CELLS ── */}
                 {visibleColumns.includes("acPrice") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.acPrice).toLocaleString()}
                   </td>
                 )}
                 {visibleColumns.includes("balconyPrice") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.balconyPrice).toLocaleString()}
                   </td>
                 )}
                 {visibleColumns.includes("balconyArea") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.balconyArea)}
                   </td>
                 )}
                 {visibleColumns.includes("balconyPercentage") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.balconyPercentage)}%
                   </td>
                 )}
                 {visibleColumns.includes("basePsf") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.basePsf)}
                   </td>
                 )}
                 {visibleColumns.includes("viewPsfAdjustment") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.viewPsfAdjustment)}
                   </td>
                 )}
                 {visibleColumns.includes("floorAdjustment") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.floorAdjustment)}
                   </td>
                 )}
                 {visibleColumns.includes("additionalAdjustment") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.additionalAdjustment)}
                   </td>
                 )}
                 {visibleColumns.includes("psfAfterAllAdjustments") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.psfAfterAllAdjustments)}
                   </td>
                 )}
                 {visibleColumns.includes("flatAddTotal") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.flatAddTotal).toLocaleString()}
                   </td>
                 )}
                 {visibleColumns.includes("totalPriceRaw") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm">
                     {Math.round(unit.totalPriceRaw).toLocaleString()}
                   </td>
                 )}
                 {visibleColumns.includes("finalTotalPrice") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm font-medium">
                     {formatNumberWithCommas(unit.finalTotalPrice)}
                   </td>
                 )}
                 {visibleColumns.includes("finalPsf") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm font-medium">
                     {Math.round(unit.finalPsf)}
                   </td>
                 )}
                 {visibleColumns.includes("finalAcPsf") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-right font-medium">
+                  <td className="px-3 py-2 border-b border-border/50 text-right text-sm font-medium">
                     {Math.round(unit.finalAcPsf)}
                   </td>
                 )}
                 {visibleColumns.includes("isOptimized") && (
-                  <td className="px-2 py-1 border-b border-gray-100 text-center">
+                  <td className="px-3 py-2 border-b border-border/50 text-center">
                     {unit.isOptimized && (
                       <Check className="mx-auto h-5 w-5 text-green-600" />
                     )}
@@ -314,7 +315,7 @@ export default function PricingTable({
             <tr>
               <td
                 colSpan={visibleColumns.length || 1}
-                className="py-6 text-center text-gray-500 italic"
+                className="py-8 text-center text-muted-foreground italic"
               >
                 No units match your filter criteria
               </td>
