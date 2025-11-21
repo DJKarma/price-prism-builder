@@ -92,6 +92,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
   // ── NEW: state for our two new toggles
   const [importBalcony, setImportBalcony] = useState<boolean>(true);
   const [importFlatAdders, setImportFlatAdders] = useState<boolean>(true);
+  const [importProjectCost, setImportProjectCost] = useState<boolean>(true);
 
   // build the sections plus floor options
   useEffect(() => {
@@ -213,10 +214,12 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
       }`,
     }));
     setFloorOptions(impFloors);
-    setSelectedFloorKeys(new Set());
+    // Set all floor rules to be checked by default
+    setSelectedFloorKeys(new Set(impFloors.map(f => f.key)));
     // reset toggles
     setImportBalcony(true);
     setImportFlatAdders(true);
+    setImportProjectCost(true);
   }, [isOpen, currentConfig, importedConfig]);
 
   const anyToMap =
@@ -235,7 +238,8 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
     ) +
     selectedFloorKeys.size +
     (importBalcony ? 1 : 0) +
-    (importFlatAdders ? 1 : 0);
+    (importFlatAdders ? 1 : 0) +
+    (importProjectCost ? 1 : 0);
 
   const handleValueChange = (
     sectionKey: string,
@@ -271,6 +275,7 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
     out.floorRiseRulesApply = Array.from(selectedFloorKeys);
     out.importBalcony = importBalcony;
     out.importFlatAdders = importFlatAdders;
+    out.importProjectCost = importProjectCost;
     onMappingComplete(out);
     onClose();
   };
@@ -415,6 +420,17 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                     onChange={() => setImportFlatAdders(!importFlatAdders)}
                   />
                   <span>Import Flat-Price Adders</span>
+                </label>
+
+                {/* ── NEW: Project Cost import toggle ── */}
+                <label className="flex items-center gap-2 cursor-pointer p-2 border border-gray-100 rounded-md hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="text-indigo-600 rounded"
+                    checked={importProjectCost}
+                    onChange={() => setImportProjectCost(!importProjectCost)}
+                  />
+                  <span>Import Project Cost</span>
                 </label>
               </div>
             </div>

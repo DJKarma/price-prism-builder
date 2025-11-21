@@ -183,6 +183,11 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
       merged.flatPriceAdders = importedConfig.flatPriceAdders;
     }
 
+    // ── NEW ── 9) Project Cost
+    if (mappings.importProjectCost && typeof importedConfig.projectCost === 'number') {
+      merged.projectCost = importedConfig.projectCost;
+    }
+
     // Validate the merged configuration before applying
     const validationResult = validateConfigStructure(merged);
     if (!validationResult.isValid) {

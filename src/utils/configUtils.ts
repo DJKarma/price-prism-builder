@@ -31,6 +31,9 @@ export function exportConfig(config: any): string {
     ? cfg.floorRiseRules
     : [];
 
+  // Ensure projectCost is included
+  cfg.projectCost = cfg.projectCost ?? 0;
+
   // Extract dynamic fields from additionalCategoryPricing
   const dynamicFields = Array.from(new Set(
     (cfg.additionalCategoryPricing || []).map((item: any) => item.column)
@@ -47,6 +50,7 @@ export function exportConfig(config: any): string {
       "floorRiseRules",
       "flatPriceAdders",
       "percentageIncrease",
+      "projectCost",
     ],
   };
 
@@ -173,6 +177,9 @@ export async function importConfig(
           ? imp.flatPriceAdders
           : [];
 
+        // Ensure projectCost exists
+        imp.projectCost = imp.projectCost ?? 0;
+
         // Known keys (case-insensitive)
         const known = new Set<string>([
           ...need,
@@ -182,6 +189,7 @@ export async function importConfig(
           "isOptimized",
           "flatPriceAdders",
           "percentageIncrease",
+          "projectCost",
         ]);
 
         // Filter out metadata + unknown
