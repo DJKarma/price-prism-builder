@@ -60,9 +60,17 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
   costAcPsf,
   units,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  // Persist isOpen state in config to survive re-renders
+  const [isOpen, setIsOpen] = useState(pricingConfig?.marginOptimizerOpen ?? false);
   const [showCostAlert, setShowCostAlert] = useState(false);
   const [isOptimized, setIsOptimized] = useState(false);
+
+  // Sync isOpen with config
+  useEffect(() => {
+    if (pricingConfig?.marginOptimizerOpen !== undefined && pricingConfig.marginOptimizerOpen !== isOpen) {
+      setIsOpen(pricingConfig.marginOptimizerOpen);
+    }
+  }, [pricingConfig?.marginOptimizerOpen]);
   
   // Get original base PSFs from config if stored, otherwise use current values
   const originalBasePsfs = pricingConfig?.originalBasePsfs || (() => {
@@ -160,7 +168,13 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
       setShowCostAlert(true);
       return;
     }
-    setIsOpen(!isOpen);
+    const newIsOpen = !isOpen;
+    setIsOpen(newIsOpen);
+    // Persist in config
+    onConfigUpdate({
+      ...pricingConfig,
+      marginOptimizerOpen: newIsOpen,
+    });
   };
 
   const handleMarginChange = (type: string, value: number) => {
@@ -201,6 +215,7 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
       bedroomTypePricing: updatedBedroomPricing,
       targetMargins: { ...targetMargins }, // Save target margins to config
       originalBasePsfs: originalValues, // Save original PSFs to config
+      marginOptimizerOpen: isOpen, // Preserve open state
     };
 
     // Update without triggering full page refresh
@@ -226,6 +241,7 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
       bedroomTypePricing: revertedBedroomPricing,
       originalBasePsfs: undefined, // Clear original PSFs from config
       targetMargins: undefined, // Optionally clear target margins
+      marginOptimizerOpen: isOpen, // Preserve open state
     };
 
     onConfigUpdate(updatedConfig);
