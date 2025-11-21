@@ -203,23 +203,25 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
               <h3 className="text-sm font-medium text-indigo-700 mb-3">
                 Target PSF by Bedroom Type
               </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {bedroomTypes.map((t) => (
-                  <div
-                    key={t}
-                    className={`p-2 text-sm rounded-md flex justify-between ${
-                      selectedTypes.includes(t)
-                        ? "bg-indigo-50 border border-indigo-200"
-                        : "bg-gray-50 border border-gray-200"
-                    }`}
-                  >
-                    <span>{t}</span>
-                    <span className="font-bold">
-                      {pricingConfig.bedroomTypePricing.find((b: any) => b.type === t)
-                        ?.targetAvgPsf ?? 0}
-                    </span>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {bedroomTypes.map((t) => {
+                  const config = pricingConfig.bedroomTypePricing.find((b: any) => b.type === t);
+                  return (
+                    <div
+                      key={t}
+                      className={`p-3 text-sm rounded-md flex justify-between items-center ${
+                        selectedTypes.includes(t)
+                          ? "bg-indigo-50 border border-indigo-200"
+                          : "bg-gray-50 border border-gray-200"
+                      }`}
+                    >
+                      <span className="font-medium">{t}</span>
+                      <span className="font-bold text-indigo-900">
+                        {config?.targetAvgPsf ?? 0}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

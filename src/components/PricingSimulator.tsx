@@ -343,13 +343,13 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
             <TableIcon className="h-4 w-4" />
             Pricing Table
           </TabsTrigger>
-          <TabsTrigger value="optimize" className="flex items-center gap-2">
-            <LineChart className="h-4 w-4" />
-            Optimization
-          </TabsTrigger>
           <TabsTrigger value="config" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Configuration
+          </TabsTrigger>
+          <TabsTrigger value="optimize" className="flex items-center gap-2">
+            <LineChart className="h-4 w-4" />
+            Optimization
           </TabsTrigger>
         </TabsList>
 

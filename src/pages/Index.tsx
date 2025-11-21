@@ -6,7 +6,6 @@ import { Toaster, toast } from "sonner";
 
 import CSVUploader       from "@/components/CSVUploader";
 import ColumnMapper      from "@/components/ColumnMapper";
-import MegaOptimize      from "@/components/MegaOptimize";
 import PricingSimulator  from "@/components/PricingSimulator";
 
 import { usePricingStore } from "@/store/pricingStore";
@@ -218,13 +217,6 @@ const Index = () => {
                       Back to Map Columns
                     </Button>
                   </div>
-
-                  {/* full‑width summary (new internal grid handles layout) */}
-                  <MegaOptimize
-                    data={mappedData}
-                    pricingConfig={pricingConfig}
-                    onOptimized={handleConfigUpdate}
-                  />
 
                   {/* pricing config + table */}
                   <PricingSimulator
