@@ -116,7 +116,6 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     setProcessed(simulatePricing(data, pricingConfig)); // <— the fix
   }, [data, pricingConfig]);
 
-  /* optimise handler (unchanged) */
   const optimise = () => {
     if (!selectedTypes.length) {
       toast.error("Select bedroom types");
@@ -126,10 +125,8 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     setAnimateNums(true);
     setHighlightedTypes(selectedTypes);
 
-    // Run optimization immediately without promise wrapper
+    // Run optimization
     runMegaOptimization(selectedTypes, metric);
-    
-    // Show success toast
     toast.success("Optimization complete!");
     
     // Reset animations after delay

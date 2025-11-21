@@ -321,9 +321,16 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
               </div>
               <CollapsibleTrigger asChild>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
                   className={projectCost === 0 ? "opacity-50 cursor-not-allowed" : ""}
+                  onClick={(e) => {
+                    if (projectCost === 0) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
                 >
                   <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                 </Button>
@@ -452,14 +459,24 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
               {/* Action Buttons */}
               <div className="flex gap-3">
                 <Button
-                  onClick={handleOptimize}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleOptimize();
+                  }}
                   className="flex-1"
                 >
                   <TrendingUp className="mr-2 h-4 w-4" />
                   {isOptimized ? "Re-Optimize Base PSF" : "Optimize Base PSF"}
                 </Button>
                 <Button
-                  onClick={handleRevert}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleRevert();
+                  }}
                   variant="outline"
                   disabled={!isOptimized}
                   className="flex-1"
