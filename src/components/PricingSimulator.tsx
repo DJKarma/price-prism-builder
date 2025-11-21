@@ -24,6 +24,7 @@ import PricingExportControls from "./pricing-simulator/PricingExportControls";
 import CollapsibleConfigPanel from "./pricing-simulator/CollapsibleConfigPanel";
 import { useUnitFilters } from "./pricing-simulator/useUnitFilters";
 import { createSummaryData } from "./pricing-simulator/pricingUtils";
+import MarginOptimizer from "./MarginOptimizer";
 
 export interface UnitWithPricing extends Record<string, any> {
   totalPrice: number;
@@ -407,6 +408,18 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
           </CollapsibleContent>
         </Collapsible>
       </Card>
+
+      {/* ─── Profit/Margin Optimizer ─── */}
+      <MarginOptimizer
+        pricingConfig={pricingConfig}
+        onConfigUpdate={(updatedConfig) => {
+          setPricingConfig(updatedConfig);
+          onConfigUpdate?.(updatedConfig);
+        }}
+        projectCost={projectCost}
+        costAcPsf={costAcPsf}
+        units={filteredUnits}
+      />
 
       {/* ─── Integrated Table with Filters ─── */}
       <CollapsibleTable
