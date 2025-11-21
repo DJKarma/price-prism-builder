@@ -174,24 +174,24 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
       setOriginalBasePsfs(original);
     }
 
-    // Calculate optimized PSFs maintaining proportional relationships
-    const currentPsfs = bedroomTypes.map(t => bedroomPsfMap[t] || 0);
-    const minCurrentPsf = Math.min(...currentPsfs.filter(p => p > 0));
+    // Calculate optimized PSFs maintaining proportional relationships using original values
+    const originalPsfs = bedroomTypes.map(t => originalBasePsfs[t] || 0);
+    const minOriginalPsf = Math.min(...originalPsfs.filter(p => p > 0));
     
-    if (!minCurrentPsf || minCurrentPsf === 0) {
+    if (!minOriginalPsf || minOriginalPsf === 0) {
       toast.error("Cannot optimize: Base PSF values not set");
       return;
     }
     
-    // Create updated bedroom pricing array maintaining proportions
+    // Create updated bedroom pricing array maintaining proportions from original values
     const updatedBedroomPricing = pricingConfig.bedroomTypePricing.map((item: any) => {
       const result = optimizationResults.find(r => r.type === item.type);
       if (!result) return item;
 
-      const currentPsf = bedroomPsfMap[item.type] || 0;
-      const ratio = currentPsf / minCurrentPsf;
+      const originalPsf = originalBasePsfs[item.type] || 0;
+      const ratio = originalPsf / minOriginalPsf;
       
-      // Apply optimization while maintaining ratio
+      // Apply optimization while maintaining ratio based on original values
       const optimizedValue = Number((result.optimizedBasePsf * ratio).toFixed(2));
 
       return {
