@@ -337,7 +337,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Type</TableHead>
+                <TableHead>Bedroom Type</TableHead>
                 <TableHead className="text-right">Units</TableHead>
                 <TableHead className="text-right">Size</TableHead>
                 <TableHead className="text-right">Price</TableHead>
