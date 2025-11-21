@@ -279,10 +279,10 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
   ];
 
 
-  const [activeSimTab, setActiveSimTab] = useState("table");
+  const [activeSimTab, setActiveSimTab] = useState("config");
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in" id="pricing-simulator-root">
       {/* ────── Sticky Toolbar ────── */}
       <Card className="sticky top-0 z-10 glass-card border-border/50 shadow-lg backdrop-blur-sm">
         <CardContent className="py-4">
@@ -336,13 +336,48 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
         </CardContent>
       </Card>
 
-      {/* ────── Main Tabs ────── */}
+      {/* ────── Pricing Table (Always Visible) ────── */}
+      <div id="pricing-table-section">
+        <CollapsibleTable
+          filteredUnits={filteredUnits}
+          visibleColumns={visibleColumns}
+          additionalColumns={additionalColumns}
+          handleSort={handleSort}
+          pricingMode={pricingMode}
+          costAcPsf={costAcPsf}
+          costSaPsf={costSaPsf}
+          uniqueTypes={getUniqueValues("type")}
+          uniqueViews={getUniqueValues("view")}
+          uniqueFloors={getUniqueValues("floor")}
+          selectedTypes={selectedTypes}
+          setSelectedTypes={setSelectedTypes}
+          selectedViews={selectedViews}
+          setSelectedViews={setSelectedViews}
+          selectedFloors={selectedFloors}
+          setSelectedFloors={setSelectedFloors}
+          getUniqueAdditionalValues={(col) =>
+            Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
+          }
+          selectedAdditionalFilters={selectedAdditionalFilters}
+          setSelectedAdditionalFilters={setSelectedAdditionalFilters}
+          resetFilters={resetFilters}
+          allColumns={allColumns}
+          toggleColumnVisibility={toggleColumnVisibility}
+          resetColumnVisibility={resetColumnVisibility}
+          pricingConfig={pricingConfig}
+          createSummaryData={createSummaryData}
+        />
+
+        <PricingExportControls
+          filteredUnits={filteredUnits}
+          pricingConfig={pricingConfig}
+          createSummaryData={createSummaryData}
+        />
+      </div>
+
+      {/* ────── Configuration & Optimization Tabs ────── */}
       <Tabs value={activeSimTab} onValueChange={setActiveSimTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="table" className="flex items-center gap-2">
-            <TableIcon className="h-4 w-4" />
-            Pricing Table
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="config" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Configuration
@@ -353,43 +388,18 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
           </TabsTrigger>
         </TabsList>
 
-        {/* ─── Pricing Table Tab ─── */}
-        <TabsContent value="table" className="space-y-6">
-          <CollapsibleTable
-            filteredUnits={filteredUnits}
-            visibleColumns={visibleColumns}
-            additionalColumns={additionalColumns}
-            handleSort={handleSort}
-            pricingMode={pricingMode}
-            costAcPsf={costAcPsf}
-            costSaPsf={costSaPsf}
-            uniqueTypes={getUniqueValues("type")}
-            uniqueViews={getUniqueValues("view")}
-            uniqueFloors={getUniqueValues("floor")}
-            selectedTypes={selectedTypes}
-            setSelectedTypes={setSelectedTypes}
-            selectedViews={selectedViews}
-            setSelectedViews={setSelectedViews}
-            selectedFloors={selectedFloors}
-            setSelectedFloors={setSelectedFloors}
-            getUniqueAdditionalValues={(col) =>
-              Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
-            }
-            selectedAdditionalFilters={selectedAdditionalFilters}
-            setSelectedAdditionalFilters={setSelectedAdditionalFilters}
-            resetFilters={resetFilters}
-            allColumns={allColumns}
-            toggleColumnVisibility={toggleColumnVisibility}
-            resetColumnVisibility={resetColumnVisibility}
-            pricingConfig={pricingConfig}
-            createSummaryData={createSummaryData}
-          />
-
-          <PricingExportControls
-            filteredUnits={filteredUnits}
-            pricingConfig={pricingConfig}
-            createSummaryData={createSummaryData}
-          />
+        {/* ─── Configuration Tab ─── */}
+        <TabsContent value="config" className="space-y-6">
+          {/* Configuration Panel */}
+          {onConfigUpdate && !hideConfigPanel && (
+            <CollapsibleConfigPanel
+              data={data}
+              pricingConfig={pricingConfig}
+              onConfigUpdate={handlePricingConfigChange}
+              additionalCategories={additionalCategories}
+              maxFloor={maxFloor}
+            />
+          )}
         </TabsContent>
 
         {/* ─── Optimization Tab ─── */}
@@ -467,6 +477,14 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
             onOptimized={(updatedConfig) => {
               setPricingConfig(updatedConfig);
               onConfigUpdate?.(updatedConfig);
+              
+              // Smooth scroll to pricing table
+              setTimeout(() => {
+                const tableSection = document.getElementById('pricing-table-section');
+                if (tableSection) {
+                  tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }, 300);
             }}
           />
 
@@ -476,6 +494,14 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
             onConfigUpdate={(updatedConfig) => {
               setPricingConfig(updatedConfig);
               onConfigUpdate?.(updatedConfig);
+              
+              // Smooth scroll to pricing table
+              setTimeout(() => {
+                const tableSection = document.getElementById('pricing-table-section');
+                if (tableSection) {
+                  tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }, 300);
             }}
             projectCost={projectCost}
             costAcPsf={costAcPsf}
