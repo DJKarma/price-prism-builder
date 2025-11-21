@@ -165,6 +165,15 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
   const handleOptimize = () => {
     if (!pricingConfig?.bedroomTypePricing || !Array.isArray(pricingConfig.bedroomTypePricing)) return;
 
+    // Store original values only if not already stored
+    if (Object.keys(originalBasePsfs).length === 0) {
+      const original: Record<string, number> = {};
+      pricingConfig.bedroomTypePricing.forEach((item: any) => {
+        original[item.type] = Number(item.basePsf) || 0;
+      });
+      setOriginalBasePsfs(original);
+    }
+
     // Calculate optimized PSFs maintaining proportional relationships
     const currentPsfs = bedroomTypes.map(t => bedroomPsfMap[t] || 0);
     const minCurrentPsf = Math.min(...currentPsfs.filter(p => p > 0));
@@ -304,7 +313,6 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
                             step="0.5"
                             min="0"
                             max="100"
-                            disabled={isOptimized}
                           />
                           <span className="text-sm text-muted-foreground w-4">%</span>
                         </div>
@@ -316,7 +324,6 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
                         max={50}
                         step={0.5}
                         className="w-full"
-                        disabled={isOptimized}
                       />
                     </div>
                   ))}
@@ -387,11 +394,10 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
               <div className="flex gap-3">
                 <Button
                   onClick={handleOptimize}
-                  disabled={isOptimized}
                   className="flex-1"
                 >
                   <TrendingUp className="mr-2 h-4 w-4" />
-                  Optimize Base PSF
+                  {isOptimized ? "Re-Optimize Base PSF" : "Optimize Base PSF"}
                 </Button>
                 <Button
                   onClick={handleRevert}
