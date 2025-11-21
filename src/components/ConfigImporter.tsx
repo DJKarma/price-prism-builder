@@ -188,6 +188,16 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
       merged.projectCost = importedConfig.projectCost;
     }
 
+    // ── NEW ── 10) Target Margins
+    if (mappings.importTargetMargins && importedConfig.targetMargins) {
+      merged.targetMargins = importedConfig.targetMargins;
+    }
+
+    // ── NEW ── 11) Original Base PSFs
+    if (mappings.importOriginalBasePsfs && importedConfig.originalBasePsfs) {
+      merged.originalBasePsfs = importedConfig.originalBasePsfs;
+    }
+
     // Validate the merged configuration before applying
     const validationResult = validateConfigStructure(merged);
     if (!validationResult.isValid) {
