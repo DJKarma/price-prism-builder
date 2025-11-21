@@ -63,7 +63,17 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [showCostAlert, setShowCostAlert] = useState(false);
   const [isOptimized, setIsOptimized] = useState(false);
-  const [originalBasePsfs, setOriginalBasePsfs] = useState<Record<string, number>>({});
+  
+  // Get original base PSFs from config if stored, otherwise use current values
+  const originalBasePsfs = pricingConfig?.originalBasePsfs || (() => {
+    const original: Record<string, number> = {};
+    if (pricingConfig?.bedroomTypePricing && Array.isArray(pricingConfig.bedroomTypePricing)) {
+      pricingConfig.bedroomTypePricing.forEach((item: any) => {
+        original[item.type] = Number(item.basePsf) || 0;
+      });
+    }
+    return original;
+  })();
 
   // Get bedroom types from pricing config (array structure)
   const bedroomTypes = useMemo(() => {
@@ -99,14 +109,12 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
     }
   }, [pricingConfig, bedroomTypes]);
 
-  // Store original PSFs when component mounts or config changes
+  // Check if we're currently in optimized state
   useEffect(() => {
-    if (pricingConfig?.bedroomTypePricing && Array.isArray(pricingConfig.bedroomTypePricing) && Object.keys(originalBasePsfs).length === 0) {
-      const original: Record<string, number> = {};
-      pricingConfig.bedroomTypePricing.forEach((item: any) => {
-        original[item.type] = Number(item.basePsf) || 0;
-      });
-      setOriginalBasePsfs(original);
+    if (pricingConfig?.originalBasePsfs && Object.keys(pricingConfig.originalBasePsfs).length > 0) {
+      setIsOptimized(true);
+    } else {
+      setIsOptimized(false);
     }
   }, [pricingConfig]);
 
@@ -165,13 +173,13 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
   const handleOptimize = () => {
     if (!pricingConfig?.bedroomTypePricing || !Array.isArray(pricingConfig.bedroomTypePricing)) return;
 
-    // Store original values only if not already stored
-    if (Object.keys(originalBasePsfs).length === 0) {
-      const original: Record<string, number> = {};
+    // Store original values in config if not already stored
+    let originalValues = pricingConfig.originalBasePsfs;
+    if (!originalValues || Object.keys(originalValues).length === 0) {
+      originalValues = {};
       pricingConfig.bedroomTypePricing.forEach((item: any) => {
-        original[item.type] = Number(item.basePsf) || 0;
+        originalValues[item.type] = Number(item.basePsf) || 0;
       });
-      setOriginalBasePsfs(original);
     }
 
     // Apply optimized PSF directly to achieve exact target margins
@@ -192,15 +200,17 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
       ...pricingConfig,
       bedroomTypePricing: updatedBedroomPricing,
       targetMargins: { ...targetMargins }, // Save target margins to config
+      originalBasePsfs: originalValues, // Save original PSFs to config
     };
 
+    // Update without triggering full page refresh
     onConfigUpdate(updatedConfig);
     setIsOptimized(true);
     toast.success("Base PSF values optimized for target margins");
   };
 
   const handleRevert = () => {
-    if (Object.keys(originalBasePsfs).length === 0) {
+    if (!originalBasePsfs || Object.keys(originalBasePsfs).length === 0) {
       toast.error("No original values to revert to");
       return;
     }
@@ -214,6 +224,8 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
     const updatedConfig = {
       ...pricingConfig,
       bedroomTypePricing: revertedBedroomPricing,
+      originalBasePsfs: undefined, // Clear original PSFs from config
+      targetMargins: undefined, // Optionally clear target margins
     };
 
     onConfigUpdate(updatedConfig);
