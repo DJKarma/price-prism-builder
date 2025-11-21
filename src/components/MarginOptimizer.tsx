@@ -174,25 +174,13 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
       setOriginalBasePsfs(original);
     }
 
-    // Calculate optimized PSFs maintaining proportional relationships using original values
-    const originalPsfs = bedroomTypes.map(t => originalBasePsfs[t] || 0);
-    const minOriginalPsf = Math.min(...originalPsfs.filter(p => p > 0));
-    
-    if (!minOriginalPsf || minOriginalPsf === 0) {
-      toast.error("Cannot optimize: Base PSF values not set");
-      return;
-    }
-    
-    // Create updated bedroom pricing array maintaining proportions from original values
+    // Apply optimized PSF directly to achieve exact target margins
     const updatedBedroomPricing = pricingConfig.bedroomTypePricing.map((item: any) => {
       const result = optimizationResults.find(r => r.type === item.type);
       if (!result) return item;
 
-      const originalPsf = originalBasePsfs[item.type] || 0;
-      const ratio = originalPsf / minOriginalPsf;
-      
-      // Apply optimization while maintaining ratio based on original values
-      const optimizedValue = Number((result.optimizedBasePsf * ratio).toFixed(2));
+      // Use the optimized PSF directly (Cost AC PSF × (1 + Target Margin %))
+      const optimizedValue = Number(result.optimizedBasePsf.toFixed(2));
 
       return {
         ...item,
@@ -411,7 +399,7 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
               </div>
 
               <p className="text-xs text-muted-foreground italic">
-                Note: Optimization maintains relative PSF relationships between bedroom types while targeting specified margins.
+                Note: Optimization sets Base PSF = Cost AC PSF × (1 + Target Margin %) for each bedroom type to achieve exact target margins.
               </p>
             </CardContent>
           </CollapsibleContent>
