@@ -89,10 +89,12 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
     new Set()
   );
 
-  // ── NEW: state for our two new toggles
+  // ── NEW: state for our toggles
   const [importBalcony, setImportBalcony] = useState<boolean>(true);
   const [importFlatAdders, setImportFlatAdders] = useState<boolean>(true);
   const [importProjectCost, setImportProjectCost] = useState<boolean>(true);
+  const [importTargetMargins, setImportTargetMargins] = useState<boolean>(true);
+  const [importOriginalBasePsfs, setImportOriginalBasePsfs] = useState<boolean>(true);
 
   // build the sections plus floor options
   useEffect(() => {
@@ -220,6 +222,8 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
     setImportBalcony(true);
     setImportFlatAdders(true);
     setImportProjectCost(true);
+    setImportTargetMargins(true);
+    setImportOriginalBasePsfs(true);
   }, [isOpen, currentConfig, importedConfig]);
 
   const anyToMap =
@@ -239,7 +243,9 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
     selectedFloorKeys.size +
     (importBalcony ? 1 : 0) +
     (importFlatAdders ? 1 : 0) +
-    (importProjectCost ? 1 : 0);
+    (importProjectCost ? 1 : 0) +
+    (importTargetMargins ? 1 : 0) +
+    (importOriginalBasePsfs ? 1 : 0);
 
   const handleValueChange = (
     sectionKey: string,
@@ -276,6 +282,8 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
     out.importBalcony = importBalcony;
     out.importFlatAdders = importFlatAdders;
     out.importProjectCost = importProjectCost;
+    out.importTargetMargins = importTargetMargins;
+    out.importOriginalBasePsfs = importOriginalBasePsfs;
     onMappingComplete(out);
     onClose();
   };
@@ -431,6 +439,28 @@ const ConfigMappingDialog: React.FC<ConfigMappingDialogProps> = ({
                     onChange={() => setImportProjectCost(!importProjectCost)}
                   />
                   <span>Import Project Cost</span>
+                </label>
+
+                {/* ── NEW: Target Margins import toggle ── */}
+                <label className="flex items-center gap-2 cursor-pointer p-2 border border-gray-100 rounded-md hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="text-indigo-600 rounded"
+                    checked={importTargetMargins}
+                    onChange={() => setImportTargetMargins(!importTargetMargins)}
+                  />
+                  <span>Import Target Margins</span>
+                </label>
+
+                {/* ── NEW: Original Base PSFs import toggle ── */}
+                <label className="flex items-center gap-2 cursor-pointer p-2 border border-gray-100 rounded-md hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="text-indigo-600 rounded"
+                    checked={importOriginalBasePsfs}
+                    onChange={() => setImportOriginalBasePsfs(!importOriginalBasePsfs)}
+                  />
+                  <span>Import Original Base PSFs</span>
                 </label>
               </div>
             </div>
