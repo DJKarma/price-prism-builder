@@ -478,8 +478,11 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="fullAreaPct" className="text-indigo-700 text-sm">
-                      % of balcony area at full Base PSF
+                    <Label htmlFor="fullAreaPct" className="text-indigo-700 text-sm flex items-center gap-2">
+                      % of balcony area at full Calculated PSF
+                      <span className="text-xs text-muted-foreground font-normal" title="Uses final PSF after all adjustments (base + view + floor + category premiums)">
+                        ⓘ
+                      </span>
                     </Label>
                     <Input
                       id="fullAreaPct"
@@ -497,8 +500,11 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="remainderRate" className="text-indigo-700 text-sm">
-                      Discount rate on remaining area (% of Base PSF)
+                    <Label htmlFor="remainderRate" className="text-indigo-700 text-sm flex items-center gap-2">
+                      Discount rate on remaining area (% of Calculated PSF)
+                      <span className="text-xs text-muted-foreground font-normal" title="Applies to the remaining balcony area. Uses final PSF after all adjustments.">
+                        ⓘ
+                      </span>
                     </Label>
                     <Input
                       id="remainderRate"
