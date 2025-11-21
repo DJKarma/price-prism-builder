@@ -135,12 +135,55 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
       const currentBasePsf = bedroomPsfMap[type] || 0;
       const targetMargin = Number(targetMargins[type]) || 0;
       
-      // Calculate optimized Base PSF: Cost AC PSF × (1 + Target Margin %)
-      const optimizedBasePsf = costAcPsf * (1 + targetMargin / 100);
+      // Filter units of this bedroom type
+      const typeUnits = units.filter(u => u.type === type);
       
-      // Calculate achieved margin with current PSF
-      const achievedMargin = currentBasePsf > 0 
-        ? ((currentBasePsf - costAcPsf) / costAcPsf) * 100 
+      if (typeUnits.length === 0) {
+        // Fallback if no units (shouldn't happen)
+        const optimizedBasePsf = costAcPsf * (1 + targetMargin / 100);
+        return {
+          type,
+          targetMargin: Number(targetMargin),
+          currentBasePsf: Number(currentBasePsf),
+          optimizedBasePsf: Number(optimizedBasePsf),
+          achievedMargin: 0,
+          deltaPsf: optimizedBasePsf - currentBasePsf,
+          status: "original" as const,
+        };
+      }
+      
+      // Calculate averages for this bedroom type
+      const avgAcArea = typeUnits.reduce((sum, u) => sum + (parseFloat(u.acArea) || 0), 0) / typeUnits.length;
+      
+      // Average premiums (view + floor + additional adjustments)
+      const avgPremiumPsf = typeUnits.reduce((sum, u) => {
+        const viewAdj = u.viewPsfAdjustment || 0;
+        const floorAdj = u.floorAdjustment || 0;
+        const addAdj = u.additionalAdjustment || 0;
+        return sum + viewAdj + floorAdj + addAdj;
+      }, 0) / typeUnits.length;
+      
+      // Average flat adders
+      const avgFlatAdder = typeUnits.reduce((sum, u) => sum + (u.flatAddTotal || 0), 0) / typeUnits.length;
+      
+      // Percentage increase multiplier
+      const pctMult = 1 + ((pricingConfig.percentageIncrease || 0) / 100);
+      
+      // Target revenue per unit to achieve target margin
+      const targetRevenue = costAcPsf * avgAcArea * (1 + targetMargin / 100);
+      
+      // Solve for basePsf that achieves target revenue
+      // Formula: (basePsf + avgPremiumPsf) * avgAcArea * pctMult + avgFlatAdder ≈ targetRevenue
+      // Note: We ignore rounding (ceil to 1000) for calculation simplicity
+      const optimizedBasePsf = Math.max(0, 
+        (targetRevenue - avgFlatAdder) / (avgAcArea * pctMult) - avgPremiumPsf
+      );
+      
+      // Calculate achieved margin with current PSF using actual average revenue
+      const avgCurrentRevenue = typeUnits.reduce((sum, u) => sum + (u.finalTotalPrice || 0), 0) / typeUnits.length;
+      const avgCurrentCost = costAcPsf * avgAcArea;
+      const achievedMargin = avgCurrentCost > 0 
+        ? ((avgCurrentRevenue - avgCurrentCost) / avgCurrentCost) * 100 
         : 0;
       
       const deltaPsf = optimizedBasePsf - currentBasePsf;
@@ -148,7 +191,7 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
       // Determine status
       let status: "optimized" | "original" | "unachieved" = "original";
       if (isOptimized) {
-        status = Math.abs(achievedMargin - targetMargin) < 0.5 ? "optimized" : "unachieved";
+        status = Math.abs(achievedMargin - targetMargin) < 1 ? "optimized" : "unachieved";
       }
 
       return {
@@ -161,7 +204,7 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
         status,
       };
     });
-  }, [bedroomTypes, bedroomPsfMap, targetMargins, costAcPsf, isOptimized]);
+  }, [bedroomTypes, bedroomPsfMap, targetMargins, costAcPsf, isOptimized, units, pricingConfig]);
 
   const handleToggle = () => {
     if (!projectCost || projectCost === 0) {
@@ -427,7 +470,7 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
               </div>
 
               <p className="text-xs text-muted-foreground italic">
-                Note: Optimization sets Base PSF = Cost AC PSF × (1 + Target Margin %) for each bedroom type to achieve exact target margins.
+                Note: Optimization calculates Base PSF for each bedroom type by accounting for average premiums (view, floor, additional categories), flat adders, and percentage increases to achieve target margins.
               </p>
             </CardContent>
           </CollapsibleContent>
