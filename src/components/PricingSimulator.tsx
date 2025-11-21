@@ -368,8 +368,10 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                     onChange={(e) => {
                       const newCost = parseFloat(e.target.value) || 0;
                       setProjectCost(newCost);
-                      // Update config immediately so it's included in exports
-                      onConfigUpdate?.({ ...pricingConfig, projectCost: newCost });
+                    }}
+                    onBlur={() => {
+                      // Update config only on blur to prevent constant re-renders
+                      onConfigUpdate?.({ ...pricingConfig, projectCost });
                     }}
                     placeholder="Enter total project cost"
                     className="w-full"
