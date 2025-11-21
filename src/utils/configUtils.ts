@@ -34,6 +34,9 @@ export function exportConfig(config: any): string {
   // Ensure projectCost is included
   cfg.projectCost = cfg.projectCost ?? 0;
 
+  // Ensure targetMargins is included (default to empty object)
+  cfg.targetMargins = cfg.targetMargins ?? {};
+
   // Extract dynamic fields from additionalCategoryPricing
   const dynamicFields = Array.from(new Set(
     (cfg.additionalCategoryPricing || []).map((item: any) => item.column)
@@ -51,6 +54,7 @@ export function exportConfig(config: any): string {
       "flatPriceAdders",
       "percentageIncrease",
       "projectCost",
+      "targetMargins",
     ],
   };
 
@@ -180,6 +184,9 @@ export async function importConfig(
         // Ensure projectCost exists
         imp.projectCost = imp.projectCost ?? 0;
 
+        // Ensure targetMargins exists (default to empty object, no errors)
+        imp.targetMargins = imp.targetMargins ?? {};
+
         // Known keys (case-insensitive)
         const known = new Set<string>([
           ...need,
@@ -190,6 +197,7 @@ export async function importConfig(
           "flatPriceAdders",
           "percentageIncrease",
           "projectCost",
+          "targetMargins",
         ]);
 
         // Filter out metadata + unknown
