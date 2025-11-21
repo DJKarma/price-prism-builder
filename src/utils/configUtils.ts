@@ -37,6 +37,9 @@ export function exportConfig(config: any): string {
   // Ensure targetMargins is included (default to empty object)
   cfg.targetMargins = cfg.targetMargins ?? {};
 
+  // Ensure originalBasePsfs is included (for margin optimizer)
+  cfg.originalBasePsfs = cfg.originalBasePsfs ?? {};
+
   // Extract dynamic fields from additionalCategoryPricing
   const dynamicFields = Array.from(new Set(
     (cfg.additionalCategoryPricing || []).map((item: any) => item.column)
@@ -55,6 +58,7 @@ export function exportConfig(config: any): string {
       "percentageIncrease",
       "projectCost",
       "targetMargins",
+      "originalBasePsfs",
     ],
   };
 
@@ -187,6 +191,9 @@ export async function importConfig(
         // Ensure targetMargins exists (default to empty object, no errors)
         imp.targetMargins = imp.targetMargins ?? {};
 
+        // Ensure originalBasePsfs exists (default to empty object)
+        imp.originalBasePsfs = imp.originalBasePsfs ?? {};
+
         // Known keys (case-insensitive)
         const known = new Set<string>([
           ...need,
@@ -198,6 +205,7 @@ export async function importConfig(
           "percentageIncrease",
           "projectCost",
           "targetMargins",
+          "originalBasePsfs",
         ]);
 
         // Filter out metadata + unknown
