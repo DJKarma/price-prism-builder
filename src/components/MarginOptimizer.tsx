@@ -65,45 +65,58 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
   const [isOptimized, setIsOptimized] = useState(false);
   const [originalBasePsfs, setOriginalBasePsfs] = useState<Record<string, number>>({});
 
-  // Extract bedroom types and their current Base PSF from config
+  // Get bedroom types from pricing config (array structure)
   const bedroomTypes = useMemo(() => {
-    if (!pricingConfig?.bedroomTypePricing) return [];
-    return Object.keys(pricingConfig.bedroomTypePricing).sort((a, b) => {
-      const numA = parseInt(a.replace(/\D/g, '')) || 0;
-      const numB = parseInt(b.replace(/\D/g, '')) || 0;
-      return numA - numB;
+    if (!pricingConfig?.bedroomTypePricing || !Array.isArray(pricingConfig.bedroomTypePricing)) return [];
+    return pricingConfig.bedroomTypePricing.map((item: any) => item.type);
+  }, [pricingConfig]);
+
+  // Create a lookup map for Base PSF by bedroom type
+  const bedroomPsfMap = useMemo(() => {
+    if (!pricingConfig?.bedroomTypePricing || !Array.isArray(pricingConfig.bedroomTypePricing)) return {};
+    const map: Record<string, number> = {};
+    pricingConfig.bedroomTypePricing.forEach((item: any) => {
+      map[item.type] = Number(item.basePsf) || 0;
     });
+    return map;
   }, [pricingConfig]);
 
   // Initialize target margins (default values)
-  const [targetMargins, setTargetMargins] = useState<Record<string, number>>(() => {
-    const defaults: Record<string, number> = {};
-    bedroomTypes.forEach((type, idx) => {
-      // Default margins: decrease as bedroom count increases
-      defaults[type] = 25 - (idx * 3);
-    });
-    return defaults;
-  });
+  const [targetMargins, setTargetMargins] = useState<Record<string, number>>({});
 
-  // Store original PSFs when component mounts or config changes
+  // Initialize target margins from config if available, or set defaults
   useEffect(() => {
-    if (pricingConfig?.bedroomTypePricing && Object.keys(originalBasePsfs).length === 0) {
-      const original: Record<string, number> = {};
-      bedroomTypes.forEach(type => {
-        original[type] = pricingConfig.bedroomTypePricing[type] || 0;
+    if (pricingConfig?.targetMargins && Object.keys(pricingConfig.targetMargins).length > 0) {
+      setTargetMargins(pricingConfig.targetMargins);
+    } else {
+      // Set default margins
+      const defaults: Record<string, number> = {};
+      bedroomTypes.forEach((type, idx) => {
+        // Default margins: decrease as bedroom count increases
+        defaults[type] = Math.max(0, 25 - (idx * 3));
       });
-      setOriginalBasePsfs(original);
+      setTargetMargins(defaults);
     }
   }, [pricingConfig, bedroomTypes]);
 
+  // Store original PSFs when component mounts or config changes
+  useEffect(() => {
+    if (pricingConfig?.bedroomTypePricing && Array.isArray(pricingConfig.bedroomTypePricing) && Object.keys(originalBasePsfs).length === 0) {
+      const original: Record<string, number> = {};
+      pricingConfig.bedroomTypePricing.forEach((item: any) => {
+        original[item.type] = Number(item.basePsf) || 0;
+      });
+      setOriginalBasePsfs(original);
+    }
+  }, [pricingConfig]);
+
   // Calculate optimization results
   const optimizationResults = useMemo((): BedroomMarginTarget[] => {
-    if (!pricingConfig?.bedroomTypePricing || costAcPsf === 0) return [];
+    if (!pricingConfig?.bedroomTypePricing || costAcPsf === 0 || bedroomTypes.length === 0) return [];
 
     return bedroomTypes.map(type => {
-      // Ensure we get a valid number, handle string values
-      const rawBasePsf = pricingConfig.bedroomTypePricing[type];
-      const currentBasePsf = Number(rawBasePsf) || 0;
+      // Get Base PSF from the lookup map
+      const currentBasePsf = bedroomPsfMap[type] || 0;
       const targetMargin = Number(targetMargins[type]) || 0;
       
       // Calculate optimized Base PSF: Cost AC PSF × (1 + Target Margin %)
@@ -132,7 +145,7 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
         status,
       };
     });
-  }, [bedroomTypes, pricingConfig, targetMargins, costAcPsf, isOptimized]);
+  }, [bedroomTypes, bedroomPsfMap, targetMargins, costAcPsf, isOptimized]);
 
   const handleToggle = () => {
     if (!projectCost || projectCost === 0) {
@@ -150,30 +163,38 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
   };
 
   const handleOptimize = () => {
-    if (!pricingConfig?.bedroomTypePricing) return;
+    if (!pricingConfig?.bedroomTypePricing || !Array.isArray(pricingConfig.bedroomTypePricing)) return;
 
-    const updatedBedroomPricing: Record<string, number> = {};
-    
     // Calculate optimized PSFs maintaining proportional relationships
-    const currentPsfs = bedroomTypes.map(t => Number(pricingConfig.bedroomTypePricing[t]) || 0);
-    const minCurrentPsf = Math.min(...currentPsfs);
+    const currentPsfs = bedroomTypes.map(t => bedroomPsfMap[t] || 0);
+    const minCurrentPsf = Math.min(...currentPsfs.filter(p => p > 0));
     
-    if (minCurrentPsf === 0) {
+    if (!minCurrentPsf || minCurrentPsf === 0) {
       toast.error("Cannot optimize: Base PSF values not set");
       return;
     }
     
-    optimizationResults.forEach(result => {
-      const currentPsf = Number(pricingConfig.bedroomTypePricing[result.type]) || 0;
+    // Create updated bedroom pricing array maintaining proportions
+    const updatedBedroomPricing = pricingConfig.bedroomTypePricing.map((item: any) => {
+      const result = optimizationResults.find(r => r.type === item.type);
+      if (!result) return item;
+
+      const currentPsf = bedroomPsfMap[item.type] || 0;
       const ratio = currentPsf / minCurrentPsf;
       
       // Apply optimization while maintaining ratio
-      updatedBedroomPricing[result.type] = Number((result.optimizedBasePsf * ratio).toFixed(2));
+      const optimizedValue = Number((result.optimizedBasePsf * ratio).toFixed(2));
+
+      return {
+        ...item,
+        basePsf: optimizedValue,
+      };
     });
 
     const updatedConfig = {
       ...pricingConfig,
       bedroomTypePricing: updatedBedroomPricing,
+      targetMargins: { ...targetMargins }, // Save target margins to config
     };
 
     onConfigUpdate(updatedConfig);
@@ -187,9 +208,15 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
       return;
     }
 
+    // Revert bedroom pricing array to original values
+    const revertedBedroomPricing = pricingConfig.bedroomTypePricing.map((item: any) => ({
+      ...item,
+      basePsf: originalBasePsfs[item.type] || item.basePsf,
+    }));
+
     const updatedConfig = {
       ...pricingConfig,
-      bedroomTypePricing: { ...originalBasePsfs },
+      bedroomTypePricing: revertedBedroomPricing,
     };
 
     onConfigUpdate(updatedConfig);
