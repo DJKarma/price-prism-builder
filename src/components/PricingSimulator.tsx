@@ -8,7 +8,9 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { TableIcon, Building, House, ChevronDown } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { TableIcon, Building, House, ChevronDown, Settings, LineChart } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -276,85 +278,134 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
   ];
 
 
+  const [activeSimTab, setActiveSimTab] = useState("table");
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* ────── Mode toggle ────── */}
-      <Card className="w-full glass-card border-border/50 shadow-md hover-glow animate-slide-up">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-6">
-            <Label className="text-base font-semibold text-foreground">Mode:</Label>
-            <RadioGroup
-              value={pricingMode}
-              onValueChange={(v: PricingMode) => {
-                setPricingMode(v);
-                toast.success(
-                  `Switched to ${
-                    v === "apartment" ? "Apartment" : "Villa/Townhouse"
-                  } mode`
-                );
-              }}
-              className="flex space-x-6"
-            >
-              <div className="flex items-center space-x-3">
-                <RadioGroupItem value="apartment" id="apt" />
-                <Label htmlFor="apt" className="flex items-center gap-2 font-medium cursor-pointer">
-                  <Building className="h-4 w-4" /> Apartment
-                </Label>
+    <div className="space-y-6 animate-fade-in">
+      {/* ────── Sticky Toolbar ────── */}
+      <Card className="sticky top-0 z-10 glass-card border-border/50 shadow-lg backdrop-blur-sm">
+        <CardContent className="py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            {/* Mode Selector */}
+            <div className="flex items-center gap-4">
+              <Label className="text-sm font-semibold">Mode:</Label>
+              <RadioGroup
+                value={pricingMode}
+                onValueChange={(v: PricingMode) => {
+                  setPricingMode(v);
+                  toast.success(
+                    `Switched to ${v === "apartment" ? "Apartment" : "Villa/Townhouse"} mode`
+                  );
+                }}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="apartment" id="apt" />
+                  <Label htmlFor="apt" className="flex items-center gap-2 font-medium cursor-pointer">
+                    <Building className="h-4 w-4" /> Apartment
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="villa" id="villa" />
+                  <Label htmlFor="villa" className="flex items-center gap-2 font-medium cursor-pointer">
+                    <House className="h-4 w-4" /> Villa/Townhouse
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Key Metrics */}
+            {projectCost > 0 && (
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground">Cost AC PSF</div>
+                  <Badge variant="secondary" className="text-sm font-semibold">
+                    {costAcPsf.toFixed(2)}
+                  </Badge>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground">Units</div>
+                  <Badge variant="outline" className="text-sm font-semibold">
+                    {filteredUnits.length}
+                  </Badge>
+                </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <RadioGroupItem value="villa" id="villa" />
-                <Label htmlFor="villa" className="flex items-center gap-2 font-medium cursor-pointer">
-                  <House className="h-4 w-4" /> Villa/Townhouse
-                </Label>
-              </div>
-            </RadioGroup>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* ─── Configuration Panel ─── */}
-      {onConfigUpdate && !hideConfigPanel && (
-        <div className="glass-panel rounded-lg shadow-md border border-border/50 animate-slide-up stagger-1">
-          <CollapsibleConfigPanel
-            data={data}
-            pricingConfig={pricingConfig}
-            onConfigUpdate={handlePricingConfigChange}
-            additionalCategories={additionalCategories}
-            maxFloor={maxFloor}
-          />
-        </div>
-      )}
+      {/* ────── Main Tabs ────── */}
+      <Tabs value={activeSimTab} onValueChange={setActiveSimTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="table" className="flex items-center gap-2">
+            <TableIcon className="h-4 w-4" />
+            Pricing Table
+          </TabsTrigger>
+          <TabsTrigger value="config" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Configuration
+          </TabsTrigger>
+          <TabsTrigger value="optimize" className="flex items-center gap-2">
+            <LineChart className="h-4 w-4" />
+            Optimization
+          </TabsTrigger>
+        </TabsList>
 
-      {/* ─── Project Cost Section ─── */}
-      <Card className="w-full glass-card border-border/50 shadow-lg animate-slide-up stagger-2">
-        <Collapsible defaultOpen={false}>
-          <CardHeader className="gradient-bg text-primary-foreground">
-            <div className="flex items-center justify-between">
+        {/* ─── Pricing Table Tab ─── */}
+        <TabsContent value="table" className="space-y-6">
+          <CollapsibleTable
+            filteredUnits={filteredUnits}
+            visibleColumns={visibleColumns}
+            additionalColumns={additionalColumns}
+            handleSort={handleSort}
+            pricingMode={pricingMode}
+            costAcPsf={costAcPsf}
+            costSaPsf={costSaPsf}
+            uniqueTypes={getUniqueValues("type")}
+            uniqueViews={getUniqueValues("view")}
+            uniqueFloors={getUniqueValues("floor")}
+            selectedTypes={selectedTypes}
+            setSelectedTypes={setSelectedTypes}
+            selectedViews={selectedViews}
+            setSelectedViews={setSelectedViews}
+            selectedFloors={selectedFloors}
+            setSelectedFloors={setSelectedFloors}
+            getUniqueAdditionalValues={(col) =>
+              Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
+            }
+            selectedAdditionalFilters={selectedAdditionalFilters}
+            setSelectedAdditionalFilters={setSelectedAdditionalFilters}
+            resetFilters={resetFilters}
+            allColumns={allColumns}
+            toggleColumnVisibility={toggleColumnVisibility}
+            resetColumnVisibility={resetColumnVisibility}
+            pricingConfig={pricingConfig}
+            createSummaryData={createSummaryData}
+          />
+
+          <PricingExportControls
+            filteredUnits={filteredUnits}
+            pricingConfig={pricingConfig}
+            createSummaryData={createSummaryData}
+          />
+        </TabsContent>
+
+        {/* ─── Configuration Tab ─── */}
+        <TabsContent value="config" className="space-y-6">
+          {/* Project Cost */}
+          <Card className="glass-card border-border/50 shadow-lg">
+            <CardHeader className="gradient-bg text-primary-foreground">
               <div className="flex items-center gap-3">
-                <Building className="h-6 w-6 animate-float" />
+                <Building className="h-6 w-6" />
                 <div>
-                  <CardTitle className="text-xl font-semibold">
-                    Project Cost
-                  </CardTitle>
+                  <CardTitle className="text-xl font-semibold">Project Cost</CardTitle>
                   <CardDescription className="text-primary-foreground/90 mt-1">
                     Define total project cost to calculate unit costs and margins
                   </CardDescription>
                 </div>
               </div>
-              
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-primary-foreground hover:bg-primary-foreground/20 border border-primary-foreground/30"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </CollapsibleTrigger>
-            </div>
-          </CardHeader>
-
-          <CollapsibleContent>
+            </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
@@ -370,7 +421,6 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                       setProjectCost(newCost);
                     }}
                     onBlur={() => {
-                      // Update config only on blur to prevent constant re-renders
                       onConfigUpdate?.({ ...pricingConfig, projectCost });
                     }}
                     placeholder="Enter total project cost"
@@ -407,54 +457,35 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                 )}
               </div>
             </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
+          </Card>
 
-      {/* ─── Profit/Margin Optimizer ─── */}
-      <MarginOptimizer
-        pricingConfig={pricingConfig}
-        onConfigUpdate={(updatedConfig) => {
-          setPricingConfig(updatedConfig);
-          onConfigUpdate?.(updatedConfig);
-        }}
-        projectCost={projectCost}
-        costAcPsf={costAcPsf}
-        units={filteredUnits}
-      />
+          {/* Configuration Panel */}
+          {onConfigUpdate && !hideConfigPanel && (
+            <CollapsibleConfigPanel
+              data={data}
+              pricingConfig={pricingConfig}
+              onConfigUpdate={handlePricingConfigChange}
+              additionalCategories={additionalCategories}
+              maxFloor={maxFloor}
+            />
+          )}
+        </TabsContent>
 
-      {/* ─── Integrated Table with Filters ─── */}
-      <CollapsibleTable
-        filteredUnits={filteredUnits}
-        visibleColumns={visibleColumns}
-        additionalColumns={additionalColumns}
-        handleSort={handleSort}
-        pricingMode={pricingMode}
-        costAcPsf={costAcPsf}
-        costSaPsf={costSaPsf}
-        // Pass filter props to integrate them
-        uniqueTypes={getUniqueValues("type")}
-        uniqueViews={getUniqueValues("view")}
-        uniqueFloors={getUniqueValues("floor")}
-        selectedTypes={selectedTypes}
-        setSelectedTypes={setSelectedTypes}
-        selectedViews={selectedViews}
-        setSelectedViews={setSelectedViews}
-        selectedFloors={selectedFloors}
-        setSelectedFloors={setSelectedFloors}
-        getUniqueAdditionalValues={(col) =>
-          Array.from(new Set(units.map((u) => u[`${col}_value`] || ""))).sort()
-        }
-        selectedAdditionalFilters={selectedAdditionalFilters}
-        setSelectedAdditionalFilters={setSelectedAdditionalFilters}
-        resetFilters={resetFilters}
-        allColumns={allColumns}
-        toggleColumnVisibility={toggleColumnVisibility}
-        resetColumnVisibility={resetColumnVisibility}
-        // Export controls
-        pricingConfig={pricingConfig}
-        createSummaryData={createSummaryData}
-      />
+        {/* ─── Optimization Tab ─── */}
+        <TabsContent value="optimize" className="space-y-6">
+          <MarginOptimizer
+            pricingConfig={pricingConfig}
+            onConfigUpdate={(updatedConfig) => {
+              setPricingConfig(updatedConfig);
+              onConfigUpdate?.(updatedConfig);
+            }}
+            projectCost={projectCost}
+            costAcPsf={costAcPsf}
+            units={filteredUnits}
+          />
+        </TabsContent>
+      </Tabs>
+
     </div>
   );
 };
