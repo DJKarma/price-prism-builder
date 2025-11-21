@@ -403,63 +403,66 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
         </TabsContent>
 
         {/* ─── Optimization Tab ─── */}
-        <TabsContent value="optimize" className="space-y-6">
+        <TabsContent value="optimize" className="space-y-8">
           {/* Section 1: PSF Optimization & Summary */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <LineChart className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-2xl font-bold text-foreground">PSF Optimization & Summary</h2>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Optimize base PSF values and premiums to achieve target overall PSF
-            </p>
-            
-            <MegaOptimize
-              data={data}
-              pricingConfig={pricingConfig}
-              onOptimized={(updatedConfig) => {
-                setPricingConfig(updatedConfig);
-                onConfigUpdate?.(updatedConfig);
-                
-                // Smooth scroll to pricing table
-                setTimeout(() => {
-                  const tableSection = document.getElementById('pricing-table-section');
-                  if (tableSection) {
-                    const topOffset = tableSection.offsetTop - 80; // Account for sticky header
-                    window.scrollTo({
-                      top: topOffset,
-                      behavior: 'smooth'
-                    });
-                  }
-                }, 300);
-              }}
-            />
-          </div>
+          <Card className="glass-card border-border/50 shadow-lg">
+            <CardHeader className="gradient-bg text-primary-foreground">
+              <div className="flex items-center gap-3">
+                <LineChart className="h-6 w-6" />
+                <div>
+                  <CardTitle className="text-xl font-bold">PSF Optimization & Summary</CardTitle>
+                  <CardDescription className="text-primary-foreground/90 mt-1">
+                    Optimize base PSF values and premiums to achieve target overall PSF
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <MegaOptimize
+                data={data}
+                pricingConfig={pricingConfig}
+                onOptimized={(updatedConfig) => {
+                  setPricingConfig(updatedConfig);
+                  onConfigUpdate?.(updatedConfig);
+                  
+                  // Smooth scroll to pricing table after a brief delay
+                  requestAnimationFrame(() => {
+                    setTimeout(() => {
+                      const tableSection = document.getElementById('pricing-table-section');
+                      if (tableSection) {
+                        const topOffset = tableSection.getBoundingClientRect().top + window.pageYOffset - 80;
+                        window.scrollTo({
+                          top: topOffset,
+                          behavior: 'smooth'
+                        });
+                      }
+                    }, 400);
+                  });
+                }}
+              />
+            </CardContent>
+          </Card>
 
           {/* Section 2: Cost & Margin Optimization */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Building className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-2xl font-bold text-foreground">Cost & Margin Optimization</h2>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Define project cost and optimize pricing to achieve target profit margins
-            </p>
-
-            {/* Project Cost */}
-            <Card className="glass-card border-border/50 shadow-lg">
-              <CardHeader className="gradient-bg text-primary-foreground">
-                <div className="flex items-center gap-3">
-                  <Building className="h-6 w-6" />
-                  <div>
-                    <CardTitle className="text-xl font-semibold">Project Cost</CardTitle>
-                    <CardDescription className="text-primary-foreground/90 mt-1">
-                      Required for Profit/Margin Optimizer. Define total project cost to calculate unit costs and margins.
-                    </CardDescription>
-                  </div>
+          <Card className="glass-card border-border/50 shadow-lg">
+            <CardHeader className="gradient-bg text-primary-foreground">
+              <div className="flex items-center gap-3">
+                <Building className="h-6 w-6" />
+                <div>
+                  <CardTitle className="text-xl font-bold">Cost & Margin Optimization</CardTitle>
+                  <CardDescription className="text-primary-foreground/90 mt-1">
+                    Define project cost and optimize pricing to achieve target profit margins
+                  </CardDescription>
                 </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              {/* Project Cost Input */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Building className="h-5 w-5 text-indigo-600" />
+                  <h3 className="text-lg font-semibold">Project Cost</h3>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="projectCost" className="text-sm font-medium">
@@ -509,33 +512,37 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                     </>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Profit/Margin Optimizer */}
-            <MarginOptimizer
-              pricingConfig={pricingConfig}
-              onConfigUpdate={(updatedConfig) => {
-                setPricingConfig(updatedConfig);
-                onConfigUpdate?.(updatedConfig);
-                
-                // Smooth scroll to pricing table
-                setTimeout(() => {
-                  const tableSection = document.getElementById('pricing-table-section');
-                  if (tableSection) {
-                    const topOffset = tableSection.offsetTop - 80; // Account for sticky header
-                    window.scrollTo({
-                      top: topOffset,
-                      behavior: 'smooth'
+              {/* Profit/Margin Optimizer */}
+              <div className="border-t pt-6">
+                <MarginOptimizer
+                  pricingConfig={pricingConfig}
+                  onConfigUpdate={(updatedConfig) => {
+                    setPricingConfig(updatedConfig);
+                    onConfigUpdate?.(updatedConfig);
+                    
+                    // Smooth scroll to pricing table after a brief delay
+                    requestAnimationFrame(() => {
+                      setTimeout(() => {
+                        const tableSection = document.getElementById('pricing-table-section');
+                        if (tableSection) {
+                          const topOffset = tableSection.getBoundingClientRect().top + window.pageYOffset - 80;
+                          window.scrollTo({
+                            top: topOffset,
+                            behavior: 'smooth'
+                          });
+                        }
+                      }, 400);
                     });
-                  }
-                }, 300);
-              }}
-              projectCost={projectCost}
-              costAcPsf={costAcPsf}
-              units={filteredUnits}
-            />
-          </div>
+                  }}
+                  projectCost={projectCost}
+                  costAcPsf={costAcPsf}
+                  units={filteredUnits}
+                />
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
       </Tabs>
