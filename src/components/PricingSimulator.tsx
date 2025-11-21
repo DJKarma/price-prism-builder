@@ -509,20 +509,6 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
           />
         </TabsContent>
 
-        {/* ─── Configuration Tab ─── */}
-        <TabsContent value="config" className="space-y-6">
-          {/* Configuration Panel */}
-          {onConfigUpdate && !hideConfigPanel && (
-            <CollapsibleConfigPanel
-              data={data}
-              pricingConfig={pricingConfig}
-              onConfigUpdate={handlePricingConfigChange}
-              additionalCategories={additionalCategories}
-              maxFloor={maxFloor}
-            />
-          )}
-        </TabsContent>
-
       </Tabs>
 
     </div>
