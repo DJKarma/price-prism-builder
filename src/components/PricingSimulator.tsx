@@ -404,109 +404,138 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
 
         {/* ─── Optimization Tab ─── */}
         <TabsContent value="optimize" className="space-y-6">
-          {/* Project Cost */}
-          <Card className="glass-card border-border/50 shadow-lg">
-            <CardHeader className="gradient-bg text-primary-foreground">
-              <div className="flex items-center gap-3">
-                <Building className="h-6 w-6" />
-                <div>
-                  <CardTitle className="text-xl font-semibold">Project Cost</CardTitle>
-                  <CardDescription className="text-primary-foreground/90 mt-1">
-                    Required for Profit/Margin Optimizer. Define total project cost to calculate unit costs and margins.
-                  </CardDescription>
+          {/* Section 1: PSF Optimization & Summary */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <LineChart className="h-5 w-5 text-indigo-600" />
+              <h2 className="text-2xl font-bold text-foreground">PSF Optimization & Summary</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Optimize base PSF values and premiums to achieve target overall PSF
+            </p>
+            
+            <MegaOptimize
+              data={data}
+              pricingConfig={pricingConfig}
+              onOptimized={(updatedConfig) => {
+                setPricingConfig(updatedConfig);
+                onConfigUpdate?.(updatedConfig);
+                
+                // Smooth scroll to pricing table
+                setTimeout(() => {
+                  const tableSection = document.getElementById('pricing-table-section');
+                  if (tableSection) {
+                    const topOffset = tableSection.offsetTop - 80; // Account for sticky header
+                    window.scrollTo({
+                      top: topOffset,
+                      behavior: 'smooth'
+                    });
+                  }
+                }, 300);
+              }}
+            />
+          </div>
+
+          {/* Section 2: Cost & Margin Optimization */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Building className="h-5 w-5 text-indigo-600" />
+              <h2 className="text-2xl font-bold text-foreground">Cost & Margin Optimization</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Define project cost and optimize pricing to achieve target profit margins
+            </p>
+
+            {/* Project Cost */}
+            <Card className="glass-card border-border/50 shadow-lg">
+              <CardHeader className="gradient-bg text-primary-foreground">
+                <div className="flex items-center gap-3">
+                  <Building className="h-6 w-6" />
+                  <div>
+                    <CardTitle className="text-xl font-semibold">Project Cost</CardTitle>
+                    <CardDescription className="text-primary-foreground/90 mt-1">
+                      Required for Profit/Margin Optimizer. Define total project cost to calculate unit costs and margins.
+                    </CardDescription>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="projectCost" className="text-sm font-medium">
-                    Project Cost *
-                  </Label>
-                  <Input
-                    id="projectCost"
-                    type="number"
-                    value={projectCost || ''}
-                    onChange={(e) => {
-                      const newCost = parseFloat(e.target.value) || 0;
-                      setProjectCost(newCost);
-                    }}
-                    onBlur={() => {
-                      onConfigUpdate?.({ ...pricingConfig, projectCost });
-                    }}
-                    placeholder="Enter total project cost"
-                    className="w-full"
-                  />
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="projectCost" className="text-sm font-medium">
+                      Project Cost *
+                    </Label>
+                    <Input
+                      id="projectCost"
+                      type="number"
+                      value={projectCost || ''}
+                      onChange={(e) => {
+                        const newCost = parseFloat(e.target.value) || 0;
+                        setProjectCost(newCost);
+                      }}
+                      onBlur={() => {
+                        onConfigUpdate?.({ ...pricingConfig, projectCost });
+                      }}
+                      placeholder="Enter total project cost"
+                      className="w-full"
+                    />
+                  </div>
+
+                  {projectCost > 0 && (
+                    <>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-muted-foreground">
+                          Cost AC PSF
+                        </Label>
+                        <div className="px-3 py-2 bg-muted/50 rounded-md text-sm font-semibold">
+                          {costAcPsf.toFixed(2)}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          = {formatNumberWithCommas(projectCost)} / {formatNumberWithCommas(totalAcArea)} sqft
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-muted-foreground">
+                          Cost SA PSF
+                        </Label>
+                        <div className="px-3 py-2 bg-muted/50 rounded-md text-sm font-semibold">
+                          {costSaPsf.toFixed(2)}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          = {formatNumberWithCommas(projectCost)} / {formatNumberWithCommas(totalSellArea)} sqft
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
+              </CardContent>
+            </Card>
 
-                {projectCost > 0 && (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-muted-foreground">
-                        Cost AC PSF
-                      </Label>
-                      <div className="px-3 py-2 bg-muted/50 rounded-md text-sm font-semibold">
-                        {costAcPsf.toFixed(2)}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        = {formatNumberWithCommas(projectCost)} / {formatNumberWithCommas(totalAcArea)} sqft
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-muted-foreground">
-                        Cost SA PSF
-                      </Label>
-                      <div className="px-3 py-2 bg-muted/50 rounded-md text-sm font-semibold">
-                        {costSaPsf.toFixed(2)}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        = {formatNumberWithCommas(projectCost)} / {formatNumberWithCommas(totalSellArea)} sqft
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* PSF Optimizer */}
-          <MegaOptimize
-            data={data}
-            pricingConfig={pricingConfig}
-            onOptimized={(updatedConfig) => {
-              setPricingConfig(updatedConfig);
-              onConfigUpdate?.(updatedConfig);
-              
-              // Smooth scroll to pricing table
-              setTimeout(() => {
-                const tableSection = document.getElementById('pricing-table-section');
-                if (tableSection) {
-                  tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }, 300);
-            }}
-          />
-
-          {/* Profit/Margin Optimizer */}
-          <MarginOptimizer
-            pricingConfig={pricingConfig}
-            onConfigUpdate={(updatedConfig) => {
-              setPricingConfig(updatedConfig);
-              onConfigUpdate?.(updatedConfig);
-              
-              // Smooth scroll to pricing table
-              setTimeout(() => {
-                const tableSection = document.getElementById('pricing-table-section');
-                if (tableSection) {
-                  tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }, 300);
-            }}
-            projectCost={projectCost}
-            costAcPsf={costAcPsf}
-            units={filteredUnits}
-          />
+            {/* Profit/Margin Optimizer */}
+            <MarginOptimizer
+              pricingConfig={pricingConfig}
+              onConfigUpdate={(updatedConfig) => {
+                setPricingConfig(updatedConfig);
+                onConfigUpdate?.(updatedConfig);
+                
+                // Smooth scroll to pricing table
+                setTimeout(() => {
+                  const tableSection = document.getElementById('pricing-table-section');
+                  if (tableSection) {
+                    const topOffset = tableSection.offsetTop - 80; // Account for sticky header
+                    window.scrollTo({
+                      top: topOffset,
+                      behavior: 'smooth'
+                    });
+                  }
+                }, 300);
+              }}
+              projectCost={projectCost}
+              costAcPsf={costAcPsf}
+              units={filteredUnits}
+            />
+          </div>
         </TabsContent>
 
       </Tabs>
