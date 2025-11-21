@@ -15,6 +15,8 @@ interface CollapsibleTableProps {
   additionalColumns: string[];
   handleSort: (key: string) => void;
   pricingMode: string;
+  costAcPsf: number;
+  costSaPsf: number;
   // Filter props
   uniqueTypes: string[];
   uniqueViews: string[];
@@ -43,6 +45,8 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
   additionalColumns,
   handleSort,
   pricingMode,
+  costAcPsf,
+  costSaPsf,
   // Filter props
   uniqueTypes,
   uniqueViews,
@@ -170,6 +174,8 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
                   additionalColumns={additionalColumns}
                   handleSort={handleSort}
                   isFullScreen={false}
+                  costAcPsf={costAcPsf}
+                  costSaPsf={costSaPsf}
                 />
               </div>
             </CardContent>
@@ -249,6 +255,8 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
                 additionalColumns={additionalColumns}
                 handleSort={handleSort}
                 isFullScreen={true}
+                costAcPsf={costAcPsf}
+                costSaPsf={costSaPsf}
               />
             </div>
           </div>

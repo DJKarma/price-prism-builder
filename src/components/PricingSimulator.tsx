@@ -8,7 +8,11 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { TableIcon, Building, House } from "lucide-react";
+import { TableIcon, Building, House, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { formatNumberWithCommas } from "./pricing-simulator/pricingUtils";
 import { toast } from "sonner";
 import { simulatePricing, PricingMode } from "@/utils/psfOptimizer";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -65,6 +69,9 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   //
   // initialize from prop
   const [pricingConfig, setPricingConfig] = useState<any>(externalConfig);
+  
+  // Project Cost state
+  const [projectCost, setProjectCost] = useState<number>(0);
 
   // sync if parent prop changes
   useEffect(() => {
@@ -222,7 +229,15 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
   };
 
   //
-  // 8) build dynamic allColumns (with bracketed list for Add-Cat Premium)
+  // 8) Calculate project cost metrics
+  //
+  const totalAcArea = filteredUnits.reduce((sum, unit) => sum + (parseFloat(unit.acArea) || 0), 0);
+  const totalSellArea = filteredUnits.reduce((sum, unit) => sum + (parseFloat(unit.sellArea) || 0), 0);
+  const costAcPsf = totalAcArea > 0 ? projectCost / totalAcArea : 0;
+  const costSaPsf = totalSellArea > 0 ? projectCost / totalSellArea : 0;
+
+  //
+  // 9) build dynamic allColumns (with bracketed list for Add-Cat Premium)
   //
   const allColumns = [
     { id: "name",                     label: "Unit",                                     required: true  },
@@ -247,6 +262,9 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
     { id: "finalTotalPrice",          label: "Final Total Price",                        required: true  },
     { id: "finalPsf",                 label: "Final PSF",                                required: true  },
     { id: "finalAcPsf",               label: "Final AC PSF",                             required: true  },
+    { id: "unitCost",                 label: "Unit Cost",                                required: false },
+    { id: "margin",                   label: "Margin",                                   required: false },
+    { id: "marginPercent",            label: "Margin %",                                 required: false },
     { id: "isOptimized",              label: "Optimized",                                required: true  },
     // Add dynamic additional columns
     ...additionalColumns.flatMap(col => [
@@ -305,6 +323,85 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
         </div>
       )}
 
+      {/* ─── Project Cost Section ─── */}
+      <Card className="w-full glass-card border-border/50 shadow-lg animate-slide-up stagger-2">
+        <Collapsible defaultOpen={false}>
+          <CardHeader className="gradient-bg text-primary-foreground">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Building className="h-6 w-6 animate-float" />
+                <div>
+                  <CardTitle className="text-xl font-semibold">
+                    Project Cost
+                  </CardTitle>
+                  <CardDescription className="text-primary-foreground/90 mt-1">
+                    Define total project cost to calculate unit costs and margins
+                  </CardDescription>
+                </div>
+              </div>
+              
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary-foreground hover:bg-primary-foreground/20 border border-primary-foreground/30"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+          </CardHeader>
+
+          <CollapsibleContent>
+            <CardContent className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="projectCost" className="text-sm font-medium">
+                    Project Cost
+                  </Label>
+                  <Input
+                    id="projectCost"
+                    type="number"
+                    value={projectCost || ''}
+                    onChange={(e) => setProjectCost(parseFloat(e.target.value) || 0)}
+                    placeholder="Enter total project cost"
+                    className="w-full"
+                  />
+                </div>
+
+                {projectCost > 0 && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-muted-foreground">
+                        Cost AC PSF
+                      </Label>
+                      <div className="px-3 py-2 bg-muted/50 rounded-md text-sm font-semibold">
+                        {costAcPsf.toFixed(2)}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        = {formatNumberWithCommas(projectCost)} / {formatNumberWithCommas(totalAcArea)} sqft
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-muted-foreground">
+                        Cost SA PSF
+                      </Label>
+                      <div className="px-3 py-2 bg-muted/50 rounded-md text-sm font-semibold">
+                        {costSaPsf.toFixed(2)}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        = {formatNumberWithCommas(projectCost)} / {formatNumberWithCommas(totalSellArea)} sqft
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+
       {/* ─── Integrated Table with Filters ─── */}
       <CollapsibleTable
         filteredUnits={filteredUnits}
@@ -312,6 +409,8 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
         additionalColumns={additionalColumns}
         handleSort={handleSort}
         pricingMode={pricingMode}
+        costAcPsf={costAcPsf}
+        costSaPsf={costSaPsf}
         // Pass filter props to integrate them
         uniqueTypes={getUniqueValues("type")}
         uniqueViews={getUniqueValues("view")}

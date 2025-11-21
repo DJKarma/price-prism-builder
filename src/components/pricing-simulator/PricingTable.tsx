@@ -11,6 +11,8 @@ interface Props {
   additionalColumns: string[];
   handleSort: (key: string) => void;
   isFullScreen?: boolean;
+  costAcPsf: number;
+  costSaPsf: number;
 }
 
 export default function PricingTable({
@@ -19,6 +21,8 @@ export default function PricingTable({
   additionalColumns,
   handleSort,
   isFullScreen = false,
+  costAcPsf,
+  costSaPsf,
 }: Props) {
   // build the list for the Add-Cat Premium header
   const addCatList = additionalColumns.join(", ") || "none";
@@ -117,6 +121,9 @@ export default function PricingTable({
               "finalTotalPrice",
               "finalPsf",
               "finalAcPsf",
+              "unitCost",
+              "margin",
+              "marginPercent",
             ].map((col) => {
               if (!visibleColumns.includes(col)) return null;
               // prettify header
@@ -302,6 +309,39 @@ export default function PricingTable({
                     {Math.round(unit.finalAcPsf)}
                   </td>
                 )}
+                {visibleColumns.includes("unitCost") && (() => {
+                  const acArea = parseFloat(unit.acArea) || 0;
+                  const balconyArea = unit.balconyArea || 0;
+                  const unitCost = (costAcPsf * acArea) + (costSaPsf * balconyArea);
+                  return (
+                    <td className="px-3 py-2 border-b border-border/50 text-right text-sm font-medium">
+                      {formatNumberWithCommas(Math.round(unitCost))}
+                    </td>
+                  );
+                })()}
+                {visibleColumns.includes("margin") && (() => {
+                  const acArea = parseFloat(unit.acArea) || 0;
+                  const balconyArea = unit.balconyArea || 0;
+                  const unitCost = (costAcPsf * acArea) + (costSaPsf * balconyArea);
+                  const margin = unit.finalTotalPrice - unitCost;
+                  return (
+                    <td className="px-3 py-2 border-b border-border/50 text-right text-sm font-medium">
+                      {formatNumberWithCommas(Math.round(margin))}
+                    </td>
+                  );
+                })()}
+                {visibleColumns.includes("marginPercent") && (() => {
+                  const acArea = parseFloat(unit.acArea) || 0;
+                  const balconyArea = unit.balconyArea || 0;
+                  const unitCost = (costAcPsf * acArea) + (costSaPsf * balconyArea);
+                  const margin = unit.finalTotalPrice - unitCost;
+                  const marginPercent = unitCost > 0 ? (margin / unitCost) * 100 : 0;
+                  return (
+                    <td className="px-3 py-2 border-b border-border/50 text-right text-sm font-medium">
+                      {marginPercent.toFixed(1)}%
+                    </td>
+                  );
+                })()}
                 {visibleColumns.includes("isOptimized") && (
                   <td className="px-3 py-2 border-b border-border/50 text-center">
                     {unit.isOptimized && (
