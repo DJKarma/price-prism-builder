@@ -76,9 +76,14 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
         
         <div className="flex space-x-2">
           <Button
+            type="button"
             variant="default"
             className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-            onClick={onOptimize}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOptimize();
+            }}
             disabled={isOptimizing}
           >
             {isOptimizing ? (
@@ -96,9 +101,14 @@ const OptimizationControls: React.FC<OptimizationControlsProps> = ({
           
           {isOptimized && (
             <Button
+              type="button"
               variant="outline"
               className="flex-1"
-              onClick={onRevert}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onRevert();
+              }}
               disabled={isOptimizing}
             >
               <RotateCcw className="mr-2 h-4 w-4" />

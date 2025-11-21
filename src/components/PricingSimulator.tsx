@@ -438,20 +438,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                     onOptimized={(updatedConfig) => {
                       setPricingConfig(updatedConfig);
                       onConfigUpdate?.(updatedConfig);
-                      
-                      // Smooth scroll to pricing table after a brief delay
-                      requestAnimationFrame(() => {
-                        setTimeout(() => {
-                          const tableSection = document.getElementById('pricing-table-section');
-                          if (tableSection) {
-                            const topOffset = tableSection.getBoundingClientRect().top + window.pageYOffset - 80;
-                            window.scrollTo({
-                              top: topOffset,
-                              behavior: 'smooth'
-                            });
-                          }
-                        }, 400);
-                      });
+                      // No automatic scrolling - keep user where they are
                     }}
                   />
                 </CardContent>
@@ -537,20 +524,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                       onConfigUpdate={(updatedConfig) => {
                         setPricingConfig(updatedConfig);
                         onConfigUpdate?.(updatedConfig);
-                        
-                        // Smooth scroll to pricing table after a brief delay
-                        requestAnimationFrame(() => {
-                          setTimeout(() => {
-                            const tableSection = document.getElementById('pricing-table-section');
-                            if (tableSection) {
-                              const topOffset = tableSection.getBoundingClientRect().top + window.pageYOffset - 80;
-                              window.scrollTo({
-                                top: topOffset,
-                                behavior: 'smooth'
-                              });
-                            }
-                          }, 400);
-                        });
+                        // No automatic scrolling - keep user where they are
                       }}
                       projectCost={projectCost}
                       costAcPsf={costAcPsf}
