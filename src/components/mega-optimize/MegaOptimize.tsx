@@ -126,17 +126,17 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     setAnimateNums(true);
     setHighlightedTypes(selectedTypes);
 
-    toast.promise(
-      new Promise((resolve) => {
-        runMegaOptimization(selectedTypes, metric);
-        setTimeout(() => {
-          setAnimateNums(false);
-          setHighlightedTypes([]);
-        }, 3000);
-        setTimeout(resolve, 800);
-      }),
-      { loading: "Optimizing…", success: "Done!", error: "Failed" }
-    );
+    // Run optimization immediately without promise wrapper
+    runMegaOptimization(selectedTypes, metric);
+    
+    // Show success toast
+    toast.success("Optimization complete!");
+    
+    // Reset animations after delay
+    setTimeout(() => {
+      setAnimateNums(false);
+      setHighlightedTypes([]);
+    }, 2000);
   };
 
   /* helpers */
