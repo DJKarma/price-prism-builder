@@ -27,6 +27,7 @@ import CollapsibleConfigPanel from "./pricing-simulator/CollapsibleConfigPanel";
 import { useUnitFilters } from "./pricing-simulator/useUnitFilters";
 import { createSummaryData } from "./pricing-simulator/pricingUtils";
 import MarginOptimizer from "./MarginOptimizer";
+import MegaOptimize from "./MegaOptimize";
 
 export interface UnitWithPricing extends Record<string, any> {
   totalPrice: number;
@@ -342,13 +343,13 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
             <TableIcon className="h-4 w-4" />
             Pricing Table
           </TabsTrigger>
-          <TabsTrigger value="config" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Configuration
-          </TabsTrigger>
           <TabsTrigger value="optimize" className="flex items-center gap-2">
             <LineChart className="h-4 w-4" />
             Optimization
+          </TabsTrigger>
+          <TabsTrigger value="config" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Configuration
           </TabsTrigger>
         </TabsList>
 
@@ -391,8 +392,8 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
           />
         </TabsContent>
 
-        {/* ─── Configuration Tab ─── */}
-        <TabsContent value="config" className="space-y-6">
+        {/* ─── Optimization Tab ─── */}
+        <TabsContent value="optimize" className="space-y-6">
           {/* Project Cost */}
           <Card className="glass-card border-border/50 shadow-lg">
             <CardHeader className="gradient-bg text-primary-foreground">
@@ -401,7 +402,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                 <div>
                   <CardTitle className="text-xl font-semibold">Project Cost</CardTitle>
                   <CardDescription className="text-primary-foreground/90 mt-1">
-                    Define total project cost to calculate unit costs and margins
+                    Required for Profit/Margin Optimizer. Define total project cost to calculate unit costs and margins.
                   </CardDescription>
                 </div>
               </div>
@@ -410,7 +411,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="projectCost" className="text-sm font-medium">
-                    Project Cost
+                    Project Cost *
                   </Label>
                   <Input
                     id="projectCost"
@@ -459,6 +460,31 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
             </CardContent>
           </Card>
 
+          {/* PSF Optimizer */}
+          <MegaOptimize
+            data={data}
+            pricingConfig={pricingConfig}
+            onOptimized={(updatedConfig) => {
+              setPricingConfig(updatedConfig);
+              onConfigUpdate?.(updatedConfig);
+            }}
+          />
+
+          {/* Profit/Margin Optimizer */}
+          <MarginOptimizer
+            pricingConfig={pricingConfig}
+            onConfigUpdate={(updatedConfig) => {
+              setPricingConfig(updatedConfig);
+              onConfigUpdate?.(updatedConfig);
+            }}
+            projectCost={projectCost}
+            costAcPsf={costAcPsf}
+            units={filteredUnits}
+          />
+        </TabsContent>
+
+        {/* ─── Configuration Tab ─── */}
+        <TabsContent value="config" className="space-y-6">
           {/* Configuration Panel */}
           {onConfigUpdate && !hideConfigPanel && (
             <CollapsibleConfigPanel
@@ -471,19 +497,6 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
           )}
         </TabsContent>
 
-        {/* ─── Optimization Tab ─── */}
-        <TabsContent value="optimize" className="space-y-6">
-          <MarginOptimizer
-            pricingConfig={pricingConfig}
-            onConfigUpdate={(updatedConfig) => {
-              setPricingConfig(updatedConfig);
-              onConfigUpdate?.(updatedConfig);
-            }}
-            projectCost={projectCost}
-            costAcPsf={costAcPsf}
-            units={filteredUnits}
-          />
-        </TabsContent>
       </Tabs>
 
     </div>
