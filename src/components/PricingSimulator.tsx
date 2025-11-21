@@ -70,12 +70,13 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   // initialize from prop
   const [pricingConfig, setPricingConfig] = useState<any>(externalConfig);
   
-  // Project Cost state
-  const [projectCost, setProjectCost] = useState<number>(0);
+  // Project Cost state - initialize from config if available
+  const [projectCost, setProjectCost] = useState<number>(externalConfig?.projectCost || 0);
 
   // sync if parent prop changes
   useEffect(() => {
     setPricingConfig(externalConfig);
+    setProjectCost(externalConfig?.projectCost || 0);
   }, [externalConfig]);
 
   //
@@ -194,8 +195,8 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
   const handlePricingConfigChange = (newConfig: any) => {
     // update local
     setPricingConfig(newConfig);
-    // propagate up
-    onConfigUpdate?.(newConfig);
+    // propagate up (including project cost)
+    onConfigUpdate?.({ ...newConfig, projectCost });
   };
   const handleSort = (key: string) =>
     setSortConfig((prev) => ({
@@ -363,7 +364,12 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                     id="projectCost"
                     type="number"
                     value={projectCost || ''}
-                    onChange={(e) => setProjectCost(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const newCost = parseFloat(e.target.value) || 0;
+                      setProjectCost(newCost);
+                      // Update config immediately so it's included in exports
+                      onConfigUpdate?.({ ...pricingConfig, projectCost: newCost });
+                    }}
                     placeholder="Enter total project cost"
                     className="w-full"
                   />

@@ -112,6 +112,7 @@ export interface PricingConfig {
   balconyPricing?: BalconyPricing;
   flatPriceAdders?: FlatPriceAdder[];
   percentageIncrease?: number;
+  projectCost?: number;
   targetOverallPsf?: number;
   isOptimized?: boolean;
   maxFloor?: number;
