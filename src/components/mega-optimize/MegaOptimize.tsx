@@ -78,7 +78,8 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   /* bedroom‑type list */
   const bedroomTypes = useMemo(
     () =>
-      Object.keys(pricingConfig?.bedroomTypePricing ?? {})
+      (pricingConfig?.bedroomTypePricing || [])
+        .map((b: any) => b.type)
         .sort((a, b) => {
           const aM = a.match(/\d+/);
           const bM = b.match(/\d+/);
