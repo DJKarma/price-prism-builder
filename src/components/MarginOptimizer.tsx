@@ -101,8 +101,10 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
     if (!pricingConfig?.bedroomTypePricing || costAcPsf === 0) return [];
 
     return bedroomTypes.map(type => {
-      const currentBasePsf = pricingConfig.bedroomTypePricing[type] || 0;
-      const targetMargin = targetMargins[type] || 0;
+      // Ensure we get a valid number, handle string values
+      const rawBasePsf = pricingConfig.bedroomTypePricing[type];
+      const currentBasePsf = Number(rawBasePsf) || 0;
+      const targetMargin = Number(targetMargins[type]) || 0;
       
       // Calculate optimized Base PSF: Cost AC PSF × (1 + Target Margin %)
       const optimizedBasePsf = costAcPsf * (1 + targetMargin / 100);
@@ -122,11 +124,11 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
 
       return {
         type,
-        targetMargin,
-        currentBasePsf,
-        optimizedBasePsf,
-        achievedMargin,
-        deltaPsf,
+        targetMargin: Number(targetMargin),
+        currentBasePsf: Number(currentBasePsf),
+        optimizedBasePsf: Number(optimizedBasePsf),
+        achievedMargin: Number(achievedMargin),
+        deltaPsf: Number(deltaPsf),
         status,
       };
     });
@@ -153,16 +155,20 @@ const MarginOptimizer: React.FC<MarginOptimizerProps> = ({
     const updatedBedroomPricing: Record<string, number> = {};
     
     // Calculate optimized PSFs maintaining proportional relationships
-    const minCurrentPsf = Math.min(
-      ...bedroomTypes.map(t => pricingConfig.bedroomTypePricing[t] || 0)
-    );
+    const currentPsfs = bedroomTypes.map(t => Number(pricingConfig.bedroomTypePricing[t]) || 0);
+    const minCurrentPsf = Math.min(...currentPsfs);
+    
+    if (minCurrentPsf === 0) {
+      toast.error("Cannot optimize: Base PSF values not set");
+      return;
+    }
     
     optimizationResults.forEach(result => {
-      const currentPsf = pricingConfig.bedroomTypePricing[result.type] || 0;
+      const currentPsf = Number(pricingConfig.bedroomTypePricing[result.type]) || 0;
       const ratio = currentPsf / minCurrentPsf;
       
       // Apply optimization while maintaining ratio
-      updatedBedroomPricing[result.type] = result.optimizedBasePsf * ratio;
+      updatedBedroomPricing[result.type] = Number((result.optimizedBasePsf * ratio).toFixed(2));
     });
 
     const updatedConfig = {
