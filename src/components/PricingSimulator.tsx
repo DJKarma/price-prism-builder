@@ -499,18 +499,22 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                         <Label htmlFor="projectCost" className="text-sm font-medium">
                           Project Cost *
                         </Label>
-                        <Input
-                          id="projectCost"
-                          type="number"
-                          value={projectCost || ''}
-                          onChange={(e) => {
-                            const newCost = parseFloat(e.target.value) || 0;
-                            setProjectCost(newCost);
-                            onConfigUpdate?.({ ...pricingConfig, projectCost: newCost });
-                          }}
-                          placeholder="Enter total project cost"
-                          className="w-full"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="projectCost"
+                            type="number"
+                            value={projectCost || ''}
+                            onChange={(e) => {
+                              const newCost = parseFloat(e.target.value) || 0;
+                              setProjectCost(newCost);
+                            }}
+                            onBlur={() => {
+                              onConfigUpdate?.({ ...pricingConfig, projectCost });
+                            }}
+                            placeholder="Enter total project cost"
+                            className="w-full"
+                          />
+                        </div>
                       </div>
 
                       {projectCost > 0 && (
