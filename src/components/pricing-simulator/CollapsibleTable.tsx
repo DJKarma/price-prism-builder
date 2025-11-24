@@ -17,6 +17,7 @@ interface CollapsibleTableProps {
   pricingMode: string;
   costAcPsf: number;
   costSaPsf: number;
+  projectCost: number;
   // Filter props
   uniqueTypes: string[];
   uniqueViews: string[];
@@ -47,6 +48,7 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
   pricingMode,
   costAcPsf,
   costSaPsf,
+  projectCost,
   // Filter props
   uniqueTypes,
   uniqueViews,
@@ -162,6 +164,9 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
                     filteredUnits={filteredUnits}
                     pricingConfig={pricingConfig}
                     createSummaryData={() => createSummaryData(filteredUnits)}
+                    projectCost={projectCost}
+                    costAcPsf={costAcPsf}
+                    costSaPsf={costSaPsf}
                   />
                 </div>
               </div>
@@ -243,6 +248,9 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
                   filteredUnits={filteredUnits}
                   pricingConfig={pricingConfig}
                   createSummaryData={() => createSummaryData(filteredUnits)}
+                  projectCost={projectCost}
+                  costAcPsf={costAcPsf}
+                  costSaPsf={costSaPsf}
                 />
               </div>
             </div>

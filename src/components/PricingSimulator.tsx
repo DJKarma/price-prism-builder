@@ -194,7 +194,40 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
   }, [additionalColumns, visibleColumns.length]);
 
   //
-  // 6) handlers
+  // 7) Auto-show/hide cost columns when projectCost changes
+  //
+  useEffect(() => {
+    const costColumns = ["unitCost", "margin", "marginPercent"];
+    
+    if (projectCost > 0) {
+      // Add cost columns if they're not already visible
+      setVisibleColumns(prev => {
+        const needsUpdate = costColumns.some(col => !prev.includes(col));
+        if (needsUpdate) {
+          const newCols = [...prev];
+          costColumns.forEach(col => {
+            if (!newCols.includes(col)) {
+              newCols.push(col);
+            }
+          });
+          return newCols;
+        }
+        return prev;
+      });
+    } else {
+      // Remove cost columns when projectCost is 0
+      setVisibleColumns(prev => {
+        const hasAnyCostCol = costColumns.some(col => prev.includes(col));
+        if (hasAnyCostCol) {
+          return prev.filter(col => !costColumns.includes(col));
+        }
+        return prev;
+      });
+    }
+  }, [projectCost]);
+
+  //
+  // 8) handlers
   //
   const handlePricingConfigChange = (newConfig: any) => {
     // update local
@@ -223,7 +256,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
   };
 
   //
-  // 7) helpers for filters
+  // 9) helpers for filters
   //
   const getUniqueValues = (field: string) => {
     const vals = new Set<string>();
@@ -234,7 +267,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
   };
 
   //
-  // 8) Calculate project cost metrics
+  // 10) Calculate project cost metrics
   //
   const totalAcArea = filteredUnits.reduce((sum, unit) => sum + (parseFloat(unit.acArea) || 0), 0);
   const totalSellArea = filteredUnits.reduce((sum, unit) => sum + (parseFloat(unit.sellArea) || 0), 0);
@@ -242,7 +275,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
   const costSaPsf = totalSellArea > 0 ? projectCost / totalSellArea : 0;
 
   //
-  // 9) build dynamic allColumns (with bracketed list for Add-Cat Premium)
+  // 11) build dynamic allColumns (with bracketed list for Add-Cat Premium)
   //
   const allColumns = [
     { id: "name",                     label: "Unit",                                     required: true  },
@@ -346,6 +379,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
           pricingMode={pricingMode}
           costAcPsf={costAcPsf}
           costSaPsf={costSaPsf}
+          projectCost={projectCost}
           uniqueTypes={getUniqueValues("type")}
           uniqueViews={getUniqueValues("view")}
           uniqueFloors={getUniqueValues("floor")}
@@ -374,6 +408,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
           createSummaryData={createSummaryData}
           projectCost={projectCost}
           costAcPsf={costAcPsf}
+          costSaPsf={costSaPsf}
         />
       </div>
 
