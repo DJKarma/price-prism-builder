@@ -404,7 +404,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
       </div>
 
       {/* ────── Configuration & Optimization Tabs ────── */}
-      <Tabs value={activeSimTab} onValueChange={setActiveSimTab} className="w-full" key={`tabs-${activeSimTab}`}>
+      <Tabs value={activeSimTab} onValueChange={setActiveSimTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="config" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
@@ -434,12 +434,18 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
         <TabsContent value="optimize" className="space-y-6">
           {/* Nested tabs for optimization sub-sections */}
           <Tabs defaultValue="psf-opt" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="psf-opt" className="flex items-center gap-2">
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 p-1.5 shadow-lg shadow-primary/20">
+              <TabsTrigger 
+                value="psf-opt" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/50 transition-all duration-300"
+              >
                 <LineChart className="h-4 w-4" />
                 PSF Optimization
               </TabsTrigger>
-              <TabsTrigger value="margin-opt" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="margin-opt" 
+                className="flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-accent/50 transition-all duration-300"
+              >
                 <Building className="h-4 w-4" />
                 Cost & Margin
               </TabsTrigger>
