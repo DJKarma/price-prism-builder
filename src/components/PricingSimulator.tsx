@@ -81,7 +81,10 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   useEffect(() => {
     setPricingConfig(externalConfig);
     setProjectCost(externalConfig?.projectCost || 0);
-    // Restore active optimization tab if saved
+    // Restore active tabs if saved
+    if (externalConfig?._activeSimTab) {
+      setActiveSimTab(externalConfig._activeSimTab);
+    }
     if (externalConfig?._activeOptTab) {
       setActiveOptimizationTab(externalConfig._activeOptTab);
     }
@@ -236,8 +239,13 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
   const handlePricingConfigChange = (newConfig: any) => {
     // update local
     setPricingConfig(newConfig);
-    // propagate up (including project cost)
-    onConfigUpdate?.({ ...newConfig, projectCost });
+    // propagate up (including project cost and active tabs)
+    onConfigUpdate?.({ 
+      ...newConfig, 
+      projectCost,
+      _activeSimTab: activeSimTab,
+      _activeOptTab: activeOptimizationTab
+    });
   };
   const handleSort = (key: string) =>
     setSortConfig((prev) => ({
@@ -524,7 +532,12 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                               setProjectCost(newCost);
                             }}
                             onBlur={() => {
-                              onConfigUpdate?.({ ...pricingConfig, projectCost });
+                              onConfigUpdate?.({ 
+                                ...pricingConfig, 
+                                projectCost,
+                                _activeSimTab: activeSimTab,
+                                _activeOptTab: activeOptimizationTab
+                              });
                             }}
                             placeholder="Enter total project cost"
                             className="w-full"

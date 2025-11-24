@@ -17,7 +17,6 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<"upload" | "map" | "simulate">("upload");
   const [transitionDirection, setTransitionDirection] = useState<"forward" | "backward">("forward");
   const [tabChanging, setTabChanging] = useState(false);
-  const [forceUpdate, setForceUpdate] = useState(0);
 
   /* global store */
   const {
@@ -84,7 +83,6 @@ const Index = () => {
   const handleConfigUpdate = useCallback(
     (cfg: any) => {
       setPricingConfig(cfg);
-      setForceUpdate(p => p + 1);   // force re‑mount of PricingSimulator
     },
     [setPricingConfig],
   );
@@ -225,7 +223,6 @@ const Index = () => {
                     onConfigUpdate={handleConfigUpdate}
                     additionalCategories={additionalCategories}
                     maxFloor={maxFloor}
-                    key={`sim-${forceUpdate}`}
                   />
                 </>
               ) : null}
