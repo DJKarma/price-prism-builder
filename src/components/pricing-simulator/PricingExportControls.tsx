@@ -5,7 +5,7 @@ import { Download } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { exportToExcel } from "@/utils/configUtils";
+import { exportToExcel, exportToExcelWithFormulas } from "@/utils/configUtils";
 import { UnitWithPricing } from '../PricingSimulator';
 
 interface PricingExportControlsProps {
@@ -27,6 +27,7 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
   costSaPsf = 0,
 }) => {
   const [includeConfig, setIncludeConfig] = useState<boolean>(false);
+  const [useFormulas, setUseFormulas] = useState<boolean>(false);
 
   const exportCSV = async () => {
     if (!filteredUnits.length) {
@@ -164,17 +165,37 @@ const allColumns = [
     });
     
     // Export the data with the current pricingConfig (not default values)
-    await exportToExcel(
-      flattenedData, 
-      includeConfig, 
-      pricingConfig,  // Use the current pricingConfig 
-      summaryData
-    );
+    if (useFormulas) {
+      await exportToExcelWithFormulas(
+        flattenedData, 
+        includeConfig, 
+        pricingConfig,
+        summaryData
+      );
+    } else {
+      await exportToExcel(
+        flattenedData, 
+        includeConfig, 
+        pricingConfig,  // Use the current pricingConfig 
+        summaryData
+      );
+    }
   };
   
   return (
     <div className="flex justify-end mb-4">
-      <div className="flex items-center space-x-2 border border-gray-200 rounded-md px-2 py-1 mr-2">
+      <div className="flex items-center space-x-2 border border-border rounded-md px-2 py-1 mr-2">
+        <Switch
+          id="use-formulas"
+          checked={useFormulas}
+          onCheckedChange={setUseFormulas}
+        />
+        <Label htmlFor="use-formulas" className="text-xs">
+          Export with formulas
+        </Label>
+      </div>
+      
+      <div className="flex items-center space-x-2 border border-border rounded-md px-2 py-1 mr-2">
         <Switch
           id="include-config"
           checked={includeConfig}
