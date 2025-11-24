@@ -12,6 +12,8 @@ interface PricingExportControlsProps {
   filteredUnits: UnitWithPricing[];
   pricingConfig: any;
   createSummaryData: (data: UnitWithPricing[]) => any[];
+  projectCost?: number;
+  costAcPsf?: number;
   // Note: columnVisibility is not used - export always includes all columns
 }
 
@@ -19,6 +21,8 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
   filteredUnits,
   pricingConfig,
   createSummaryData,
+  projectCost = 0,
+  costAcPsf = 0,
 }) => {
   const [includeConfig, setIncludeConfig] = useState<boolean>(false);
 
@@ -81,12 +85,30 @@ const allColumns = [
   { id: "finalTotalPrice",      label: "Final Total Price" },
   { id: "finalPsf",             label: "Final PSF" },
   { id: "finalAcPsf",           label: "Final AC PSF" },
+  { id: "unitCost",             label: "Unit Cost" },
+  { id: "margin",               label: "Margin" },
+  { id: "marginPercent",        label: "Margin %" },
   { id: "isOptimized",          label: "Optimized" },
 ];
 
       
       allColumns.forEach(col => {
-        if (col.id in unit) {
+        // Calculate cost and margin fields if projectCost is available
+        if (col.id === "unitCost" && projectCost > 0 && costAcPsf > 0) {
+          const acArea = parseFloat(unit.acArea) || 0;
+          flatUnit[col.label] = acArea * costAcPsf;
+        } else if (col.id === "margin" && projectCost > 0 && costAcPsf > 0) {
+          const acArea = parseFloat(unit.acArea) || 0;
+          const unitCost = acArea * costAcPsf;
+          const revenue = unit.finalTotalPrice || 0;
+          flatUnit[col.label] = revenue - unitCost;
+        } else if (col.id === "marginPercent" && projectCost > 0 && costAcPsf > 0) {
+          const acArea = parseFloat(unit.acArea) || 0;
+          const unitCost = acArea * costAcPsf;
+          const revenue = unit.finalTotalPrice || 0;
+          const margin = revenue - unitCost;
+          flatUnit[col.label] = unitCost > 0 ? (margin / unitCost) * 100 : 0;
+        } else if (col.id in unit) {
           const value = unit[col.id];
           if (col.id === "isOptimized") {
             flatUnit[col.label] = value ? "Yes" : "No";

@@ -372,6 +372,8 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
           filteredUnits={filteredUnits}
           pricingConfig={pricingConfig}
           createSummaryData={createSummaryData}
+          projectCost={projectCost}
+          costAcPsf={costAcPsf}
         />
       </div>
 
