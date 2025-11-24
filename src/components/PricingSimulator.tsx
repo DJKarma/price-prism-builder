@@ -81,6 +81,10 @@ const PricingSimulator: React.FC<PricingSimulatorProps> = ({
   useEffect(() => {
     setPricingConfig(externalConfig);
     setProjectCost(externalConfig?.projectCost || 0);
+    // Restore active optimization tab if saved
+    if (externalConfig?._activeOptTab) {
+      setActiveOptimizationTab(externalConfig._activeOptTab);
+    }
   }, [externalConfig]);
 
   //
@@ -313,6 +317,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
 
 
   const [activeSimTab, setActiveSimTab] = useState("config");
+  const [activeOptimizationTab, setActiveOptimizationTab] = useState("psf-opt");
 
   return (
     <div className="space-y-6 animate-fade-in" id="pricing-simulator-root">
@@ -431,20 +436,20 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
         </TabsContent>
 
         {/* ─── Optimization Tab ─── */}
-        <TabsContent value="optimize" className="space-y-6">
+        <TabsContent value="optimize" className="space-y-6 animate-fade-in">
           {/* Nested tabs for optimization sub-sections */}
-          <Tabs defaultValue="psf-opt" className="w-full">
+          <Tabs value={activeOptimizationTab} onValueChange={setActiveOptimizationTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 p-1.5 shadow-lg shadow-primary/20">
               <TabsTrigger 
                 value="psf-opt" 
-                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/50 transition-all duration-300"
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/50 transition-all duration-300 hover:scale-105"
               >
                 <LineChart className="h-4 w-4" />
                 PSF Optimization
               </TabsTrigger>
               <TabsTrigger 
                 value="margin-opt" 
-                className="flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-accent/50 transition-all duration-300"
+                className="flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-accent/50 transition-all duration-300 hover:scale-105"
               >
                 <Building className="h-4 w-4" />
                 Cost & Margin
@@ -452,7 +457,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
             </TabsList>
 
             {/* PSF Optimization Sub-Tab */}
-            <TabsContent value="psf-opt" className="space-y-4">
+            <TabsContent value="psf-opt" className="space-y-4 animate-fade-in">
               <Card className="glass-card border-border/50 shadow-lg">
                 <CardHeader className="gradient-bg text-primary-foreground">
                   <div className="flex items-center gap-3">
@@ -470,9 +475,13 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                     data={data}
                     pricingConfig={pricingConfig}
                     onOptimized={(updatedConfig) => {
-                      setPricingConfig(updatedConfig);
-                      onConfigUpdate?.(updatedConfig);
-                      // No automatic scrolling - keep user where they are
+                      // Prevent full re-render by only updating necessary parts
+                      const updatedWithTab = {
+                        ...updatedConfig,
+                        _activeOptTab: activeOptimizationTab
+                      };
+                      setPricingConfig(updatedWithTab);
+                      onConfigUpdate?.(updatedWithTab);
                     }}
                   />
                 </CardContent>
@@ -480,7 +489,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
             </TabsContent>
 
             {/* Cost & Margin Optimization Sub-Tab */}
-            <TabsContent value="margin-opt" className="space-y-4">
+            <TabsContent value="margin-opt" className="space-y-4 animate-fade-in">
               <Card className="glass-card border-border/50 shadow-lg">
                 <CardHeader className="gradient-bg text-primary-foreground">
                   <div className="flex items-center gap-3">
@@ -558,9 +567,13 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                     <MarginOptimizer
                       pricingConfig={pricingConfig}
                       onConfigUpdate={(updatedConfig) => {
-                        setPricingConfig(updatedConfig);
-                        onConfigUpdate?.(updatedConfig);
-                        // No automatic scrolling - keep user where they are
+                        // Prevent full re-render by only updating necessary parts
+                        const updatedWithTab = {
+                          ...updatedConfig,
+                          _activeOptTab: activeOptimizationTab
+                        };
+                        setPricingConfig(updatedWithTab);
+                        onConfigUpdate?.(updatedWithTab);
                       }}
                       projectCost={projectCost}
                       costAcPsf={costAcPsf}
