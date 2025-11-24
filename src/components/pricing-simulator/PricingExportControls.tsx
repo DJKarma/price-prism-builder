@@ -93,21 +93,33 @@ const allColumns = [
 
       
       allColumns.forEach(col => {
-        // Calculate cost and margin fields if projectCost is available
-        if (col.id === "unitCost" && projectCost > 0 && costAcPsf > 0) {
-          const acArea = parseFloat(unit.acArea) || 0;
-          flatUnit[col.label] = acArea * costAcPsf;
-        } else if (col.id === "margin" && projectCost > 0 && costAcPsf > 0) {
-          const acArea = parseFloat(unit.acArea) || 0;
-          const unitCost = acArea * costAcPsf;
-          const revenue = unit.finalTotalPrice || 0;
-          flatUnit[col.label] = revenue - unitCost;
-        } else if (col.id === "marginPercent" && projectCost > 0 && costAcPsf > 0) {
-          const acArea = parseFloat(unit.acArea) || 0;
-          const unitCost = acArea * costAcPsf;
-          const revenue = unit.finalTotalPrice || 0;
-          const margin = revenue - unitCost;
-          flatUnit[col.label] = unitCost > 0 ? (margin / unitCost) * 100 : 0;
+        // Calculate cost and margin fields
+        if (col.id === "unitCost") {
+          if (projectCost > 0 && costAcPsf > 0) {
+            const acArea = parseFloat(unit.acArea) || 0;
+            flatUnit[col.label] = acArea * costAcPsf;
+          } else {
+            flatUnit[col.label] = 0;
+          }
+        } else if (col.id === "margin") {
+          if (projectCost > 0 && costAcPsf > 0) {
+            const acArea = parseFloat(unit.acArea) || 0;
+            const unitCost = acArea * costAcPsf;
+            const revenue = unit.finalTotalPrice || 0;
+            flatUnit[col.label] = revenue - unitCost;
+          } else {
+            flatUnit[col.label] = 0;
+          }
+        } else if (col.id === "marginPercent") {
+          if (projectCost > 0 && costAcPsf > 0) {
+            const acArea = parseFloat(unit.acArea) || 0;
+            const unitCost = acArea * costAcPsf;
+            const revenue = unit.finalTotalPrice || 0;
+            const margin = revenue - unitCost;
+            flatUnit[col.label] = unitCost > 0 ? (margin / unitCost) * 100 : 0;
+          } else {
+            flatUnit[col.label] = 0;
+          }
         } else if (col.id in unit) {
           const value = unit[col.id];
           if (col.id === "isOptimized") {
