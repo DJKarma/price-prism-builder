@@ -198,6 +198,11 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
       merged.originalBasePsfs = importedConfig.originalBasePsfs;
     }
 
+    // ── NEW ── 12) Preserve current UI state (not from import)
+    merged._activeSimTab = currentConfig._activeSimTab ?? 'configuration';
+    merged._activeOptTab = currentConfig._activeOptTab ?? 'psf';
+    merged.marginOptimizerOpen = currentConfig.marginOptimizerOpen ?? false;
+
     // Validate the merged configuration before applying
     const validationResult = validateConfigStructure(merged);
     if (!validationResult.isValid) {
