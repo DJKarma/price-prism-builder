@@ -259,18 +259,6 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
     setVisibleColumns(getDefaultVisibleColumns(additionalColumns));
     toast.success("Column visibility reset to default");
   };
-  const selectAllColumns = () => {
-    const allColumnIds = allColumns.map(col => col.id);
-    setVisibleColumns(allColumnIds);
-    toast.success("All columns selected");
-  };
-  const deselectAllColumns = () => {
-    const requiredColumnIds = allColumns
-      .filter(col => col.required)
-      .map(col => col.id);
-    setVisibleColumns(requiredColumnIds);
-    toast.success("All optional columns hidden");
-  };
   const toggleColumnVisibility = (columnId: string) => {
     setVisibleColumns((prev) =>
       prev.includes(columnId)
@@ -423,8 +411,6 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
           allColumns={allColumns}
           toggleColumnVisibility={toggleColumnVisibility}
           resetColumnVisibility={resetColumnVisibility}
-          selectAllColumns={selectAllColumns}
-          deselectAllColumns={deselectAllColumns}
           pricingConfig={pricingConfig}
           createSummaryData={createSummaryData}
         />

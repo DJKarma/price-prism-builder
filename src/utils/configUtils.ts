@@ -565,38 +565,13 @@ function buildConfigSheet(config: any): XLSX.WorkSheet {
 
 /**
  * Calculate floor adjustment formula for a given floor
- * 
- * IMPORTANT LIMITATIONS:
- * - This formula approximates the floor premium calculation but does NOT handle:
- *   1. Rule priority and early breaks (it sums ALL matching rules)
- *   2. jumpEveryFloor/jumpIncrement logic (columns M & N in Config sheet)
- * 
- * - For exact calculations, see psfOptimizer.ts calculateFloorPremium()
- * - This Excel formula works well for simple linear floor rises
- * - For complex scenarios with jumps, results may differ slightly from the app
  */
 function buildFloorAdjustmentFormula(floorCell: string, configSheetName: string = 'Config'): string {
-  // SUMPRODUCT formula that approximates cumulative floor rise:
-  // =SUMPRODUCT((floor>=startFloor)*(floor<=endFloor)*
-  //   (MIN(floor,endFloor)-startFloor+1)*psfIncrement)
+  // Complex SUMPRODUCT formula that calculates cumulative floor rise
+  // =SUMPRODUCT((floor>=Config!$J$2:$J$10)*(floor<=Config!$K$2:$K$10)*
+  //   (MIN(floor,Config!$K$2:$K$10)-Config!$J$2:$J$10+1)*Config!$L$2:$L$10)
   return `SUMPRODUCT((${floorCell}>=${configSheetName}!$J$2:$J$20)*(${floorCell}<=${configSheetName}!$K$2:$K$20)*` +
          `(MIN(${floorCell},${configSheetName}!$K$2:$K$20)-${configSheetName}!$J$2:$J$20+1)*${configSheetName}!$L$2:$L$20)`;
-}
-
-/**
- * Extract unique additional category column names from data
- */
-function extractAdditionalCategories(data: any[]): string[] {
-  const categorySet = new Set<string>();
-  data.forEach(unit => {
-    Object.keys(unit).forEach(key => {
-      if (key.endsWith('_value')) {
-        const categoryName = key.replace('_value', '');
-        categorySet.add(categoryName);
-      }
-    });
-  });
-  return Array.from(categorySet).sort();
 }
 
 /**
@@ -622,11 +597,8 @@ export async function exportToExcelWithFormulas(
     // 2. Create Units sheet with formulas
     const unitsWs: XLSX.WorkSheet = {};
     
-    // Extract additional categories dynamically
-    const additionalCats = extractAdditionalCategories(data);
-    
-    // Build dynamic column mapping
-    const columns: Array<{key: string, index: number, type?: 'static' | 'formula'}> = [
+    // Define column mapping
+    const columns = [
       { key: 'Name', index: 0 },
       { key: 'Type', index: 1 },
       { key: 'Floor', index: 2 },
@@ -637,36 +609,21 @@ export async function exportToExcelWithFormulas(
       { key: 'Balcony %', index: 7 },
       { key: 'Base PSF', index: 8 },
       { key: 'View PSF Adjustment', index: 9 },
-      { key: 'Floor PSF Adjustment', index: 10 }
+      { key: 'Floor PSF Adjustment', index: 10 },
+      { key: 'Add-Cat Premium (Position, Pool, Furniture)', index: 11 },
+      { key: 'PSF After All Adjustments', index: 12 },
+      { key: 'AC Component', index: 13 },
+      { key: 'Balcony Component', index: 14 },
+      { key: 'Total Price (unc.)', index: 15 },
+      { key: 'Flat Adders', index: 16 },
+      { key: 'Final Total Price', index: 17 },
+      { key: 'Final PSF', index: 18 },
+      { key: 'Final AC PSF', index: 19 },
+      { key: 'Unit Cost', index: 20 },
+      { key: 'Margin', index: 21 },
+      { key: 'Margin %', index: 22 },
+      { key: 'Optimized', index: 23 }
     ];
-    
-    // Add individual category columns dynamically (each gets value + premium)
-    let colIndex = 11;
-    additionalCats.forEach(catName => {
-      columns.push({ key: catName, index: colIndex++, type: 'static' });
-      columns.push({ key: `${catName} Premium`, index: colIndex++, type: 'formula' });
-    });
-    
-    // Add aggregate Add-Cat Premium column
-    const addCatPremiumColIndex = colIndex++;
-    columns.push({ key: 'Add-Cat Premium', index: addCatPremiumColIndex, type: 'formula' });
-    
-    // Continue with remaining columns
-    const psfAfterAllAdjIndex = colIndex++;
-    columns.push({ key: 'PSF After All Adjustments', index: psfAfterAllAdjIndex });
-    columns.push({ key: 'AC Component', index: colIndex++ });
-    columns.push({ key: 'Balcony Component', index: colIndex++ });
-    columns.push({ key: 'Total Price (unc.)', index: colIndex++ });
-    columns.push({ key: 'Flat Adders', index: colIndex++ });
-    const finalTotalPriceIndex = colIndex++;
-    columns.push({ key: 'Final Total Price', index: finalTotalPriceIndex });
-    columns.push({ key: 'Final PSF', index: colIndex++ });
-    columns.push({ key: 'Final AC PSF', index: colIndex++ });
-    const unitCostIndex = colIndex++;
-    columns.push({ key: 'Unit Cost', index: unitCostIndex });
-    columns.push({ key: 'Margin', index: colIndex++ });
-    columns.push({ key: 'Margin %', index: colIndex++ });
-    columns.push({ key: 'Optimized', index: colIndex++ });
     
     // Helper to get column letter from index
     const getColLetter = (idx: number): string => {
@@ -682,12 +639,6 @@ export async function exportToExcelWithFormulas(
     columns.forEach(col => {
       const cellRef = `${getColLetter(col.index)}1`;
       unitsWs[cellRef] = { t: 's', v: col.key };
-    });
-    
-    // Build lookup for column indices
-    const colLookup = new Map<string, string>();
-    columns.forEach(col => {
-      colLookup.set(col.key, getColLetter(col.index));
     });
     
     // Create data rows with formulas
@@ -725,135 +676,88 @@ export async function exportToExcelWithFormulas(
         v: unit['Floor PSF Adjustment'] || 0 
       };
       
-      // Individual additional category columns with VLOOKUP formulas
-      const premiumColumns: string[] = [];
-      additionalCats.forEach((catName, idx) => {
-        const valueCol = getColLetter(11 + idx * 2);
-        const premiumCol = getColLetter(11 + idx * 2 + 1);
-        const lookupColOffset = idx * 2;
-        const lookupStartCol = String.fromCharCode(80 + lookupColOffset); // P, R, T, V, etc.
-        const lookupValueCol = String.fromCharCode(81 + lookupColOffset); // Q, S, U, W, etc.
-        
-        // Value column (static)
-        unitsWs[`${valueCol}${row}`] = { 
-          t: 's', 
-          v: unit[`${catName}_value`] || '' 
-        };
-        
-        // Premium column (VLOOKUP formula)
-        const premiumKey = `${catName}: ${unit[`${catName}_value`] || ''}`;
-        const premiumValue = (unit.additionalCategoryPriceComponents && unit.additionalCategoryPriceComponents[premiumKey]) || 0;
-        
-        unitsWs[`${premiumCol}${row}`] = { 
-          t: 'n', 
-          f: `IFERROR(VLOOKUP(${valueCol}${row},Config!$${lookupStartCol}$2:$${lookupValueCol}$20,2,0),0)`,
-          v: premiumValue
-        };
-        
-        premiumColumns.push(`${premiumCol}${row}`);
-      });
+      // Add-Cat Premium - Static for now (could add more VLOOKUPs)
+      unitsWs[`L${row}`] = { t: 'n', v: unit['Add-Cat Premium (Position, Pool, Furniture)'] || 0 };
       
-      // Add-Cat Premium - SUM of all individual premium columns
-      const addCatPremiumCol = getColLetter(addCatPremiumColIndex);
-      const sumFormula = premiumColumns.length > 0 ? premiumColumns.join('+') : '0';
-      unitsWs[`${addCatPremiumCol}${row}`] = { 
+      // PSF After All Adjustments = Base + View + Floor + AddCat
+      unitsWs[`M${row}`] = { 
         t: 'n', 
-        f: sumFormula,
-        v: unit['Add-Cat Premium (Position, Pool, Furniture)'] || 0 
-      };
-      
-      // PSF After All Adjustments = Base + View + Floor + Add-Cat Premium
-      const psfAfterAllAdjCol = getColLetter(psfAfterAllAdjIndex);
-      unitsWs[`${psfAfterAllAdjCol}${row}`] = { 
-        t: 'n', 
-        f: `I${row}+J${row}+K${row}+${addCatPremiumCol}${row}`,
+        f: `I${row}+J${row}+K${row}+L${row}`,
         v: unit['PSF After All Adjustments'] || 0 
       };
       
       // AC Component = AC Area * PSF After All Adjustments
-      const acComponentCol = getColLetter(psfAfterAllAdjIndex + 1);
-      unitsWs[`${acComponentCol}${row}`] = { 
+      unitsWs[`N${row}`] = { 
         t: 'n', 
-        f: `F${row}*${psfAfterAllAdjCol}${row}`,
+        f: `F${row}*M${row}`,
         v: unit['AC Component'] || 0 
       };
       
-      // Balcony Component
-      const balconyComponentCol = getColLetter(psfAfterAllAdjIndex + 2);
-      unitsWs[`${balconyComponentCol}${row}`] = { 
+      // Balcony Component = (BalconyArea * FullAreaPct/100 * PSF) + (BalconyArea * (1-FullAreaPct/100) * RemainderRate/100 * PSF)
+      unitsWs[`O${row}`] = { 
         t: 'n', 
-        f: `(G${row}*Config!$B$5/100*${psfAfterAllAdjCol}${row})+(G${row}*(1-Config!$B$5/100)*Config!$B$6/100*${psfAfterAllAdjCol}${row})`,
+        f: `(G${row}*Config!$B$5/100*M${row})+(G${row}*(1-Config!$B$5/100)*Config!$B$6/100*M${row})`,
         v: unit['Balcony Component'] || 0 
       };
       
-      // Total Price (unc.)
-      const totalPriceUncCol = getColLetter(psfAfterAllAdjIndex + 3);
-      unitsWs[`${totalPriceUncCol}${row}`] = { 
+      // Total Price (unc.) = AC Component + Balcony Component
+      unitsWs[`P${row}`] = { 
         t: 'n', 
-        f: `${acComponentCol}${row}+${balconyComponentCol}${row}`,
+        f: `N${row}+O${row}`,
         v: unit['Total Price (unc.)'] || 0 
       };
       
       // Flat Adders - Static for now
-      const flatAddersCol = getColLetter(psfAfterAllAdjIndex + 4);
-      unitsWs[`${flatAddersCol}${row}`] = { t: 'n', v: unit['Flat Adders'] || 0 };
+      unitsWs[`Q${row}`] = { t: 'n', v: unit['Flat Adders'] || 0 };
       
-      // Final Total Price
-      const finalTotalPriceCol = getColLetter(finalTotalPriceIndex);
-      unitsWs[`${finalTotalPriceCol}${row}`] = { 
+      // Final Total Price = Total Price (unc.) + Flat Adders + (Total Price (unc.) * PercentageIncrease/100)
+      unitsWs[`R${row}`] = { 
         t: 'n', 
-        f: `${totalPriceUncCol}${row}+${flatAddersCol}${row}+(${totalPriceUncCol}${row}*Config!$B$7/100)`,
+        f: `P${row}+Q${row}+(P${row}*Config!$B$7/100)`,
         v: unit['Final Total Price'] || 0 
       };
       
-      // Final PSF
-      const finalPsfCol = getColLetter(finalTotalPriceIndex + 1);
-      unitsWs[`${finalPsfCol}${row}`] = { 
+      // Final PSF = Final Total Price / Sell Area
+      unitsWs[`S${row}`] = { 
         t: 'n', 
-        f: `IF(E${row}>0,${finalTotalPriceCol}${row}/E${row},0)`,
+        f: `IF(E${row}>0,R${row}/E${row},0)`,
         v: unit['Final PSF'] || 0 
       };
       
-      // Final AC PSF
-      const finalAcPsfCol = getColLetter(finalTotalPriceIndex + 2);
-      unitsWs[`${finalAcPsfCol}${row}`] = { 
+      // Final AC PSF = Final Total Price / AC Area
+      unitsWs[`T${row}`] = { 
         t: 'n', 
-        f: `IF(F${row}>0,${finalTotalPriceCol}${row}/F${row},0)`,
+        f: `IF(F${row}>0,R${row}/F${row},0)`,
         v: unit['Final AC PSF'] || 0 
       };
       
-      // Unit Cost
-      const unitCostCol = getColLetter(unitCostIndex);
-      unitsWs[`${unitCostCol}${row}`] = { 
+      // Unit Cost = (AC Area * Cost AC PSF) + (Balcony Area * Cost SA PSF)
+      unitsWs[`U${row}`] = { 
         t: 'n', 
         f: `(F${row}*Config!$B$2)+(G${row}*Config!$B$3)`,
         v: unit['Unit Cost'] || 0 
       };
       
-      // Margin
-      const marginCol = getColLetter(unitCostIndex + 1);
-      unitsWs[`${marginCol}${row}`] = { 
+      // Margin = Final Total Price - Unit Cost
+      unitsWs[`V${row}`] = { 
         t: 'n', 
-        f: `${finalTotalPriceCol}${row}-${unitCostCol}${row}`,
+        f: `R${row}-U${row}`,
         v: unit['Margin'] || 0 
       };
       
-      // Margin %
-      const marginPctCol = getColLetter(unitCostIndex + 2);
-      unitsWs[`${marginPctCol}${row}`] = { 
+      // Margin % = (Margin / Unit Cost) * 100
+      unitsWs[`W${row}`] = { 
         t: 'n', 
-        f: `IF(${unitCostCol}${row}>0,(${marginCol}${row}/${unitCostCol}${row})*100,0)`,
+        f: `IF(U${row}>0,(V${row}/U${row})*100,0)`,
         v: unit['Margin %'] || 0 
       };
       
       // Optimized
-      const optimizedCol = getColLetter(unitCostIndex + 3);
-      unitsWs[`${optimizedCol}${row}`] = { t: 's', v: unit['Optimized'] || 'No' };
+      unitsWs[`X${row}`] = { t: 's', v: unit['Optimized'] || 'No' };
     });
     
-    // Set range dynamically based on actual column count
-    const lastCol = getColLetter(colIndex - 1);
-    unitsWs['!ref'] = `A1:${lastCol}${data.length + 1}`;
+    // Set range
+    unitsWs['!ref'] = `A1:X${data.length + 1}`;
     XLSX.utils.book_append_sheet(book, unitsWs, "Units");
     
     // 3. Add Summary sheet if provided

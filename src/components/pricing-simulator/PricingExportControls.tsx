@@ -66,47 +66,33 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
       // Create a flattened version of the unit data for export
       const flatUnit: Record<string, any> = {};
       
-      // Export columns in LOGICAL ORDER showing calculation flow:
-      // 1. Unit Identity → 2. Areas → 3. PSF Adjustments → 4. Price Components → 5. Final Pricing → 6. Cost & Margin
-      const allColumns = [
-        // 1. UNIT IDENTIFICATION (who/what/where)
-        { id: "name",                   label: "Name" },
-        { id: "type",                   label: "Type" },
-        { id: "floor",                  label: "Floor" },
-        { id: "view",                   label: "View" },
-        
-        // 2. AREA MEASUREMENTS (size inputs)
-        { id: "sellArea",               label: "Sell Area" },
-        { id: "acArea",                 label: "AC Area" },
-        { id: "balconyArea",            label: "Balcony Area" },
-        { id: "balconyPercentage",      label: "Balcony %" },
-        
-        // 3. PSF CALCULATION STEPS (progressive adjustments)
-        { id: "basePsf",                label: "Base PSF" },
-        { id: "viewPsfAdjustment",      label: "View PSF Adjustment" },
-        { id: "floorAdjustment",        label: "Floor PSF Adjustment" },
-        { id: "additionalAdjustment",   label: "Add-Cat Premium (Position, Pool, Furniture)" },
-        { id: "psfAfterAllAdjustments", label: "PSF After All Adjustments" },
-        
-        // 4. PRICE COMPONENTS (area × PSF)
-        { id: "acPrice",                label: "AC Component" },
-        { id: "balconyPrice",           label: "Balcony Component" },
-        { id: "totalPriceRaw",          label: "Total Price (unc.)" },
-        
-        // 5. FINAL PRICING (final adjustments)
-        { id: "flatAddTotal",           label: "Flat Adders" },
-        { id: "finalTotalPrice",        label: "Final Total Price" },
-        { id: "finalPsf",               label: "Final PSF" },
-        { id: "finalAcPsf",             label: "Final AC PSF" },
-        
-        // 6. COST & MARGIN ANALYSIS (profitability)
-        { id: "unitCost",               label: "Unit Cost" },
-        { id: "margin",                 label: "Margin" },
-        { id: "marginPercent",          label: "Margin %" },
-        
-        // 7. METADATA
-        { id: "isOptimized",            label: "Optimized" },
-      ];
+      // Add ALL standard columns (ignoring column visibility settings)
+const allColumns = [
+  { id: "name",                 label: "Name" },
+  { id: "type",                 label: "Type" },
+  { id: "floor",                label: "Floor" },
+  { id: "view",                 label: "View" },
+  { id: "sellArea",             label: "Sell Area" },
+  { id: "acArea",               label: "AC Area" },
+  { id: "balconyArea",          label: "Balcony Area" },
+  { id: "balconyPercentage",    label: "Balcony %" },
+  { id: "basePsf",              label: "Base PSF" },
+  { id: "viewPsfAdjustment",    label: "View PSF Adjustment" },
+  { id: "floorAdjustment",      label: "Floor PSF Adjustment" },
+  { id: "additionalAdjustment", label: "Add-Cat Premium (Position, Pool, Furniture)" },
+  { id: "psfAfterAllAdjustments", label: "PSF After All Adjustments" },
+  { id: "acPrice",          label: "AC Component" },
+  { id: "balconyPrice",     label: "Balcony Component" },
+  { id: "totalPriceRaw",        label: "Total Price (unc.)" },
+  { id: "flatAddTotal",             label: "Flat Adders", },
+  { id: "finalTotalPrice",      label: "Final Total Price" },
+  { id: "finalPsf",             label: "Final PSF" },
+  { id: "finalAcPsf",           label: "Final AC PSF" },
+  { id: "unitCost",             label: "Unit Cost" },
+  { id: "margin",               label: "Margin" },
+  { id: "marginPercent",        label: "Margin %" },
+  { id: "isOptimized",          label: "Optimized" },
+];
 
       
       allColumns.forEach(col => {
