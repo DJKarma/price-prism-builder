@@ -44,13 +44,13 @@ export interface AdditionalCategory {
 
 const requiredFields = [
   { id: "name", label: "Unit Name", keywords: ["unit", "name", "id", "number", "no", "apartment", "apt", "property", "lot"] },
-  { id: "sellArea", label: "Sell Area", keywords: ["sell", "area", "sellable", "saleable", "sales", "sqft", "sq ft", "sqm", "sq m", "square", "size", "built up", "gross", "net", "usable", "carpet"] },
+  { id: "sellArea", label: "Sell Area", keywords: ["sell", "area", "sellable", "saleable", "sales", "sqft", "sq ft", "sqm", "sq m", "square", "size", "built up", "gross", "net", "usable", "carpet", "total area", "total", "built-up", "buildup", "builtup", "overall"] },
   { id: "type", label: "Bedroom Type", keywords: ["bed", "bedroom", "type", "unit type", "category", "layout", "room", "br", "bhk"] },
   { id: "view", label: "View", keywords: ["view", "facing", "direction", "outlook", "orientation", "exposure"] },
 ];
 
 const optionalFields = [
-  { id: "acArea", label: "AC Area", keywords: ["ac", "air", "conditioning", "climate", "cool", "controlled", "hvac"] },
+  { id: "acArea", label: "AC Area", keywords: ["ac", "air", "conditioning", "climate", "cool", "controlled", "hvac", "suite area", "suite", "internal area", "internal", "living", "livable", "liveable", "enclosed", "conditioned"] },
   { id: "balcony", label: "Balcony", keywords: ["balcony", "patio", "outdoor", "terrace", "deck", "veranda", "porch"] },
   { id: "floor", label: "Floor Level", keywords: ["floor", "level", "story", "storey", "elevation", "height", "tier"] },
 ];
