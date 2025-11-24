@@ -172,6 +172,43 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
   // build a map of every category → values for our multi‐selects
   const valueMap = buildValueMap(data);
 
+  // Sync with initialConfig changes (for imports)
+  useEffect(() => {
+    if (!initialConfig) return;
+    
+    setBasePsf(initialConfig.basePsf || 1000);
+    
+    setFloorRiseRules(
+      initialConfig.floorRiseRules?.map((r: any) => ({ ...r })) || [
+        { startFloor: 1, endFloor: maxFloor, psfIncrement: 0, jumpEveryFloor: 0, jumpIncrement: 0 },
+      ]
+    );
+    
+    setBedroomTypes(initialConfig.bedroomTypePricing || []);
+    setViewTypes(initialConfig.viewPricing || []);
+    
+    setAdditionalCategoryPricing(
+      initialConfig.additionalCategoryPricing ||
+      (additionalCategories.length
+        ? additionalCategories.flatMap(cat =>
+            cat.categories.map(c => ({
+              column: cat.column,
+              category: c,
+              psfAdjustment: 0,
+            }))
+          )
+        : [])
+    );
+    
+    setHasBalcony(!!initialConfig.balconyPricing);
+    setBalconyPricing(
+      initialConfig.balconyPricing ?? { fullAreaPct: 100, remainderRate: 0 }
+    );
+    
+    setFlatAdders(initialConfig.flatPriceAdders?.map((a: any) => ({ ...a })) || []);
+    setPercentageIncrease(initialConfig.percentageIncrease ?? 0);
+  }, [initialConfig, maxFloor, additionalCategories]);
+
   // ─────────────────── handlers ───────────────────
 
 

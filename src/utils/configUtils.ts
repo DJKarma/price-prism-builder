@@ -46,6 +46,11 @@ export function exportConfig(config: any): string {
   // Ensure targetOverallPsf is included
   cfg.targetOverallPsf = cfg.targetOverallPsf ?? 0;
 
+  // Ensure UI state fields are included
+  cfg._activeSimTab = cfg._activeSimTab ?? 'configuration';
+  cfg._activeOptTab = cfg._activeOptTab ?? 'psf';
+  cfg.marginOptimizerOpen = cfg.marginOptimizerOpen ?? false;
+
   // Extract dynamic fields from additionalCategoryPricing
   const dynamicFields = Array.from(new Set(
     (cfg.additionalCategoryPricing || []).map((item: any) => item.column)
@@ -65,6 +70,9 @@ export function exportConfig(config: any): string {
       "projectCost",
       "targetMargins",
       "originalBasePsfs",
+      "_activeSimTab",
+      "_activeOptTab",
+      "marginOptimizerOpen",
     ],
   };
 
@@ -219,6 +227,9 @@ export async function importConfig(
           "projectCost",
           "targetMargins",
           "originalBasePsfs",
+          "_activeSimTab",
+          "_activeOptTab",
+          "marginOptimizerOpen",
         ]);
 
         // Filter out metadata + unknown
