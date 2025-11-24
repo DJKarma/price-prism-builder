@@ -448,7 +448,7 @@ export function validateConfigStructure(config: any): { isValid: boolean; errors
 /**
  * Build Config sheet with pricing parameters and lookup tables
  */
-function buildConfigSheet(config: any, data?: any[]): XLSX.WorkSheet {
+function buildConfigSheet(config: any): XLSX.WorkSheet {
   const ws: XLSX.WorkSheet = {};
   
   // Helper to set cell value
@@ -526,20 +526,6 @@ function buildConfigSheet(config: any, data?: any[]): XLSX.WorkSheet {
   });
   
   // Section E: Additional Category Pricing (columns P onwards)
-  // Extract categories from data to ensure all categories have lookup tables
-  const categoriesFromData = new Set<string>();
-  if (data && data.length > 0) {
-    data.forEach(unit => {
-      Object.keys(unit).forEach(key => {
-        if (key.endsWith('_value')) {
-          const categoryName = key.replace('_value', '');
-          categoriesFromData.add(categoryName);
-        }
-      });
-    });
-  }
-  
-  // Build category groups from config
   const additionalCategories = config.additionalCategoryPricing || [];
   const categoryGroups = new Map<string, Array<{category: string, adj: number}>>();
   
@@ -553,18 +539,8 @@ function buildConfigSheet(config: any, data?: any[]): XLSX.WorkSheet {
     });
   });
   
-  // Add empty groups for categories found in data but not in config
-  categoriesFromData.forEach(catName => {
-    if (!categoryGroups.has(catName)) {
-      categoryGroups.set(catName, []);
-    }
-  });
-  
-  // Write lookup tables for all categories (sorted for consistency)
   let colOffset = 0;
-  const sortedCategories = Array.from(categoryGroups.keys()).sort();
-  sortedCategories.forEach((columnName) => {
-    const items = categoryGroups.get(columnName)!;
+  categoryGroups.forEach((items, columnName) => {
     const startCol = String.fromCharCode(80 + colOffset * 2); // P, R, T, etc.
     const valCol = String.fromCharCode(81 + colOffset * 2); // Q, S, U, etc.
     
@@ -608,23 +584,19 @@ function buildFloorAdjustmentFormula(floorCell: string, configSheetName: string 
 }
 
 /**
- * Extract unique additional category column names from actual data
- * This matches the approach used in static export to ensure all categories are captured
+ * Extract unique additional category column names from config in the same order as Config sheet
  */
-function extractAdditionalCategoriesFromData(data: any[]): string[] {
-  const categorySet = new Set<string>();
+function extractAdditionalCategoriesFromConfig(config: any): string[] {
+  const additionalCategories = config.additionalCategoryPricing || [];
+  const categoryColumns = new Set<string>();
   
-  // Look at all units to find all category columns
-  data.forEach(unit => {
-    Object.keys(unit).forEach(key => {
-      if (key.endsWith('_value')) {
-        const categoryName = key.replace('_value', '');
-        categorySet.add(categoryName);
-      }
-    });
+  additionalCategories.forEach((cat: any) => {
+    if (cat.column) {
+      categoryColumns.add(cat.column);
+    }
   });
   
-  return Array.from(categorySet).sort();
+  return Array.from(categoryColumns);
 }
 
 /**
@@ -643,15 +615,15 @@ export async function exportToExcelWithFormulas(
     
     const book = XLSX.utils.book_new();
     
-    // 1. Create Config sheet with data for lookup tables
-    const configWs = buildConfigSheet(config, data);
+    // 1. Create Config sheet
+    const configWs = buildConfigSheet(config);
     XLSX.utils.book_append_sheet(book, configWs, "Config");
     
     // 2. Create Units sheet with formulas
     const unitsWs: XLSX.WorkSheet = {};
     
-    // Extract additional categories from actual data (ensures all categories are captured)
-    const additionalCats = extractAdditionalCategoriesFromData(data);
+    // Extract additional categories from config (matches Config sheet order)
+    const additionalCats = extractAdditionalCategoriesFromConfig(config);
     
     // Build dynamic column mapping
     const columns: Array<{key: string, index: number, type?: 'static' | 'formula'}> = [
@@ -762,13 +734,11 @@ export async function exportToExcelWithFormulas(
         const lookupStartCol = String.fromCharCode(80 + lookupColOffset); // P, R, T, V, etc.
         const lookupValueCol = String.fromCharCode(81 + lookupColOffset); // Q, S, U, W, etc.
         
-        // Value column (static) - get from unit data using the exact key format
-        const valueKey = `${catName}_value`;
-        const categoryValue = unit[valueKey] !== undefined && unit[valueKey] !== null ? unit[valueKey] : '';
-        
+        // Value column (static) - get from unit data
+        const categoryValue = unit[`${catName}_value`] || '';
         unitsWs[`${valueCol}${row}`] = { 
-          t: categoryValue === '' || categoryValue === null ? 's' : (typeof categoryValue === 'number' ? 'n' : 's'),
-          v: categoryValue === null ? '' : categoryValue
+          t: 's', 
+          v: categoryValue
         };
         
         // Premium column (VLOOKUP formula)
