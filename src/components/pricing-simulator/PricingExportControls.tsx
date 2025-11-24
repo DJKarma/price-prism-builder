@@ -12,6 +12,7 @@ interface PricingExportControlsProps {
   filteredUnits: UnitWithPricing[];
   pricingConfig: any;
   createSummaryData: (data: UnitWithPricing[]) => any[];
+  // Note: columnVisibility is not used - export always includes all columns
 }
 
 const PricingExportControls: React.FC<PricingExportControlsProps> = ({
@@ -53,11 +54,12 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
     }
     
     // Create a flat array of data for the export
+    // NOTE: ALL columns are included in export regardless of table visibility settings
     const flattenedData = validUnits.map(unit => {
       // Create a flattened version of the unit data for export
       const flatUnit: Record<string, any> = {};
       
-      // Add basic fields
+      // Add ALL standard columns (ignoring column visibility settings)
 const allColumns = [
   { id: "name",                 label: "Name" },
   { id: "type",                 label: "Type" },
