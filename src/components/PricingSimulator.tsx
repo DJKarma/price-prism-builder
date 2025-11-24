@@ -401,19 +401,10 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
           pricingConfig={pricingConfig}
           createSummaryData={createSummaryData}
         />
-
-        <PricingExportControls
-          filteredUnits={filteredUnits}
-          pricingConfig={pricingConfig}
-          createSummaryData={createSummaryData}
-          projectCost={projectCost}
-          costAcPsf={costAcPsf}
-          costSaPsf={costSaPsf}
-        />
       </div>
 
       {/* ────── Configuration & Optimization Tabs ────── */}
-      <Tabs value={activeSimTab} onValueChange={setActiveSimTab} className="w-full">
+      <Tabs value={activeSimTab} onValueChange={setActiveSimTab} className="w-full" key={`tabs-${activeSimTab}`}>
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="config" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
@@ -515,9 +506,7 @@ const getDefaultVisibleColumns = (additionalColumns: string[]) => {
                           onChange={(e) => {
                             const newCost = parseFloat(e.target.value) || 0;
                             setProjectCost(newCost);
-                          }}
-                          onBlur={() => {
-                            onConfigUpdate?.({ ...pricingConfig, projectCost });
+                            onConfigUpdate?.({ ...pricingConfig, projectCost: newCost });
                           }}
                           placeholder="Enter total project cost"
                           className="w-full"
