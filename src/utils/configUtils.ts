@@ -565,11 +565,20 @@ function buildConfigSheet(config: any): XLSX.WorkSheet {
 
 /**
  * Calculate floor adjustment formula for a given floor
+ * 
+ * IMPORTANT LIMITATIONS:
+ * - This formula approximates the floor premium calculation but does NOT handle:
+ *   1. Rule priority and early breaks (it sums ALL matching rules)
+ *   2. jumpEveryFloor/jumpIncrement logic (columns M & N in Config sheet)
+ * 
+ * - For exact calculations, see psfOptimizer.ts calculateFloorPremium()
+ * - This Excel formula works well for simple linear floor rises
+ * - For complex scenarios with jumps, results may differ slightly from the app
  */
 function buildFloorAdjustmentFormula(floorCell: string, configSheetName: string = 'Config'): string {
-  // Complex SUMPRODUCT formula that calculates cumulative floor rise
-  // =SUMPRODUCT((floor>=Config!$J$2:$J$10)*(floor<=Config!$K$2:$K$10)*
-  //   (MIN(floor,Config!$K$2:$K$10)-Config!$J$2:$J$10+1)*Config!$L$2:$L$10)
+  // SUMPRODUCT formula that approximates cumulative floor rise:
+  // =SUMPRODUCT((floor>=startFloor)*(floor<=endFloor)*
+  //   (MIN(floor,endFloor)-startFloor+1)*psfIncrement)
   return `SUMPRODUCT((${floorCell}>=${configSheetName}!$J$2:$J$20)*(${floorCell}<=${configSheetName}!$K$2:$K$20)*` +
          `(MIN(${floorCell},${configSheetName}!$K$2:$K$20)-${configSheetName}!$J$2:$J$20+1)*${configSheetName}!$L$2:$L$20)`;
 }
@@ -676,8 +685,17 @@ export async function exportToExcelWithFormulas(
         v: unit['Floor PSF Adjustment'] || 0 
       };
       
-      // Add-Cat Premium - Static for now (could add more VLOOKUPs)
-      unitsWs[`L${row}`] = { t: 'n', v: unit['Add-Cat Premium (Position, Pool, Furniture)'] || 0 };
+      // Add-Cat Premium - Currently static (sum of all additional category premiums)
+      // TODO: Could add dynamic VLOOKUPs for each category (Position, Pool, Furniture, etc.)
+      // For now, using the pre-calculated total for simplicity
+      unitsWs[`L${row}`] = { 
+        t: 'n', 
+        v: unit['Add-Cat Premium (Position, Pool, Furniture)'] || 0,
+        c: [{
+          a: 'System',
+          t: 'Note: This is the sum of all additional category premiums. To make this dynamic, individual category columns and lookup tables would be needed.'
+        }]
+      };
       
       // PSF After All Adjustments = Base + View + Floor + AddCat
       unitsWs[`M${row}`] = { 
