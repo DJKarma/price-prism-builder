@@ -444,3 +444,354 @@ export function validateConfigStructure(config: any): { isValid: boolean; errors
   
   return { isValid: errors.length === 0, errors };
 }
+
+/**
+ * Build Config sheet with pricing parameters and lookup tables
+ */
+function buildConfigSheet(config: any): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  
+  // Helper to set cell value
+  const setCell = (ref: string, value: any, type: 'n' | 's' = 's') => {
+    ws[ref] = { t: type, v: value };
+  };
+  
+  let row = 1;
+  
+  // Section A: Cost Parameters
+  setCell('A1', 'Parameter');
+  setCell('B1', 'Value');
+  
+  row++;
+  setCell(`A${row}`, 'Cost AC PSF');
+  setCell(`B${row}`, 0, 'n');
+  
+  row++;
+  setCell(`A${row}`, 'Cost SA PSF');
+  setCell(`B${row}`, 0, 'n');
+  
+  row++;
+  setCell(`A${row}`, 'Project Cost');
+  setCell(`B${row}`, config.projectCost || 0, 'n');
+  
+  row++;
+  setCell(`A${row}`, 'Balcony Full Area %');
+  setCell(`B${row}`, config.balconyPricing?.fullAreaPct || 100, 'n');
+  
+  row++;
+  setCell(`A${row}`, 'Balcony Remainder Rate %');
+  setCell(`B${row}`, config.balconyPricing?.remainderRate || 0, 'n');
+  
+  row++;
+  setCell(`A${row}`, 'Percentage Increase');
+  setCell(`B${row}`, config.percentageIncrease || 0, 'n');
+  
+  // Section B: View Pricing Lookup (columns D:E)
+  let viewRow = 1;
+  setCell(`D${viewRow}`, 'View');
+  setCell(`E${viewRow}`, 'PSF Adj');
+  
+  (config.viewPricing || []).forEach((v: any) => {
+    viewRow++;
+    setCell(`D${viewRow}`, v.view);
+    setCell(`E${viewRow}`, v.psfAdjustment || 0, 'n');
+  });
+  
+  // Section C: Bedroom Type Base PSF (columns G:H)
+  let typeRow = 1;
+  setCell(`G${typeRow}`, 'Type');
+  setCell(`H${typeRow}`, 'Base PSF');
+  
+  (config.bedroomTypePricing || []).forEach((t: any) => {
+    typeRow++;
+    setCell(`G${typeRow}`, t.type);
+    setCell(`H${typeRow}`, t.basePsf || 0, 'n');
+  });
+  
+  // Section D: Floor Rise Rules (columns J:N)
+  let floorRow = 1;
+  setCell(`J${floorRow}`, 'Start Floor');
+  setCell(`K${floorRow}`, 'End Floor');
+  setCell(`L${floorRow}`, 'PSF Inc');
+  setCell(`M${floorRow}`, 'Jump Every');
+  setCell(`N${floorRow}`, 'Jump Inc');
+  
+  (config.floorRiseRules || []).forEach((r: any) => {
+    floorRow++;
+    setCell(`J${floorRow}`, r.startFloor || 0, 'n');
+    setCell(`K${floorRow}`, r.endFloor || 0, 'n');
+    setCell(`L${floorRow}`, r.psfIncrement || 0, 'n');
+    setCell(`M${floorRow}`, r.jumpEveryFloor || 0, 'n');
+    setCell(`N${floorRow}`, r.jumpIncrement || 0, 'n');
+  });
+  
+  // Section E: Additional Category Pricing (columns P onwards)
+  const additionalCategories = config.additionalCategoryPricing || [];
+  const categoryGroups = new Map<string, Array<{category: string, adj: number}>>();
+  
+  additionalCategories.forEach((cat: any) => {
+    if (!categoryGroups.has(cat.column)) {
+      categoryGroups.set(cat.column, []);
+    }
+    categoryGroups.get(cat.column)!.push({
+      category: cat.category,
+      adj: cat.psfAdjustment || 0
+    });
+  });
+  
+  let colOffset = 0;
+  categoryGroups.forEach((items, columnName) => {
+    const startCol = String.fromCharCode(80 + colOffset * 2); // P, R, T, etc.
+    const valCol = String.fromCharCode(81 + colOffset * 2); // Q, S, U, etc.
+    
+    let catRow = 1;
+    setCell(`${startCol}${catRow}`, columnName);
+    setCell(`${valCol}${catRow}`, 'PSF Adj');
+    
+    items.forEach((item) => {
+      catRow++;
+      setCell(`${startCol}${catRow}`, item.category);
+      setCell(`${valCol}${catRow}`, item.adj, 'n');
+    });
+    
+    colOffset++;
+  });
+  
+  // Set range
+  ws['!ref'] = 'A1:Z100';
+  
+  return ws;
+}
+
+/**
+ * Calculate floor adjustment formula for a given floor
+ */
+function buildFloorAdjustmentFormula(floorCell: string, configSheetName: string = 'Config'): string {
+  // Complex SUMPRODUCT formula that calculates cumulative floor rise
+  // =SUMPRODUCT((floor>=Config!$J$2:$J$10)*(floor<=Config!$K$2:$K$10)*
+  //   (MIN(floor,Config!$K$2:$K$10)-Config!$J$2:$J$10+1)*Config!$L$2:$L$10)
+  return `SUMPRODUCT((${floorCell}>=${configSheetName}!$J$2:$J$20)*(${floorCell}<=${configSheetName}!$K$2:$K$20)*` +
+         `(MIN(${floorCell},${configSheetName}!$K$2:$K$20)-${configSheetName}!$J$2:$J$20+1)*${configSheetName}!$L$2:$L$20)`;
+}
+
+/**
+ * Export data with Excel formulas instead of static values
+ */
+export async function exportToExcelWithFormulas(
+  data: any[],
+  includeConfig: boolean,
+  config: any,
+  summaryData: any[] | null = null
+) {
+  try {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      throw new Error("No valid data to export");
+    }
+    
+    const book = XLSX.utils.book_new();
+    
+    // 1. Create Config sheet
+    const configWs = buildConfigSheet(config);
+    XLSX.utils.book_append_sheet(book, configWs, "Config");
+    
+    // 2. Create Units sheet with formulas
+    const unitsWs: XLSX.WorkSheet = {};
+    
+    // Define column mapping
+    const columns = [
+      { key: 'Name', index: 0 },
+      { key: 'Type', index: 1 },
+      { key: 'Floor', index: 2 },
+      { key: 'View', index: 3 },
+      { key: 'Sell Area', index: 4 },
+      { key: 'AC Area', index: 5 },
+      { key: 'Balcony Area', index: 6 },
+      { key: 'Balcony %', index: 7 },
+      { key: 'Base PSF', index: 8 },
+      { key: 'View PSF Adjustment', index: 9 },
+      { key: 'Floor PSF Adjustment', index: 10 },
+      { key: 'Add-Cat Premium (Position, Pool, Furniture)', index: 11 },
+      { key: 'PSF After All Adjustments', index: 12 },
+      { key: 'AC Component', index: 13 },
+      { key: 'Balcony Component', index: 14 },
+      { key: 'Total Price (unc.)', index: 15 },
+      { key: 'Flat Adders', index: 16 },
+      { key: 'Final Total Price', index: 17 },
+      { key: 'Final PSF', index: 18 },
+      { key: 'Final AC PSF', index: 19 },
+      { key: 'Unit Cost', index: 20 },
+      { key: 'Margin', index: 21 },
+      { key: 'Margin %', index: 22 },
+      { key: 'Optimized', index: 23 }
+    ];
+    
+    // Helper to get column letter from index
+    const getColLetter = (idx: number): string => {
+      let letter = '';
+      while (idx >= 0) {
+        letter = String.fromCharCode((idx % 26) + 65) + letter;
+        idx = Math.floor(idx / 26) - 1;
+      }
+      return letter;
+    };
+    
+    // Create header row
+    columns.forEach(col => {
+      const cellRef = `${getColLetter(col.index)}1`;
+      unitsWs[cellRef] = { t: 's', v: col.key };
+    });
+    
+    // Create data rows with formulas
+    data.forEach((unit, rowIdx) => {
+      const row = rowIdx + 2; // Excel rows start at 1, header is row 1
+      
+      // Static data columns
+      unitsWs[`A${row}`] = { t: 's', v: unit['Name'] || '' };
+      unitsWs[`B${row}`] = { t: 's', v: unit['Type'] || '' };
+      unitsWs[`C${row}`] = { t: 'n', v: unit['Floor'] || 0 };
+      unitsWs[`D${row}`] = { t: 's', v: unit['View'] || '' };
+      unitsWs[`E${row}`] = { t: 'n', v: unit['Sell Area'] || 0 };
+      unitsWs[`F${row}`] = { t: 'n', v: unit['AC Area'] || 0 };
+      unitsWs[`G${row}`] = { t: 'n', v: unit['Balcony Area'] || 0 };
+      unitsWs[`H${row}`] = { t: 'n', v: unit['Balcony %'] || 0 };
+      
+      // Base PSF - VLOOKUP from Type
+      unitsWs[`I${row}`] = { 
+        t: 'n', 
+        f: `IFERROR(VLOOKUP(B${row},Config!$G$2:$H$20,2,0),0)`,
+        v: unit['Base PSF'] || 0 
+      };
+      
+      // View PSF Adjustment - VLOOKUP from View
+      unitsWs[`J${row}`] = { 
+        t: 'n', 
+        f: `IFERROR(VLOOKUP(D${row},Config!$D$2:$E$20,2,0),0)`,
+        v: unit['View PSF Adjustment'] || 0 
+      };
+      
+      // Floor PSF Adjustment - Complex SUMPRODUCT formula
+      unitsWs[`K${row}`] = { 
+        t: 'n', 
+        f: `IFERROR(${buildFloorAdjustmentFormula(`C${row}`)},0)`,
+        v: unit['Floor PSF Adjustment'] || 0 
+      };
+      
+      // Add-Cat Premium - Static for now (could add more VLOOKUPs)
+      unitsWs[`L${row}`] = { t: 'n', v: unit['Add-Cat Premium (Position, Pool, Furniture)'] || 0 };
+      
+      // PSF After All Adjustments = Base + View + Floor + AddCat
+      unitsWs[`M${row}`] = { 
+        t: 'n', 
+        f: `I${row}+J${row}+K${row}+L${row}`,
+        v: unit['PSF After All Adjustments'] || 0 
+      };
+      
+      // AC Component = AC Area * PSF After All Adjustments
+      unitsWs[`N${row}`] = { 
+        t: 'n', 
+        f: `F${row}*M${row}`,
+        v: unit['AC Component'] || 0 
+      };
+      
+      // Balcony Component = (BalconyArea * FullAreaPct/100 * PSF) + (BalconyArea * (1-FullAreaPct/100) * RemainderRate/100 * PSF)
+      unitsWs[`O${row}`] = { 
+        t: 'n', 
+        f: `(G${row}*Config!$B$5/100*M${row})+(G${row}*(1-Config!$B$5/100)*Config!$B$6/100*M${row})`,
+        v: unit['Balcony Component'] || 0 
+      };
+      
+      // Total Price (unc.) = AC Component + Balcony Component
+      unitsWs[`P${row}`] = { 
+        t: 'n', 
+        f: `N${row}+O${row}`,
+        v: unit['Total Price (unc.)'] || 0 
+      };
+      
+      // Flat Adders - Static for now
+      unitsWs[`Q${row}`] = { t: 'n', v: unit['Flat Adders'] || 0 };
+      
+      // Final Total Price = Total Price (unc.) + Flat Adders + (Total Price (unc.) * PercentageIncrease/100)
+      unitsWs[`R${row}`] = { 
+        t: 'n', 
+        f: `P${row}+Q${row}+(P${row}*Config!$B$7/100)`,
+        v: unit['Final Total Price'] || 0 
+      };
+      
+      // Final PSF = Final Total Price / Sell Area
+      unitsWs[`S${row}`] = { 
+        t: 'n', 
+        f: `IF(E${row}>0,R${row}/E${row},0)`,
+        v: unit['Final PSF'] || 0 
+      };
+      
+      // Final AC PSF = Final Total Price / AC Area
+      unitsWs[`T${row}`] = { 
+        t: 'n', 
+        f: `IF(F${row}>0,R${row}/F${row},0)`,
+        v: unit['Final AC PSF'] || 0 
+      };
+      
+      // Unit Cost = (AC Area * Cost AC PSF) + (Balcony Area * Cost SA PSF)
+      unitsWs[`U${row}`] = { 
+        t: 'n', 
+        f: `(F${row}*Config!$B$2)+(G${row}*Config!$B$3)`,
+        v: unit['Unit Cost'] || 0 
+      };
+      
+      // Margin = Final Total Price - Unit Cost
+      unitsWs[`V${row}`] = { 
+        t: 'n', 
+        f: `R${row}-U${row}`,
+        v: unit['Margin'] || 0 
+      };
+      
+      // Margin % = (Margin / Unit Cost) * 100
+      unitsWs[`W${row}`] = { 
+        t: 'n', 
+        f: `IF(U${row}>0,(V${row}/U${row})*100,0)`,
+        v: unit['Margin %'] || 0 
+      };
+      
+      // Optimized
+      unitsWs[`X${row}`] = { t: 's', v: unit['Optimized'] || 'No' };
+    });
+    
+    // Set range
+    unitsWs['!ref'] = `A1:X${data.length + 1}`;
+    XLSX.utils.book_append_sheet(book, unitsWs, "Units");
+    
+    // 3. Add Summary sheet if provided
+    if (summaryData && summaryData.length > 0) {
+      const sumWs = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(book, sumWs, "Summary");
+    }
+    
+    // 4. Write and save
+    const excelBuffer = XLSX.write(book, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    
+    if (includeConfig && config) {
+      const zip = new JSZip();
+      zip.file("pricing_data_formulas.xlsx", excelBuffer);
+      
+      const cfgJson = exportConfig(config);
+      zip.file("config.json", cfgJson);
+      
+      const blob = await zip.generateAsync({ type: "blob" });
+      saveAs(blob, "price_prism_export_formulas.zip");
+      toast.success("Exported ZIP with formulas + configuration");
+    } else {
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      saveAs(blob, "pricing_data_formulas.xlsx");
+      toast.success("Exported pricing data with formulas");
+    }
+  } catch (err) {
+    console.error("Formula export error:", err);
+    const errorMessage = err instanceof Error ? err.message : "Unknown export error";
+    toast.error(`Failed to export data with formulas: ${errorMessage}`);
+  }
+}
