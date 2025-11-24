@@ -37,6 +37,8 @@ interface PricingFiltersProps {
   allColumns: Array<{ id: string; label: string; required: boolean }>;
   toggleColumnVisibility: (columnId: string) => void;
   resetColumnVisibility: () => void;
+  selectAllColumns: () => void;
+  deselectAllColumns: () => void;
 }
 
 const PricingFilters: React.FC<PricingFiltersProps> = ({
@@ -58,6 +60,8 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
   allColumns,
   toggleColumnVisibility,
   resetColumnVisibility,
+  selectAllColumns,
+  deselectAllColumns,
 }) => {
   const createOptions = (values: string[]): SelectOption[] =>
     values.map(v => ({ label: v, value: v }));
@@ -189,11 +193,30 @@ const PricingFilters: React.FC<PricingFiltersProps> = ({
                 ))}
 
                 <DropdownMenuSeparator />
+                <div className="px-2 py-1.5 flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1 text-xs h-8"
+                    onClick={selectAllColumns}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1 text-xs h-8"
+                    onClick={deselectAllColumns}
+                  >
+                    Deselect All
+                  </Button>
+                </div>
+                <DropdownMenuSeparator />
                 <div className="px-2 py-1.5">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full text-xs"
+                    className="w-full text-xs h-8"
                     onClick={resetColumnVisibility}
                   >
                     Reset to Default

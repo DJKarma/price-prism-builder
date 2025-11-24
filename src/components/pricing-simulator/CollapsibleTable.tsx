@@ -35,6 +35,8 @@ interface CollapsibleTableProps {
   allColumns: Array<{ id: string; label: string; required: boolean }>;
   toggleColumnVisibility: (columnId: string) => void;
   resetColumnVisibility: () => void;
+  selectAllColumns: () => void;
+  deselectAllColumns: () => void;
   // Export props
   pricingConfig: any;
   createSummaryData: (filteredUnits: UnitWithPricing[]) => any;
@@ -66,6 +68,8 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
   allColumns,
   toggleColumnVisibility,
   resetColumnVisibility,
+  selectAllColumns,
+  deselectAllColumns,
   // Export props
   pricingConfig,
   createSummaryData,
@@ -157,6 +161,8 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
                   allColumns={allColumns}
                   toggleColumnVisibility={toggleColumnVisibility}
                   resetColumnVisibility={resetColumnVisibility}
+                  selectAllColumns={selectAllColumns}
+                  deselectAllColumns={deselectAllColumns}
                 />
 
                 <div className="mt-6 pt-6 border-t border-border/50">
@@ -241,6 +247,8 @@ const CollapsibleTable: React.FC<CollapsibleTableProps> = ({
                 allColumns={allColumns}
                 toggleColumnVisibility={toggleColumnVisibility}
                 resetColumnVisibility={resetColumnVisibility}
+                selectAllColumns={selectAllColumns}
+                deselectAllColumns={deselectAllColumns}
               />
 
               <div className="mt-4 pt-4 border-t border-border/50">
