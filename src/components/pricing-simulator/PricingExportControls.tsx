@@ -14,6 +14,7 @@ interface PricingExportControlsProps {
   createSummaryData: (data: UnitWithPricing[]) => any[];
   projectCost?: number;
   costAcPsf?: number;
+  costSaPsf?: number;
   // Note: columnVisibility is not used - export always includes all columns
 }
 
@@ -23,6 +24,7 @@ const PricingExportControls: React.FC<PricingExportControlsProps> = ({
   createSummaryData,
   projectCost = 0,
   costAcPsf = 0,
+  costSaPsf = 0,
 }) => {
   const [includeConfig, setIncludeConfig] = useState<boolean>(false);
 
@@ -97,14 +99,16 @@ const allColumns = [
         if (col.id === "unitCost") {
           if (projectCost > 0 && costAcPsf > 0) {
             const acArea = parseFloat(unit.acArea) || 0;
-            flatUnit[col.label] = acArea * costAcPsf;
+            const balconyArea = unit.balconyArea || 0;
+            flatUnit[col.label] = (costAcPsf * acArea) + (costSaPsf * balconyArea);
           } else {
             flatUnit[col.label] = 0;
           }
         } else if (col.id === "margin") {
           if (projectCost > 0 && costAcPsf > 0) {
             const acArea = parseFloat(unit.acArea) || 0;
-            const unitCost = acArea * costAcPsf;
+            const balconyArea = unit.balconyArea || 0;
+            const unitCost = (costAcPsf * acArea) + (costSaPsf * balconyArea);
             const revenue = unit.finalTotalPrice || 0;
             flatUnit[col.label] = revenue - unitCost;
           } else {
@@ -113,7 +117,8 @@ const allColumns = [
         } else if (col.id === "marginPercent") {
           if (projectCost > 0 && costAcPsf > 0) {
             const acArea = parseFloat(unit.acArea) || 0;
-            const unitCost = acArea * costAcPsf;
+            const balconyArea = unit.balconyArea || 0;
+            const unitCost = (costAcPsf * acArea) + (costSaPsf * balconyArea);
             const revenue = unit.finalTotalPrice || 0;
             const margin = revenue - unitCost;
             flatUnit[col.label] = unitCost > 0 ? (margin / unitCost) * 100 : 0;
