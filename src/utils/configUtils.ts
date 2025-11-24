@@ -584,19 +584,19 @@ function buildFloorAdjustmentFormula(floorCell: string, configSheetName: string 
 }
 
 /**
- * Extract unique additional category column names from data
+ * Extract unique additional category column names from config in the same order as Config sheet
  */
-function extractAdditionalCategories(data: any[]): string[] {
-  const categorySet = new Set<string>();
-  data.forEach(unit => {
-    Object.keys(unit).forEach(key => {
-      if (key.endsWith('_value')) {
-        const categoryName = key.replace('_value', '');
-        categorySet.add(categoryName);
-      }
-    });
+function extractAdditionalCategoriesFromConfig(config: any): string[] {
+  const additionalCategories = config.additionalCategoryPricing || [];
+  const categoryColumns = new Set<string>();
+  
+  additionalCategories.forEach((cat: any) => {
+    if (cat.column) {
+      categoryColumns.add(cat.column);
+    }
   });
-  return Array.from(categorySet).sort();
+  
+  return Array.from(categoryColumns);
 }
 
 /**
@@ -622,8 +622,8 @@ export async function exportToExcelWithFormulas(
     // 2. Create Units sheet with formulas
     const unitsWs: XLSX.WorkSheet = {};
     
-    // Extract additional categories dynamically
-    const additionalCats = extractAdditionalCategories(data);
+    // Extract additional categories from config (matches Config sheet order)
+    const additionalCats = extractAdditionalCategoriesFromConfig(config);
     
     // Build dynamic column mapping
     const columns: Array<{key: string, index: number, type?: 'static' | 'formula'}> = [
@@ -734,14 +734,16 @@ export async function exportToExcelWithFormulas(
         const lookupStartCol = String.fromCharCode(80 + lookupColOffset); // P, R, T, V, etc.
         const lookupValueCol = String.fromCharCode(81 + lookupColOffset); // Q, S, U, W, etc.
         
-        // Value column (static)
+        // Value column (static) - get from unit data
+        const categoryValue = unit[`${catName}_value`] || '';
         unitsWs[`${valueCol}${row}`] = { 
           t: 's', 
-          v: unit[`${catName}_value`] || '' 
+          v: categoryValue
         };
         
         // Premium column (VLOOKUP formula)
-        const premiumKey = `${catName}: ${unit[`${catName}_value`] || ''}`;
+        // Get the static value for fallback
+        const premiumKey = `${catName}: ${categoryValue}`;
         const premiumValue = (unit.additionalCategoryPriceComponents && unit.additionalCategoryPriceComponents[premiumKey]) || 0;
         
         unitsWs[`${premiumCol}${row}`] = { 
