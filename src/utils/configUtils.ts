@@ -40,6 +40,12 @@ export function exportConfig(config: any): string {
   // Ensure originalBasePsfs is included (for margin optimizer)
   cfg.originalBasePsfs = cfg.originalBasePsfs ?? {};
 
+  // Ensure maxFloor is included
+  cfg.maxFloor = cfg.maxFloor ?? 0;
+
+  // Ensure targetOverallPsf is included
+  cfg.targetOverallPsf = cfg.targetOverallPsf ?? 0;
+
   // Extract dynamic fields from additionalCategoryPricing
   const dynamicFields = Array.from(new Set(
     (cfg.additionalCategoryPricing || []).map((item: any) => item.column)
@@ -194,9 +200,16 @@ export async function importConfig(
         // Ensure originalBasePsfs exists (default to empty object)
         imp.originalBasePsfs = imp.originalBasePsfs ?? {};
 
+        // Ensure maxFloor exists
+        imp.maxFloor = imp.maxFloor ?? 0;
+
+        // Ensure targetOverallPsf exists
+        imp.targetOverallPsf = imp.targetOverallPsf ?? 0;
+
         // Known keys (case-insensitive)
         const known = new Set<string>([
           ...need,
+          "maxFloor",
           "targetOverallPsf",
           "additionalCategoryPricing",
           "optimizedTypes",
