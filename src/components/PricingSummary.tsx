@@ -26,7 +26,7 @@ interface PricingSummaryProps {
   showAcPsf?: boolean;
 }
 
-type MetricType = "avg" | "min" | "max";
+type MetricType = "avg" | "min" | "max" | "sum";
 type MetricCategory = "psf" | "acPsf" | "size" | "price";
 
 /* ───────────────── animated number ───────────────── */
@@ -124,6 +124,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           avgPrice: 0,
           minPrice: 0,
           maxPrice: 0,
+          sumPrice: 0,
           avgPsf: 0,
           minPsf: 0,
           maxPsf: 0,
@@ -143,6 +144,8 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         (u) => u.finalAcPsf || u.finalTotalPrice / Number(u.acArea || 1)
       );
 
+      const totalValue = priceArr.reduce((s, v) => s + v, 0);
+
       return {
         type: t,
         unitCount: items.length,
@@ -153,6 +156,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
         avgPrice: priceArr.reduce((s, v) => s + v, 0) / items.length,
         minPrice: Math.min(...priceArr),
         maxPrice: Math.max(...priceArr),
+        sumPrice: totalValue,
         avgPsf: psfArr.reduce((s, v) => s + v, 0) / items.length,
         minPsf: Math.min(...psfArr),
         maxPsf: Math.max(...psfArr),
@@ -161,7 +165,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
           : 0,
         minAcPsf: acPsfArr.length ? Math.min(...acPsfArr) : 0,
         maxAcPsf: acPsfArr.length ? Math.max(...acPsfArr) : 0,
-        totalValue: priceArr.reduce((s, v) => s + v, 0),
+        totalValue,
       };
     });
 
@@ -211,6 +215,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
       avgPrice: totVal / (totUnits || 1),
       minPrice: Math.min(...valid.map((u) => u.finalTotalPrice)),
       maxPrice: Math.max(...valid.map((u) => u.finalTotalPrice)),
+      sumPrice: totVal,
       totalValue: totVal,
       avgPsf: totPsf,
       minPsf: Math.min(
@@ -245,28 +250,35 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
       };
     });
 
-  const renderMetricSelector = (cat: MetricCategory, label: string) => (
-    <div className="flex flex-col gap-1">
-      <span className="text-sm text-muted-foreground font-medium">{label}</span>
-      <div className="flex flex-wrap gap-3 items-center">
-        {(["min", "avg", "max"] as MetricType[]).map((m) => (
-          <div key={`${cat}-${m}`} className="flex items-center space-x-2">
-            <Checkbox
-              id={`${cat}-${m}`}
-              checked={selectedMetrics[cat].includes(m)}
-              onCheckedChange={() => toggleMetric(cat, m)}
-            />
-            <label
-              htmlFor={`${cat}-${m}`}
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              {m.toUpperCase()}
-            </label>
-          </div>
-        ))}
+  const renderMetricSelector = (cat: MetricCategory, label: string) => {
+    // SUM option only available for price
+    const availableMetrics: MetricType[] = cat === "price" 
+      ? ["min", "avg", "max", "sum"] 
+      : ["min", "avg", "max"];
+    
+    return (
+      <div className="flex flex-col gap-1">
+        <span className="text-sm text-muted-foreground font-medium">{label}</span>
+        <div className="flex flex-wrap gap-3 items-center">
+          {availableMetrics.map((m) => (
+            <div key={`${cat}-${m}`} className="flex items-center space-x-2">
+              <Checkbox
+                id={`${cat}-${m}`}
+                checked={selectedMetrics[cat].includes(m)}
+                onCheckedChange={() => toggleMetric(cat, m)}
+              />
+              <label
+                htmlFor={`${cat}-${m}`}
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                {m.toUpperCase()}
+              </label>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const getMetricValue = (
     row: any,
@@ -281,6 +293,7 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
       case "size":
         return row[`${metric}Size`] || 0;
       case "price":
+        if (metric === "sum") return row.sumPrice || row.totalValue || 0;
         return row[`${metric}Price`] || 0;
     }
   };
@@ -296,11 +309,11 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
       <div className="space-y-1">
         {list.map((m) => {
           const v = getMetricValue(row, cat, m);
-          const label = m === "avg" ? "Avg" : m === "min" ? "Min" : "Max";
+          const label = m === "avg" ? "Avg" : m === "min" ? "Min" : m === "max" ? "Max" : "Sum";
           return (
             <div
               key={`${cat}-${m}`}
-              className={clsx(m === "avg" ? "font-medium" : "text-gray-600 text-sm")}
+              className={clsx(m === "avg" ? "font-medium" : m === "sum" ? "font-semibold text-indigo-700" : "text-gray-600 text-sm")}
             >
               <span className="font-medium text-xs">{label}:</span>{" "}
               {flash ? (
@@ -342,11 +355,11 @@ const PricingSummary: React.FC<PricingSummaryProps> = ({
                 <TableHead className="text-right">Size</TableHead>
                 <TableHead className="text-right">Price</TableHead>
                 <TableHead className="text-right border-l border-gray-200">
-                  SA PSF
+                  SA PSF
                 </TableHead>
                 {showAcPsf && (
                   <TableHead className="text-right border-l border-gray-200">
-                    AC PSF
+                    AC PSF
                   </TableHead>
                 )}
               </TableRow>
