@@ -161,7 +161,15 @@ export const useOptimizer = (
   /* ------------- REVERT SINGLE BEDROOM ------------- */
   const revertSingleBedroom = (type: string) => {
     const bt = pricingConfig?.bedroomTypePricing?.find((b: any) => b.type === type);
-    if (!bt || bt.originalBasePsf === undefined) return;
+    if (!bt) return;
+    
+    // Get original baseline from config or use originalBasePsf
+    const baselineAverages = pricingConfig.baselineAverages;
+    const psfType = pricingConfig.optimizePsfType || "sellArea";
+    
+    // Calculate what basePsf should be reverted to
+    // Use the original basePsf if available, otherwise keep current
+    const originalBasePsf = bt.originalBasePsf ?? bt.basePsf;
     
     const newConfig = {
       ...pricingConfig,
@@ -169,9 +177,9 @@ export const useOptimizer = (
         if (b.type === type) {
           return {
             ...b,
-            basePsf: b.originalBasePsf,
+            basePsf: originalBasePsf,
             originalBasePsf: undefined,
-            targetAvgPsf: b.originalBasePsf,
+            targetAvgPsf: undefined,
           };
         }
         return b;

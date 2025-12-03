@@ -51,6 +51,18 @@ export function exportConfig(config: any): string {
   cfg._activeOptTab = cfg._activeOptTab ?? 'psf';
   cfg.marginOptimizerOpen = cfg.marginOptimizerOpen ?? false;
 
+  // Ensure baseline averages are included (original PSFs from first data load)
+  cfg.baselineAverages = cfg.baselineAverages ?? { saPsf: {}, acPsf: {} };
+
+  // Ensure optimizePsfType is included (SA or AC)
+  cfg.optimizePsfType = cfg.optimizePsfType ?? 'sellArea';
+
+  // Ensure optimizedTypes is included
+  cfg.optimizedTypes = cfg.optimizedTypes ?? [];
+
+  // Ensure isOptimized flag is included
+  cfg.isOptimized = cfg.isOptimized ?? false;
+
   // Extract dynamic fields from additionalCategoryPricing
   const dynamicFields = Array.from(new Set(
     (cfg.additionalCategoryPricing || []).map((item: any) => item.column)
@@ -58,7 +70,7 @@ export function exportConfig(config: any): string {
 
   // Metadata
   cfg._metadata = {
-    exportVersion: "1.0.0",
+    exportVersion: "1.1.0",
     exportDate: new Date().toISOString(),
     dynamicFields: dynamicFields, // Include detected dynamic fields
     availableParameters: [
@@ -70,6 +82,10 @@ export function exportConfig(config: any): string {
       "projectCost",
       "targetMargins",
       "originalBasePsfs",
+      "baselineAverages",
+      "optimizePsfType",
+      "optimizedTypes",
+      "isOptimized",
       "_activeSimTab",
       "_activeOptTab",
       "marginOptimizerOpen",
@@ -208,6 +224,18 @@ export async function importConfig(
         // Ensure originalBasePsfs exists (default to empty object)
         imp.originalBasePsfs = imp.originalBasePsfs ?? {};
 
+        // Ensure baseline averages exists (original PSFs from first data load)
+        imp.baselineAverages = imp.baselineAverages ?? { saPsf: {}, acPsf: {} };
+
+        // Ensure optimizePsfType exists (SA or AC)
+        imp.optimizePsfType = imp.optimizePsfType ?? 'sellArea';
+
+        // Ensure optimizedTypes exists
+        imp.optimizedTypes = imp.optimizedTypes ?? [];
+
+        // Ensure isOptimized flag exists
+        imp.isOptimized = imp.isOptimized ?? false;
+
         // Ensure maxFloor exists
         imp.maxFloor = imp.maxFloor ?? 0;
 
@@ -227,6 +255,8 @@ export async function importConfig(
           "projectCost",
           "targetMargins",
           "originalBasePsfs",
+          "baselineAverages",
+          "optimizePsfType",
           "_activeSimTab",
           "_activeOptTab",
           "marginOptimizerOpen",
