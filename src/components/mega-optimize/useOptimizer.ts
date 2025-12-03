@@ -1,22 +1,13 @@
 /*  src/components/mega-optimize/useOptimizer.ts
-    One‑shot optimiser that hits target SA‑ or AC‑PSF exactly.
+    Per-bedroom proportional optimizer with revert capability.
 */
 import { useState, useEffect } from "react";
 import {
   calculateOverallAveragePsf,
   calculateOverallAverageAcPsf,
+  simulatePricing,
 } from "@/utils/psfOptimizer";
 import { toast } from "sonner";
-
-/* helper to get overall current PSF */
-const overallAvg = (
-  data: any[],
-  config: any,
-  metric: "sellArea" | "acArea"
-) =>
-  metric === "sellArea"
-    ? calculateOverallAveragePsf(data, config)
-    : calculateOverallAverageAcPsf(data, config);
 
 export const useOptimizer = (
   data: any[],
@@ -34,18 +25,6 @@ export const useOptimizer = (
     calculateOverallAverageAcPsf(data, pricingConfig)
   );
 
-  const defaultTarget =
-    pricingConfig.targetOverallPsf ||
-    pricingConfig.bedroomTypePricing.reduce(
-      (s: number, t: any) => s + t.targetAvgPsf,
-      0
-    ) / pricingConfig.bedroomTypePricing.length;
-
-  const [targetPsf, setTargetPsf] = useState(defaultTarget);
-  const [optimizationMode, setOptimizationMode] = useState<
-    "basePsf" | "allParams"
-  >("basePsf");
-
   /* keep current numbers in sync with latest config */
   useEffect(() => {
     setCurrentOverallPsf(calculateOverallAveragePsf(data, pricingConfig));
@@ -53,196 +32,172 @@ export const useOptimizer = (
     setIsOptimized(!!pricingConfig.isOptimized);
   }, [data, pricingConfig]);
 
-  /* ------------- ONE‑STEP optimiser ------------- */
-  const runMegaOptimization = async (
-    selectedTypes: string[],
+  /* ------------- Get original base PSF ------------- */
+  const getOriginalBasePsf = (type: string): number | null => {
+    const bt = pricingConfig?.bedroomTypePricing?.find((b: any) => b.type === type);
+    if (!bt) return null;
+    if (bt.originalBasePsf !== undefined && bt.originalBasePsf !== bt.basePsf) {
+      return bt.originalBasePsf;
+    }
+    return null;
+  };
+
+  /* ------------- PROPORTIONAL SINGLE-BEDROOM OPTIMIZER ------------- */
+  const optimizeSingleBedroom = (
+    targetType: string,
+    newTargetPsf: number,
     psfType: "sellArea" | "acArea" = "sellArea"
   ) => {
-    if (!selectedTypes.length) {
-      toast.warning("Select at least one bedroom type");
-      return;
-    }
-
     setIsOptimizing(true);
     try {
-      /* Determine if optimizing subset or all types */
-      const allBedroomTypes = pricingConfig.bedroomTypePricing.map((bt: any) => bt.type);
-      const isSubsetOptimization = selectedTypes.length < allBedroomTypes.length;
+      // Get current simulated prices
+      const currentPricedUnits = simulatePricing(data, pricingConfig);
       
-      let newConfig;
+      // Calculate current weighted PSF for the target type
+      const targetUnits = currentPricedUnits.filter((u) => u.type === targetType);
+      const areaKey = psfType === "sellArea" ? "sellArea" : "acArea";
       
-      if (isSubsetOptimization) {
-        /* SUBSET OPTIMIZATION: Adjust only selected types so their average PSF meets target */
-        
-        /* First, get properly calculated prices using simulatePricing */
-        const { simulatePricing } = await import("@/utils/psfOptimizer");
-        const currentPricedUnits = simulatePricing(data, pricingConfig);
-        
-        /* Get current PSF for selected types */
-        const selectedUnits = currentPricedUnits.filter((u) => selectedTypes.includes(u.type));
-        const selectedArea = selectedUnits.reduce((s, u) => s + Number(psfType === "sellArea" ? u.sellArea : u.acArea), 0);
-        const selectedValue = selectedUnits.reduce((s, u) => s + u.finalTotalPrice, 0);
-        
-        if (!selectedArea || selectedArea === 0) {
-          toast.error("Selected bedroom types have zero area");
-          return;
-        }
-        
-        const currentSelectedPsf = selectedValue / selectedArea;
-        
-        /* Use proportional adjustment for better convergence */
-        const adjustmentFactor = targetPsf / currentSelectedPsf;
-        
-        console.log("Subset optimization:", {
-          selectedTypes,
-          selectedUnits: selectedUnits.length,
-          selectedArea,
-          selectedValue,
-          currentSelectedPsf,
-          targetPsf,
-          adjustmentFactor
-        });
-        
-        newConfig = {
-          ...pricingConfig,
-          bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => {
-            if (!selectedTypes.includes(bt.type)) return bt;
-            
-            const newBasePsf = Math.max(100, bt.basePsf * adjustmentFactor); // Proportional adjustment
-            console.log(`Updating ${bt.type}: ${bt.basePsf} * ${adjustmentFactor} = ${newBasePsf}`);
-            
+      const targetArea = targetUnits.reduce((s, u) => s + Number(u[areaKey] || 0), 0);
+      const targetValue = targetUnits.reduce((s, u) => s + u.finalTotalPrice, 0);
+      
+      if (!targetArea || targetArea === 0) {
+        toast.error(`${targetType} has zero area`);
+        setIsOptimizing(false);
+        return;
+      }
+      
+      const currentTargetPsf = targetValue / targetArea;
+      
+      // Calculate proportional adjustment factor for this type
+      const adjustmentFactor = newTargetPsf / currentTargetPsf;
+      
+      // Calculate current overall PSF
+      const currentOverall = psfType === "sellArea" 
+        ? calculateOverallAveragePsf(data, pricingConfig)
+        : calculateOverallAverageAcPsf(data, pricingConfig);
+      
+      // Calculate target type's weight in overall PSF
+      const allUnits = currentPricedUnits.filter(u => Number(u[areaKey]) > 0 && u.finalTotalPrice > 0);
+      const totalArea = allUnits.reduce((s, u) => s + Number(u[areaKey]), 0);
+      const targetWeight = targetArea / totalArea;
+      
+      // Calculate what overall PSF would be after changing only target type
+      const newTargetValue = targetArea * newTargetPsf;
+      const otherValue = allUnits
+        .filter(u => u.type !== targetType)
+        .reduce((s, u) => s + u.finalTotalPrice, 0);
+      const otherArea = totalArea - targetArea;
+      
+      // New overall if only target changed
+      const projectedOverall = (newTargetValue + otherValue) / totalArea;
+      
+      // Calculate compensation factor for OTHER types to maintain equilibrium
+      const targetDelta = newTargetValue - targetValue;
+      const compensationNeeded = -targetDelta; // Need to offset this from other types
+      
+      // Calculate compensation factor for other types
+      let otherCompensationFactor = 1;
+      if (otherValue > 0 && Math.abs(compensationNeeded) > 0.01) {
+        otherCompensationFactor = (otherValue + compensationNeeded) / otherValue;
+        // Clamp to reasonable range
+        otherCompensationFactor = Math.max(0.5, Math.min(1.5, otherCompensationFactor));
+      }
+      
+      console.log("Single bedroom optimization:", {
+        targetType,
+        currentTargetPsf,
+        newTargetPsf,
+        adjustmentFactor,
+        currentOverall,
+        projectedOverall,
+        targetWeight,
+        otherCompensationFactor
+      });
+      
+      // Build new config with proportional adjustments
+      const newConfig = {
+        ...pricingConfig,
+        bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => {
+          const originalBasePsf = bt.originalBasePsf ?? bt.basePsf;
+          
+          if (bt.type === targetType) {
+            // Apply direct adjustment to target type
             return {
               ...bt,
-              originalBasePsf: bt.originalBasePsf ?? bt.basePsf,
-              basePsf: newBasePsf,
-              targetAvgPsf: targetPsf, // Update visual feedback
+              originalBasePsf,
+              basePsf: Math.max(100, bt.basePsf * adjustmentFactor),
+              targetAvgPsf: newTargetPsf,
             };
-          }),
-          isOptimized: true,
-          optimizedTypes: selectedTypes,
-          targetOverallPsf: targetPsf,
-          optimizePsfType: psfType,
-          optimizationMode,
-        };
-        
-      } else {
-        /* ALL TYPES OPTIMIZATION: Use existing overall optimizer logic */
-        
-        const curOverall = overallAvg(data, pricingConfig, psfType);
-        const delta = targetPsf - curOverall;
-        
-        if (optimizationMode === "basePsf") {
-          /* Base PSF only */
-          newConfig = {
-            ...pricingConfig,
-            bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => ({
+          } else {
+            // Apply compensation to other types to maintain overall equilibrium
+            return {
               ...bt,
-              originalBasePsf: bt.originalBasePsf ?? bt.basePsf,
-              basePsf: Math.max(0, bt.basePsf + delta),
-              targetAvgPsf: targetPsf, // Update visual feedback
-            })),
-            isOptimized: true,
-            optimizedTypes: selectedTypes,
-            targetOverallPsf: targetPsf,
-            optimizePsfType: psfType,
-            optimizationMode: "basePsf",
-          };
-        } else {
-          /* All Parameters - proportional adjustment */
-          const adjustmentFactor = targetPsf / curOverall;
-          
-          newConfig = {
-            ...pricingConfig,
-            bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => ({
-              ...bt,
-              originalBasePsf: bt.originalBasePsf ?? bt.basePsf,
-              basePsf: Math.max(100, bt.basePsf * adjustmentFactor), // Use factor, not delta
-              targetAvgPsf: targetPsf, // Update visual feedback
-            })),
-            viewPricing: pricingConfig.viewPricing?.map((vp: any) => ({
-              ...vp,
-              originalPsfAdjustment: vp.originalPsfAdjustment ?? vp.psfAdjustment,
-              psfAdjustment: vp.psfAdjustment * adjustmentFactor,
-            })) || [],
-            additionalCategoryPricing: pricingConfig.additionalCategoryPricing?.map((acp: any) => ({
-              ...acp,
-              originalPsfAdjustment: acp.originalPsfAdjustment ?? acp.psfAdjustment,
-              psfAdjustment: acp.psfAdjustment * adjustmentFactor,
-            })) || [],
-            isOptimized: true,
-            optimizedTypes: selectedTypes,
-            targetOverallPsf: targetPsf,
-            optimizePsfType: psfType,
-            optimizationMode: "allParams",
-          };
-        }
-      }
-
-      /* push up */
+              originalBasePsf,
+              basePsf: Math.max(100, bt.basePsf * otherCompensationFactor),
+            };
+          }
+        }),
+        isOptimized: true,
+        optimizedTypes: [...(pricingConfig.optimizedTypes || []), targetType].filter(
+          (v, i, a) => a.indexOf(v) === i
+        ),
+        optimizePsfType: psfType,
+      };
+      
+      // Push update
       onOptimized(newConfig);
       setCurrentOverallPsf(calculateOverallAveragePsf(data, newConfig));
       setCurrentOverallAcPsf(calculateOverallAverageAcPsf(data, newConfig));
       setIsOptimized(true);
-
-      toast.success(
-        `Now at ${psfType === "sellArea" ? "SA" : "AC"} PSF ≈ ${targetPsf.toFixed(
-          2
-        )}`
-      );
+      
     } catch (err) {
       console.error(err);
-      toast.error("Optimisation failed");
+      toast.error("Optimization failed");
     } finally {
       setIsOptimizing(false);
     }
   };
 
-  /* ------------- revert ------------- */
-  const revertOptimization = () => {
-    if (!pricingConfig.isOptimized) return;
-
-    const reverted = {
+  /* ------------- REVERT SINGLE BEDROOM ------------- */
+  const revertSingleBedroom = (type: string) => {
+    const bt = pricingConfig?.bedroomTypePricing?.find((b: any) => b.type === type);
+    if (!bt || bt.originalBasePsf === undefined) return;
+    
+    const newConfig = {
       ...pricingConfig,
-      bedroomTypePricing: pricingConfig.bedroomTypePricing.map((bt: any) => ({
-        ...bt,
-        basePsf: bt.originalBasePsf ?? bt.basePsf,
-      })),
-      /* Revert view pricing if it was modified in "All Parameters" mode */
-      viewPricing: pricingConfig.viewPricing?.map((vp: any) => ({
-        ...vp,
-        psfAdjustment: vp.originalPsfAdjustment ?? vp.psfAdjustment,
-      })) || pricingConfig.viewPricing,
-      /* Revert additional category pricing if it was modified */
-      additionalCategoryPricing: pricingConfig.additionalCategoryPricing?.map((acp: any) => ({
-        ...acp,
-        psfAdjustment: acp.originalPsfAdjustment ?? acp.psfAdjustment,
-      })) || pricingConfig.additionalCategoryPricing,
-      isOptimized: false,
-      optimizedTypes: [],
-      optimizationMode: undefined,
+      bedroomTypePricing: pricingConfig.bedroomTypePricing.map((b: any) => {
+        if (b.type === type) {
+          return {
+            ...b,
+            basePsf: b.originalBasePsf,
+            originalBasePsf: undefined,
+            targetAvgPsf: b.originalBasePsf,
+          };
+        }
+        return b;
+      }),
+      optimizedTypes: (pricingConfig.optimizedTypes || []).filter((t: string) => t !== type),
     };
-
-    onOptimized(reverted);
-    setCurrentOverallPsf(calculateOverallAveragePsf(data, reverted));
-    setCurrentOverallAcPsf(calculateOverallAverageAcPsf(data, reverted));
-    setIsOptimized(false);
-    toast.success("Reverted to original pricing");
+    
+    // Check if any types are still optimized
+    const stillOptimized = newConfig.bedroomTypePricing.some(
+      (b: any) => b.originalBasePsf !== undefined
+    );
+    newConfig.isOptimized = stillOptimized;
+    
+    onOptimized(newConfig);
+    setCurrentOverallPsf(calculateOverallAveragePsf(data, newConfig));
+    setCurrentOverallAcPsf(calculateOverallAverageAcPsf(data, newConfig));
+    setIsOptimized(stillOptimized);
   };
-
-  /* ------------- handlers ------------- */
-  const handleTargetPsfChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setTargetPsf(parseFloat(e.target.value) || 0);
 
   return {
     isOptimizing,
     isOptimized,
-    targetPsf,
-    optimizationMode,
     currentOverallPsf,
     currentOverallAcPsf,
-    setOptimizationMode,
-    handleTargetPsfChange,
-    runMegaOptimization,
-    revertOptimization,
+    optimizeSingleBedroom,
+    revertSingleBedroom,
+    getOriginalBasePsf,
   };
 };

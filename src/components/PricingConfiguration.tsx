@@ -796,15 +796,16 @@ const PricingConfiguration: React.FC<PricingConfigurationProps> = ({
                           <Label className="text-sm font-medium">Units (names)</Label>
                           <AsyncSelect
                             cacheOptions
-                            defaultOptions
+                            defaultOptions={data.slice(0, 100).map(u => ({ label: u.name, value: u.name }))}
                             loadOptions={asyncUnitOptions(data)}
                             value={adder.units?.map(u => ({ label: u, value: u })) || []}
                             isMulti
                             onChange={opts =>
                               updateFlatAdder(i, "units", opts.map(o => o.value))
                             }
-                            placeholder="Start typing unit…"
+                            placeholder="Select units..."
                             menuPlacement="auto"
+                            key={data.length}
                           />
                         </div>
                         
