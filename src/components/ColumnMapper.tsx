@@ -126,7 +126,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
 
   useEffect(() => {
     const mappedColumns = new Set(Object.values(mapping).filter(val => val !== "not_available"));
-    setAvailableHeaders(headers.filter(header => !mappedColumns.has(header)));
+    setAvailableHeaders(headers.filter(header => header && !mappedColumns.has(header)));
   }, [headers, mapping]);
 
   useEffect(() => {
@@ -139,6 +139,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       if (initialMapping[field.id]) return;
       
       const exactMatch = headers.find(header => {
+        if (!header) return false;
         const headerLower = header.toLowerCase();
         return !usedHeaders.has(header) && (
           headerLower === field.id.toLowerCase() || 
@@ -156,7 +157,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       if (initialMapping[field.id]) return;
       
       const scoredHeaders = headers
-        .filter(header => !usedHeaders.has(header))
+        .filter(header => header && !usedHeaders.has(header))
         .map(header => {
           const headerLower = header.toLowerCase();
           let score = 0;
@@ -200,11 +201,13 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
           });
         
         const bestMatch = numericalHeaders.find(header => 
-          header.toLowerCase().includes("area") || 
-          header.toLowerCase().includes("size") || 
-          header.toLowerCase().includes("sqft") ||
-          header.toLowerCase().includes("sq") ||
-          header.toLowerCase().includes("sqm")
+          header && (
+            header.toLowerCase().includes("area") || 
+            header.toLowerCase().includes("size") || 
+            header.toLowerCase().includes("sqft") ||
+            header.toLowerCase().includes("sq") ||
+            header.toLowerCase().includes("sqm")
+          )
         );
         
         if (bestMatch) {
@@ -215,7 +218,7 @@ const ColumnMapper: React.FC<ColumnMapperProps> = ({
       
       if (field.id === "floor" && data.length > 0) {
         const potentialFloorHeaders = headers
-          .filter(header => !usedHeaders.has(header))
+          .filter(header => header && !usedHeaders.has(header))
           .filter(header => {
             const headerLower = header.toLowerCase();
             return headerLower.includes("fl") || 

@@ -268,7 +268,7 @@ export async function importConfig(
         Object.entries(imp).forEach(([k, v]) => {
           const lower = k.toLowerCase();
           const match = Array.from(known).find(
-            (x) => x.toLowerCase() === lower
+            (x) => x && x.toLowerCase() === lower
           );
           if (match) {
             result[match] = v;
