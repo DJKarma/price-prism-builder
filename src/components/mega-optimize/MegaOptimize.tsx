@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
-import { Info, Sparkles, RotateCcw, Play } from "lucide-react";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { Info, Sparkles, RotateCcw, Play, Zap } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -52,7 +52,7 @@ const SlotNumber: React.FC<{ v: number; anim?: boolean }> = ({ v, anim }) => {
     return () => clearInterval(id);
   }, [v, anim]);
   return (
-    <span className={anim ? "transition-transform scale-105" : ""}>
+    <span className={anim ? "transition-transform duration-300 scale-105" : ""}>
       {fmt(disp, 2)}
     </span>
   );
@@ -125,14 +125,15 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   /* Per-bedroom target PSF inputs */
   const [perBedroomTargets, setPerBedroomTargets] = useState<Record<string, number>>({});
   
-  /* Store baseline averages (original PSFs from first load) */
+  /* IMMUTABLE BASELINE - only set once on initial load or import */
   const baselineRef = useRef<{ saPsf: Record<string, number>; acPsf: Record<string, number> } | null>(null);
   const [baselineAverages, setBaselineAverages] = useState<{ saPsf: Record<string, number>; acPsf: Record<string, number> }>({ saPsf: {}, acPsf: {} });
+  const hasInitializedRef = useRef(false);
   
-  /* Current calculated averages (live) */
-  const [currentAverages, setCurrentAverages] = useState<{ saPsf: Record<string, number>; acPsf: Record<string, number> }>({ saPsf: {}, acPsf: {} });
+  /* Track metric changes to know when to reset targets */
+  const prevMetricRef = useRef<"sellArea" | "acArea">(metric);
 
-  /* optimiser hook */
+  /* optimiser hook - pass baselines */
   const {
     isOptimized,
     isOptimizing,
@@ -140,49 +141,79 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     currentOverallAcPsf,
     optimizeSingleBedroom,
     revertSingleBedroom,
-    getOriginalBasePsf,
   } = useOptimizer(data, pricingConfig, onOptimized);
 
-  /* Initialize baseline averages from config or calculate from data */
+  /* CURRENT AVERAGES - calculated live from latest config (matches PricingSummary) */
+  const currentAverages = useMemo(() => {
+    if (!data.length || !pricingConfig) return { saPsf: {}, acPsf: {} };
+    
+    const priced = simulatePricing(data, pricingConfig);
+    const byType: Record<string, any[]> = {};
+    priced.forEach((u) => {
+      if (!byType[u.type]) byType[u.type] = [];
+      byType[u.type].push(u);
+    });
+    
+    const saPsf: Record<string, number> = {};
+    const acPsf: Record<string, number> = {};
+    
+    Object.entries(byType).forEach(([type, units]) => {
+      const totalSellArea = units.reduce((s, u) => s + (parseFloat(u.sellArea) || 0), 0);
+      const totalAcArea = units.reduce((s, u) => s + (parseFloat(u.acArea) || 0), 0);
+      const totalPrice = units.reduce((s, u) => s + (u.finalTotalPrice || 0), 0);
+      
+      saPsf[type] = totalSellArea > 0 ? Math.round(totalPrice / totalSellArea) : 0;
+      acPsf[type] = totalAcArea > 0 ? Math.round(totalPrice / totalAcArea) : 0;
+    });
+    
+    return { saPsf, acPsf };
+  }, [data, pricingConfig]);
+
+  /* Initialize IMMUTABLE baseline - ONLY ONCE on first load or from import */
   useEffect(() => {
     if (!data.length || !pricingConfig?.bedroomTypePricing) return;
     
-    // Check if we have stored baselines in config (from import or previous session)
+    // Check if we already have valid baselines locked
+    if (hasInitializedRef.current && baselineRef.current && Object.keys(baselineRef.current.saPsf).length > 0) {
+      return; // LOCKED - don't recalculate
+    }
+    
+    // Priority 1: Use stored baselines from config (from import)
     const storedBaselines = pricingConfig.baselineAverages;
-    if (storedBaselines?.saPsf && storedBaselines?.acPsf && Object.keys(storedBaselines.saPsf).length > 0) {
-      // Use stored baselines - don't trigger onOptimized to prevent cascade
+    if (storedBaselines?.saPsf && Object.keys(storedBaselines.saPsf).length > 0) {
       baselineRef.current = storedBaselines;
       setBaselineAverages(storedBaselines);
-    } else if (!baselineRef.current || Object.keys(baselineRef.current.saPsf).length === 0) {
-      // Calculate initial baselines from data - only on first load
-      const baselines = calculateBaselineAverages(data, pricingConfig);
+      hasInitializedRef.current = true;
+      return;
+    }
+    
+    // Priority 2: Calculate from data (first load only)
+    const baselines = calculateBaselineAverages(data, pricingConfig);
+    if (Object.keys(baselines.saPsf).length > 0) {
       baselineRef.current = baselines;
       setBaselineAverages(baselines);
-      // NOTE: We do NOT call onOptimized here to prevent panel collapse cascade
-      // Baselines will be stored when user explicitly optimizes
+      hasInitializedRef.current = true;
     }
   }, [data.length, pricingConfig?.bedroomTypePricing?.length, pricingConfig?.baselineAverages]);
 
-  /* Update current averages when config changes */
-  useEffect(() => {
-    if (!data.length || !pricingConfig) return;
-    const current = calculateBaselineAverages(data, pricingConfig);
-    setCurrentAverages(current);
-  }, [data, pricingConfig]);
-
-  /* Initialize per-bedroom targets from current averages based on metric */
+  /* Initialize targets ONLY on metric change or first load - NOT on every config change */
   useEffect(() => {
     if (!pricingConfig?.bedroomTypePricing) return;
     
-    const targets: Record<string, number> = {};
-    const avgSource = metric === "sellArea" ? currentAverages.saPsf : currentAverages.acPsf;
+    const metricChanged = metric !== prevMetricRef.current;
+    const noTargetsYet = Object.keys(perBedroomTargets).length === 0;
     
-    pricingConfig.bedroomTypePricing.forEach((bt: any) => {
-      // Use current average PSF if available, otherwise use basePsf
-      targets[bt.type] = avgSource[bt.type] || bt.basePsf || 0;
-    });
-    setPerBedroomTargets(targets);
-  }, [pricingConfig?.bedroomTypePricing, metric, currentAverages]);
+    if (metricChanged || noTargetsYet) {
+      const targets: Record<string, number> = {};
+      const avgSource = metric === "sellArea" ? currentAverages.saPsf : currentAverages.acPsf;
+      
+      pricingConfig.bedroomTypePricing.forEach((bt: any) => {
+        targets[bt.type] = avgSource[bt.type] || bt.basePsf || 0;
+      });
+      setPerBedroomTargets(targets);
+      prevMetricRef.current = metric;
+    }
+  }, [metric, pricingConfig?.bedroomTypePricing?.length]);
 
   /* Sync metric with config */
   useEffect(() => {
@@ -191,28 +222,28 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     }
   }, [pricingConfig?.optimizePsfType]);
 
-  /* --------  PRE‑PROCESS UNITS (now via simulatePricing)  -------- */
+  /* PRE-PROCESS UNITS */
   useEffect(() => {
     if (!data.length || !pricingConfig) return;
     setProcessed(simulatePricing(data, pricingConfig));
   }, [data, pricingConfig]);
 
-  /* Handle metric change - update config */
-  const handleMetricChange = (newMetric: "sellArea" | "acArea") => {
+  /* Handle metric change */
+  const handleMetricChange = useCallback((newMetric: "sellArea" | "acArea") => {
     setMetric(newMetric);
     onOptimized({
       ...pricingConfig,
       optimizePsfType: newMetric,
     });
-  };
+  }, [pricingConfig, onOptimized]);
 
-  /* Handle per-bedroom target change */
-  const handlePerBedroomTargetChange = (type: string, value: number) => {
+  /* Handle per-bedroom target change - user controls input */
+  const handlePerBedroomTargetChange = useCallback((type: string, value: number) => {
     setPerBedroomTargets(prev => ({ ...prev, [type]: value }));
-  };
+  }, []);
 
   /* Optimize single bedroom type */
-  const handleOptimizeSingle = (type: string) => {
+  const handleOptimizeSingle = useCallback((type: string) => {
     const targetPsf = perBedroomTargets[type];
     if (!targetPsf || targetPsf <= 0) {
       toast.error(`Enter a valid target PSF for ${type}`);
@@ -222,91 +253,91 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     setAnimateNums(true);
     setHighlightedTypes([type]);
     
-    // Ensure baselines are stored in config when optimizing
-    const configWithBaselines = baselineRef.current && Object.keys(baselineRef.current.saPsf).length > 0
-      ? { ...pricingConfig, baselineAverages: baselineRef.current }
-      : pricingConfig;
-    
-    // Update pricingConfig with baselines before optimizing (if not already there)
-    if (!pricingConfig.baselineAverages && baselineRef.current) {
-      // This is a one-time store of baselines
-    }
-    
-    optimizeSingleBedroom(type, targetPsf, metric);
-    toast.success(`${type} optimized!`);
+    // Pass immutable baselines to optimizer (will store in config on first optimize)
+    optimizeSingleBedroom(type, targetPsf, metric, baselineRef.current || undefined);
+    toast.success(`${type} optimized to ${fmt(targetPsf, 0)} PSF`);
     
     setTimeout(() => {
       setAnimateNums(false);
       setHighlightedTypes([]);
     }, 2000);
-  };
+  }, [perBedroomTargets, metric, optimizeSingleBedroom]);
 
-  /* Revert single bedroom type to original baseline */
-  const handleRevertSingle = (type: string) => {
-    const baselineAvg = metric === "sellArea" 
-      ? baselineAverages.saPsf[type] 
-      : baselineAverages.acPsf[type];
-    
-    if (!baselineAvg) {
+  /* Revert single bedroom type to IMMUTABLE baseline */
+  const handleRevertSingle = useCallback((type: string) => {
+    if (!baselineRef.current) {
       toast.info(`No baseline found for ${type}`);
       return;
     }
     
-    revertSingleBedroom(type);
+    const baselineAvg = metric === "sellArea" 
+      ? baselineRef.current.saPsf[type] 
+      : baselineRef.current.acPsf[type];
+    
+    if (!baselineAvg) {
+      toast.info(`No baseline PSF for ${type}`);
+      return;
+    }
+    
+    // Pass immutable baselines to revert function
+    revertSingleBedroom(type, baselineRef.current);
     setPerBedroomTargets(prev => ({ ...prev, [type]: baselineAvg }));
-    toast.success(`${type} reverted to original baseline`);
-  };
+    toast.success(`${type} reverted to ${fmt(baselineAvg, 0)} PSF`);
+  }, [metric, revertSingleBedroom]);
 
-  /* Check if type has been modified */
-  const isTypeModified = (type: string) => {
-    const config = pricingConfig?.bedroomTypePricing?.find((b: any) => b.type === type);
-    if (!config) return false;
-    return config.originalBasePsf !== undefined && config.originalBasePsf !== config.basePsf;
-  };
+  /* Check if type has been modified from baseline */
+  const isTypeModified = useCallback((type: string) => {
+    if (!baselineRef.current) return false;
+    const currentAvg = metric === "sellArea" ? currentAverages.saPsf[type] : currentAverages.acPsf[type];
+    const baselineAvg = metric === "sellArea" ? baselineRef.current.saPsf[type] : baselineRef.current.acPsf[type];
+    return Math.abs(currentAvg - baselineAvg) > 1; // Allow 1 PSF tolerance
+  }, [metric, currentAverages]);
 
   /* Get original baseline for display */
-  const getBaselineForDisplay = (type: string): number => {
-    const baseline = metric === "sellArea" 
-      ? baselineAverages.saPsf[type] 
-      : baselineAverages.acPsf[type];
-    return baseline || 0;
-  };
+  const getBaselineForDisplay = useCallback((type: string): number => {
+    if (!baselineRef.current) return 0;
+    return metric === "sellArea" 
+      ? baselineRef.current.saPsf[type] || 0
+      : baselineRef.current.acPsf[type] || 0;
+  }, [metric]);
 
   /* helpers */
-  const currentOverall =
-    metric === "sellArea" ? currentOverallPsf : currentOverallAcPsf;
+  const currentOverall = metric === "sellArea" ? currentOverallPsf : currentOverallAcPsf;
 
   /* ────────────────── render ────────────────── */
   return (
-    <Card className="border-2 border-indigo-100 shadow-lg mb-6">
+    <Card className="border-0 shadow-xl mb-6 overflow-hidden animate-fade-in bg-gradient-to-br from-background via-background to-muted/30">
+      {/* Decorative gradient bar */}
+      <div className="h-1 bg-gradient-to-r from-primary via-purple-500 to-primary" />
+      
       {/* header */}
-      <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Sparkles className="w-6 h-6 text-indigo-500" />
-              Pricing Optimization &amp; Summary
+      <CardHeader className="bg-gradient-to-r from-primary/5 via-purple-500/5 to-primary/5 border-b border-border/50">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2.5 text-xl font-semibold tracking-tight">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-purple-600 text-primary-foreground shadow-lg shadow-primary/25">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              Pricing Optimization
             </CardTitle>
-            <CardDescription className="text-indigo-700">
-              Configure targets and view PSF breakdown
+            <CardDescription className="text-muted-foreground">
+              Configure target PSF and view live breakdown
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" className="w-8 h-8 rounded-full">
-                  <Info className="w-4 h-4" />
+                <Button variant="ghost" size="icon" className="w-8 h-8 rounded-full hover:bg-primary/10">
+                  <Info className="w-4 h-4 text-muted-foreground" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent className="max-w-[280px]">
-                Adjust individual bedroom type PSFs proportionally to hit your target while maintaining overall equilibrium.
+                Set target PSF for each bedroom type. The system adjusts Base PSF to achieve your target average.
               </TooltipContent>
             </Tooltip>
             {isOptimized && (
-              <Badge
-                variant="outline"
-                className="bg-green-50 text-green-700 border-green-200"
-              >
+              <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0 shadow-md shadow-emerald-500/25 animate-scale-in">
+                <Zap className="w-3 h-3 mr-1" />
                 Optimized
               </Badge>
             )}
@@ -315,55 +346,65 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
       </CardHeader>
 
       {/* content */}
-      <CardContent className="pt-6">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+      <CardContent className="pt-6 pb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT column */}
-          <div className="md:col-span-4 space-y-6">
-            {/* current PSF */}
-            <div className="rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 p-4 text-center shadow-md">
-              <h3 className="text-indigo-700 text-lg font-medium">
-                Current Overall PSF ({metric === "sellArea" ? "SA" : "AC"})
+          <div className="lg:col-span-4 space-y-5">
+            {/* current PSF display */}
+            <div className="relative rounded-xl bg-gradient-to-br from-primary/10 via-purple-500/10 to-primary/5 p-5 text-center shadow-inner overflow-hidden group hover-scale">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <h3 className="text-sm font-medium text-muted-foreground mb-1 uppercase tracking-wider">
+                Overall {metric === "sellArea" ? "SA" : "AC"} PSF
               </h3>
-              <p className="text-3xl font-bold text-indigo-900 flex justify-center items-center">
-                <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse mr-1" />
+              <p className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent flex justify-center items-center gap-2">
                 <SlotNumber v={currentOverall} anim={animateNums} />
-                <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse ml-1" />
               </p>
+              <div className="mt-2 text-xs text-muted-foreground">
+                Weighted average across all units
+              </div>
             </div>
 
             {/* PSF type selector */}
-            <div className="rounded-lg border border-indigo-100 p-4 bg-white">
-              <h3 className="text-sm font-medium text-indigo-700 mb-3">
-                Select PSF Type to Optimize
+            <div className="rounded-xl border border-border/50 p-4 bg-card/50 backdrop-blur-sm shadow-sm">
+              <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+                PSF Metric
               </h3>
               <div className="flex gap-2">
                 <Button
-                  className="flex-1"
+                  className={`flex-1 transition-all duration-200 ${
+                    metric === "sellArea" 
+                      ? "bg-gradient-to-r from-primary to-purple-600 text-primary-foreground shadow-md shadow-primary/25" 
+                      : "hover:bg-muted"
+                  }`}
                   size="sm"
                   variant={metric === "sellArea" ? "default" : "outline"}
                   onClick={() => handleMetricChange("sellArea")}
                 >
-                  SA PSF (Sell Area)
+                  SA PSF
                 </Button>
                 <Button
-                  className="flex-1"
+                  className={`flex-1 transition-all duration-200 ${
+                    metric === "acArea" 
+                      ? "bg-gradient-to-r from-primary to-purple-600 text-primary-foreground shadow-md shadow-primary/25" 
+                      : "hover:bg-muted"
+                  }`}
                   size="sm"
                   variant={metric === "acArea" ? "default" : "outline"}
                   onClick={() => handleMetricChange("acArea")}
                 >
-                  AC PSF (AC Area)
+                  AC PSF
                 </Button>
               </div>
             </div>
 
             {/* Per-bedroom PSF controls */}
-            <div className="rounded-lg border border-indigo-100 p-4 bg-white">
-              <h3 className="text-sm font-medium text-indigo-700 mb-3">
-                Target PSF by Bedroom Type ({metric === "sellArea" ? "SA" : "AC"})
+            <div className="rounded-xl border border-border/50 p-4 bg-card/50 backdrop-blur-sm shadow-sm">
+              <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+                Target by Bedroom ({metric === "sellArea" ? "SA" : "AC"})
               </h3>
-              <div className="space-y-3">
-                {bedroomTypes.map((t) => {
-                  const isModified = isTypeModified(t);
+              <div className="space-y-2.5">
+                {bedroomTypes.map((t, idx) => {
+                  const modified = isTypeModified(t);
                   const baselineValue = getBaselineForDisplay(t);
                   const currentAvg = metric === "sellArea" 
                     ? currentAverages.saPsf[t] 
@@ -372,62 +413,72 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
                   return (
                     <div
                       key={t}
-                      className={`p-3 text-sm rounded-md border transition-colors ${
-                        isModified
-                          ? "bg-blue-50/50 border-blue-200"
-                          : "bg-slate-50 border-slate-200"
+                      className={`p-3 rounded-lg border transition-all duration-300 animate-slide-up ${
+                        modified
+                          ? "bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/30 shadow-sm"
+                          : "bg-muted/30 border-border/50 hover:border-border"
                       }`}
+                      style={{ animationDelay: `${idx * 50}ms` }}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-[60px]">
-                          <span className="font-medium">{t}</span>
-                          {currentAvg > 0 && (
-                            <div className="text-xs text-muted-foreground">
-                              Avg: {fmt(currentAvg, 0)}
-                            </div>
-                          )}
+                        <div className="min-w-[70px]">
+                          <span className={`font-semibold text-sm ${modified ? "text-primary" : "text-foreground"}`}>
+                            {t}
+                          </span>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Avg: <span className={`font-medium ${modified ? "text-primary" : ""}`}>{fmt(currentAvg, 0)}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-1 justify-end">
+                        <div className="flex items-center gap-1.5 flex-1 justify-end">
                           <Input
                             type="number"
                             value={perBedroomTargets[t] || ""}
                             onChange={(e) => handlePerBedroomTargetChange(t, parseFloat(e.target.value) || 0)}
-                            className="h-8 w-24 text-right border-slate-300 focus:border-indigo-400"
+                            className="h-9 w-24 text-right font-medium border-border/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                             placeholder="PSF"
                           />
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                 size="sm"
-                                variant="outline"
-                                className="h-8 px-2 bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
+                                className="h-9 w-9 p-0 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:shadow-lg hover:shadow-primary/30"
                                 onClick={() => handleOptimizeSingle(t)}
                                 disabled={isOptimizing}
                               >
-                                <Play className="h-3 w-3" />
+                                <Play className="h-3.5 w-3.5" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Optimize {t}</TooltipContent>
+                            <TooltipContent>Apply target PSF for {t}</TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className={`h-8 px-2 ${isModified ? "text-blue-600 hover:bg-blue-100" : "text-slate-400 hover:bg-slate-100"}`}
+                                className={`h-9 w-9 p-0 transition-all duration-200 ${
+                                  modified 
+                                    ? "text-primary hover:bg-primary/10 hover:text-primary" 
+                                    : "text-muted-foreground hover:bg-muted"
+                                }`}
                                 onClick={() => handleRevertSingle(t)}
                                 disabled={!baselineValue}
                               >
-                                <RotateCcw className="h-3 w-3" />
+                                <RotateCcw className="h-3.5 w-3.5" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Revert {t} to baseline ({fmt(baselineValue, 0)})</TooltipContent>
+                            <TooltipContent>Revert to baseline ({fmt(baselineValue, 0)})</TooltipContent>
                           </Tooltip>
                         </div>
                       </div>
                       {baselineValue > 0 && (
-                        <div className={`text-xs mt-1 ${isModified ? "text-blue-600" : "text-slate-500"}`}>
-                          Original: {fmt(baselineValue, 0)} {metric === "sellArea" ? "SA" : "AC"} PSF
+                        <div className={`text-xs mt-2 pt-2 border-t border-border/30 ${
+                          modified ? "text-primary/70" : "text-muted-foreground"
+                        }`}>
+                          Original: {fmt(baselineValue, 0)} • {modified && (
+                            <span className="font-medium">
+                              Δ {currentAvg > baselineValue ? "+" : ""}{fmt(currentAvg - baselineValue, 0)}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -438,22 +489,28 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
           </div>
 
           {/* RIGHT column */}
-          <div className="md:col-span-8">
-            <PricingSummary
-              data={processed.length ? processed : data}
-              showDollarSign={false}
-              showAcPsf
-              highlightedTypes={highlightedTypes}
-            />
+          <div className="lg:col-span-8">
+            <div className="rounded-xl border border-border/50 overflow-hidden shadow-sm">
+              <PricingSummary
+                data={processed.length ? processed : data}
+                showDollarSign={false}
+                showAcPsf
+                highlightedTypes={highlightedTypes}
+              />
+            </div>
           </div>
         </div>
       </CardContent>
 
-      <CardFooter className="p-4 bg-gradient-to-r from-indigo-50/50 to-blue-50/50 rounded-b text-sm text-muted-foreground">
-        Base PSF optimization adjusts bedroom type PSF values proportionally to maintain overall equilibrium.
+      {/* footer */}
+      <CardFooter className="bg-muted/30 border-t border-border/50 py-3">
+        <p className="text-xs text-muted-foreground">
+          <span className="font-medium">How it works:</span> Set your target PSF, click <Play className="w-3 h-3 inline mx-0.5" /> to apply. 
+          The system adjusts Base PSF to achieve your target average. Use <RotateCcw className="w-3 h-3 inline mx-0.5" /> to revert to original.
+        </p>
       </CardFooter>
     </Card>
   );
 };
 
-export default MegaOptimize;
+export { MegaOptimize };

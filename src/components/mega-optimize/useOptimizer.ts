@@ -1,14 +1,19 @@
 /*  src/components/mega-optimize/useOptimizer.ts
-    Per-bedroom proportional optimizer with revert capability.
+    Per-bedroom optimizer with immutable baseline support.
     Fixed: Direct PSF targeting and proper baseline revert.
 */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   calculateOverallAveragePsf,
   calculateOverallAverageAcPsf,
   simulatePricing,
 } from "@/utils/psfOptimizer";
 import { toast } from "sonner";
+
+type Baselines = {
+  saPsf: Record<string, number>;
+  acPsf: Record<string, number>;
+};
 
 export const useOptimizer = (
   data: any[],
@@ -33,18 +38,8 @@ export const useOptimizer = (
     setIsOptimized(!!pricingConfig.isOptimized);
   }, [data, pricingConfig]);
 
-  /* ------------- Get original base PSF ------------- */
-  const getOriginalBasePsf = (type: string): number | null => {
-    const bt = pricingConfig?.bedroomTypePricing?.find((b: any) => b.type === type);
-    if (!bt) return null;
-    if (bt.originalBasePsf !== undefined && bt.originalBasePsf !== bt.basePsf) {
-      return bt.originalBasePsf;
-    }
-    return null;
-  };
-
   /* ------------- Calculate average premium for a bedroom type ------------- */
-  const calculateAveragePremium = (
+  const calculateAveragePremium = useCallback((
     type: string,
     psfType: "sellArea" | "acArea"
   ): number => {
@@ -73,13 +68,14 @@ export const useOptimizer = (
     });
     
     return totalArea > 0 ? totalWeightedPremium / totalArea : 0;
-  };
+  }, [data, pricingConfig]);
 
   /* ------------- DIRECT SINGLE-BEDROOM OPTIMIZER ------------- */
-  const optimizeSingleBedroom = (
+  const optimizeSingleBedroom = useCallback((
     targetType: string,
     newTargetPsf: number,
-    psfType: "sellArea" | "acArea" = "sellArea"
+    psfType: "sellArea" | "acArea" = "sellArea",
+    baselines?: Baselines
   ) => {
     setIsOptimizing(true);
     try {
@@ -108,8 +104,10 @@ export const useOptimizer = (
       });
       
       // Build new config with direct basePsf adjustment
+      // Include baselines if provided and not already in config
       const newConfig = {
         ...pricingConfig,
+        baselineAverages: pricingConfig.baselineAverages || baselines,
         bedroomTypePricing: pricingConfig.bedroomTypePricing.map((b: any) => {
           if (b.type === targetType) {
             return {
@@ -140,23 +138,22 @@ export const useOptimizer = (
     } finally {
       setIsOptimizing(false);
     }
-  };
+  }, [pricingConfig, data, onOptimized, calculateAveragePremium]);
 
-  /* ------------- REVERT SINGLE BEDROOM TO BASELINE ------------- */
-  const revertSingleBedroom = (type: string) => {
+  /* ------------- REVERT SINGLE BEDROOM TO IMMUTABLE BASELINE ------------- */
+  const revertSingleBedroom = useCallback((type: string, baselines: Baselines) => {
     const bt = pricingConfig?.bedroomTypePricing?.find((b: any) => b.type === type);
     if (!bt) return;
     
-    // Get baseline averages from config
-    const baselineAverages = pricingConfig.baselineAverages;
     const psfType = pricingConfig.optimizePsfType || "sellArea";
     
-    // Get the baseline average PSF for this type
+    // Get the IMMUTABLE baseline average PSF for this type
     const baselineAvgPsf = psfType === "sellArea"
-      ? baselineAverages?.saPsf?.[type]
-      : baselineAverages?.acPsf?.[type];
+      ? baselines.saPsf[type]
+      : baselines.acPsf[type];
     
     if (!baselineAvgPsf) {
+      console.warn("No baseline found for type:", type);
       // Fallback to originalBasePsf if no baseline averages
       const fallbackBasePsf = bt.originalBasePsf ?? bt.basePsf;
       
@@ -194,7 +191,7 @@ export const useOptimizer = (
     // Calculate what basePsf should be to achieve baseline average PSF
     const revertedBasePsf = Math.max(100, baselineAvgPsf - avgPremium);
     
-    console.log("Revert to baseline:", {
+    console.log("Revert to immutable baseline:", {
       type,
       baselineAvgPsf,
       avgPremium,
@@ -227,7 +224,7 @@ export const useOptimizer = (
     setCurrentOverallPsf(calculateOverallAveragePsf(data, newConfig));
     setCurrentOverallAcPsf(calculateOverallAverageAcPsf(data, newConfig));
     setIsOptimized(stillOptimized);
-  };
+  }, [pricingConfig, data, onOptimized, calculateAveragePremium]);
 
   return {
     isOptimizing,
@@ -236,6 +233,5 @@ export const useOptimizer = (
     currentOverallAcPsf,
     optimizeSingleBedroom,
     revertSingleBedroom,
-    getOriginalBasePsf,
   };
 };
