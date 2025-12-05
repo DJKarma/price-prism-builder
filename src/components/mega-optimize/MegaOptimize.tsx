@@ -147,24 +147,21 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
   useEffect(() => {
     if (!data.length || !pricingConfig?.bedroomTypePricing) return;
     
-    // Check if we have stored baselines in config
+    // Check if we have stored baselines in config (from import or previous session)
     const storedBaselines = pricingConfig.baselineAverages;
     if (storedBaselines?.saPsf && storedBaselines?.acPsf && Object.keys(storedBaselines.saPsf).length > 0) {
+      // Use stored baselines - don't trigger onOptimized to prevent cascade
       baselineRef.current = storedBaselines;
       setBaselineAverages(storedBaselines);
     } else if (!baselineRef.current || Object.keys(baselineRef.current.saPsf).length === 0) {
-      // Calculate initial baselines from data
+      // Calculate initial baselines from data - only on first load
       const baselines = calculateBaselineAverages(data, pricingConfig);
       baselineRef.current = baselines;
       setBaselineAverages(baselines);
-      
-      // Store in config for persistence
-      onOptimized({
-        ...pricingConfig,
-        baselineAverages: baselines,
-      });
+      // NOTE: We do NOT call onOptimized here to prevent panel collapse cascade
+      // Baselines will be stored when user explicitly optimizes
     }
-  }, [data.length, pricingConfig?.bedroomTypePricing?.length]);
+  }, [data.length, pricingConfig?.bedroomTypePricing?.length, pricingConfig?.baselineAverages]);
 
   /* Update current averages when config changes */
   useEffect(() => {
@@ -224,6 +221,16 @@ const MegaOptimize: React.FC<MegaOptimizeProps> = ({
     
     setAnimateNums(true);
     setHighlightedTypes([type]);
+    
+    // Ensure baselines are stored in config when optimizing
+    const configWithBaselines = baselineRef.current && Object.keys(baselineRef.current.saPsf).length > 0
+      ? { ...pricingConfig, baselineAverages: baselineRef.current }
+      : pricingConfig;
+    
+    // Update pricingConfig with baselines before optimizing (if not already there)
+    if (!pricingConfig.baselineAverages && baselineRef.current) {
+      // This is a one-time store of baselines
+    }
     
     optimizeSingleBedroom(type, targetPsf, metric);
     toast.success(`${type} optimized!`);

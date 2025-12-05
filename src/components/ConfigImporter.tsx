@@ -69,7 +69,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
     // 1) Deep copy your current config so we don't mutate it
     const merged = JSON.parse(JSON.stringify(currentConfig));
 
-    // 2) Bedroom types mapping… (unchanged)
+    // 2) Bedroom types mapping
     if (
       merged.bedroomTypePricing &&
       importedConfig.bedroomTypePricing &&
@@ -87,14 +87,22 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
               ...Object.fromEntries(
                 Object.entries(imp).filter(([k]) => k !== "type")
               ),
+              // IMPORTANT: Clear optimization state so imported basePsf becomes the new baseline
+              originalBasePsf: undefined,
+              targetAvgPsf: undefined,
             };
           }
         }
-        return item;
+        return {
+          ...item,
+          // Clear optimization state for unmapped types too
+          originalBasePsf: undefined,
+          targetAvgPsf: undefined,
+        };
       });
     }
 
-    // 3) View pricing mapping… (unchanged)
+    // 3) View pricing mapping
     if (
       merged.viewPricing &&
       importedConfig.viewPricing &&
@@ -114,7 +122,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
       });
     }
 
-    // 4) Additional categories mapping… (unchanged)
+    // 4) Additional categories mapping
     if (
       Array.isArray(merged.additionalCategoryPricing) &&
       Array.isArray(importedConfig.additionalCategoryPricing) &&
@@ -139,7 +147,7 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
       );
     }
 
-    // 5) Scalars (basePsf, maxFloor, targetOverallPsf) mapping… (unchanged)
+    // 5) Scalars (basePsf, maxFloor, targetOverallPsf) mapping
     if (mappings.scalarFields) {
       const scalarMappings = mappings.scalarFields as Record<string, string>;
       for (const [cur, impField] of Object.entries(scalarMappings)) {
@@ -168,14 +176,14 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
       );
     }
 
-    // ── NEW ── 7) Balcony
+    // 7) Balcony
     if (mappings.importBalcony && importedConfig.balconyPricing) {
       merged.balconyPricing = {
         ...importedConfig.balconyPricing,
       };
     }
 
-    // ── NEW ── 8) Flat-price adders
+    // 8) Flat-price adders
     if (
       mappings.importFlatAdders &&
       Array.isArray(importedConfig.flatPriceAdders)
@@ -183,25 +191,34 @@ const ConfigImporter: React.FC<ConfigImporterProps> = ({
       merged.flatPriceAdders = importedConfig.flatPriceAdders;
     }
 
-    // ── NEW ── 9) Project Cost
+    // 9) Project Cost
     if (mappings.importProjectCost && typeof importedConfig.projectCost === 'number') {
       merged.projectCost = importedConfig.projectCost;
     }
 
-    // ── NEW ── 10) Target Margins
+    // 10) Target Margins
     if (mappings.importTargetMargins && importedConfig.targetMargins) {
       merged.targetMargins = importedConfig.targetMargins;
     }
 
-    // ── NEW ── 11) Original Base PSFs
+    // 11) Original Base PSFs
     if (mappings.importOriginalBasePsfs && importedConfig.originalBasePsfs) {
       merged.originalBasePsfs = importedConfig.originalBasePsfs;
     }
 
-    // ── NEW ── 12) Preserve current UI state (not from import)
+    // 12) Import baseline averages if available
+    if (importedConfig.baselineAverages) {
+      merged.baselineAverages = importedConfig.baselineAverages;
+    }
+
+    // 13) Preserve current UI state (not from import) - prevents panel collapse
     merged._activeSimTab = currentConfig._activeSimTab ?? 'configuration';
     merged._activeOptTab = currentConfig._activeOptTab ?? 'psf';
     merged.marginOptimizerOpen = currentConfig.marginOptimizerOpen ?? false;
+
+    // 14) CRITICAL: Reset optimization state so imported config becomes new baseline
+    merged.optimizedTypes = [];
+    merged.isOptimized = false;
 
     // Validate the merged configuration before applying
     const validationResult = validateConfigStructure(merged);
